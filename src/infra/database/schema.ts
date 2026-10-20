@@ -312,6 +312,10 @@ export const documento = pgTable(
     confiancaMedia: real("confianca_media"),
     /** Saída do modelo já validada pelo esquema Zod, guardada para auditoria. */
     extracaoJson: jsonb("extracao_json"),
+    /** Divergências achadas pelas conferências em código (soma, CNPJ, data...), uma por item da lista. */
+    motivosValidacao: jsonb("motivos_validacao")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     erro: text("erro"),
     criadoEm: criadoEm(),
     processadoEm: timestamp("processado_em", { withTimezone: true }),

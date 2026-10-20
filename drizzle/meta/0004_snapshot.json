@@ -1,5 +1,5 @@
 {
-  "id": "6efac430-3d33-430c-9358-46bbc8bebf2b",
+  "id": "047ab0d6-14fc-41df-b285-44e7a0f8d11a",
   "prevId": "77f35495-9ac1-4796-988b-aeeec1db15a1",
   "version": "7",
   "dialect": "postgresql",
@@ -855,6 +855,13 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
+        },
+        "motivos_validacao": {
+          "name": "motivos_validacao",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "erro": {
           "name": "erro",

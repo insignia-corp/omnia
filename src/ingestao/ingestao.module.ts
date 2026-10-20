@@ -14,6 +14,8 @@ import { carregarPromptExtrator } from "./extracao/prompt-extrator";
 import { DocumentosController } from "./documentos.controller";
 import { DocumentosService } from "./documentos.service";
 import { PerguntasController } from "./perguntas.controller";
+import { PlanilhasController } from "./planilhas.controller";
+import { PlanilhasService } from "./planilhas.service";
 import { FilaExtracao, PROCESSADOR_EXTRACAO } from "./fila/fila-extracao";
 import { ProcessadorExtracao } from "./processador-extracao";
 
@@ -27,10 +29,11 @@ export const CLIENTE_VISAO = Symbol("CLIENTE_VISAO");
       useFactory: (env: Env) => ({ limits: { fileSize: env.UPLOAD_MAX_BYTES, files: 1 } }),
     }),
   ],
-  controllers: [DocumentosController, PerguntasController],
+  controllers: [DocumentosController, PerguntasController, PlanilhasController],
   providers: [
     SessaoGuard,
     DocumentosService,
+    PlanilhasService,
     FilaExtracao,
     {
       provide: ARMAZENAMENTO,

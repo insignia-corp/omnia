@@ -107,6 +107,8 @@ export class DocumentosService {
       confianca_media: doc.confiancaMedia,
       motivos: doc.motivosValidacao,
       erro: doc.erro,
+      // Relatório da importação (linhas lidas, rejeitadas...); nas fotos o JSON é a própria nota.
+      importacao: doc.tipo === "planilha" ? doc.extracaoJson : null,
       processado_em: doc.processadoEm,
       compra: c
         ? {

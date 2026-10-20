@@ -1,6 +1,52 @@
 # Fluxo do agente
 
-Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado atual: núcleo do agente pronto; as ferramentas de dados entram com as métricas (issues #50 a #53).
+Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado atual: núcleo do agente pronto; as ferramentas de dados entram com as métricas (issues #50 a #53). A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
+
+## Dois agentes e um orquestrador em código
+
+- **Extrator** (visão, sem ferramentas): foto da nota para JSON validado por Zod. Roda como job de ingestão, antes do loop abaixo.
+- **Analista** (o loop abaixo): escolhe os alertas, responde perguntas e escreve a mensagem, com o verificador no fim.
+- **Orquestrador**: código (BullMQ e PostgreSQL), não um agente. Decide ordem, limites, idempotência e resolve a confirmação "sim" do dono sem modelo.
+
+```mermaid
+flowchart TB
+  foto["Foto da nota<br/>chat web ou WhatsApp"]
+  job["Job diário<br/>1 proativa por dia"]
+  msg["Mensagem do dono<br/>pergunta ou sim"]
+  orq["Orquestrador<br/>código TypeScript, sem modelo<br/>jobs BullMQ, idempotência, sessão, confirmação do sim"]
+
+  ext["Extrator<br/>claude-sonnet-5-5, visão, sem ferramentas"]
+  val["Validações em código<br/>Zod, soma, CNPJ e data"]
+  alr["Motor de alertas<br/>candidatos com impacto em reais"]
+
+  ana["Analista<br/>claude-sonnet-5-5, padrão proposto<br/>esforço low na conversa, medium no relatório"]
+  fer["Ferramentas, código, até 12<br/>margem, custos, alertas e simulação"]
+  ver["Verificador de números, código<br/>bloqueia e manda reescrever"]
+  dono["Dono<br/>chat web ou WhatsApp"]
+
+  foto --> orq
+  job --> orq
+  msg --> orq
+  orq -->|nota| ext --> val --> alr
+  orq -->|relatório, pergunta ou nota em conversa| ana
+  alr -->|candidatos| fer
+  ana <--> fer
+  ana --> ver
+  ver -->|bloqueou, reescreve| ana
+  ver -->|aprovada| dono
+  val -.->|item abaixo de 0,8, pergunta montada pelo código| dono
+
+  classDef llm fill:#EEEDFE,stroke:#534AB7,color:#26215C
+  classDef cod fill:#E1F5EE,stroke:#0F6E56,color:#04342C
+  classDef io fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A
+  class ext,ana llm
+  class orq,val,alr,fer,ver cod
+  class foto,job,msg,dono io
+```
+
+Roxo: agente com modelo de linguagem. Verde: código determinístico. Cinza: entrada e saída. A arquitetura de módulos e dados está em [arquitetura.md](arquitetura.md).
+
+O diagrama a seguir detalha o loop do Analista.
 
 ## Visão geral
 

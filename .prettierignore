@@ -4,3 +4,4 @@ drizzle
 node_modules
 package-lock.json
 *.md
+fixtures

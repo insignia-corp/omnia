@@ -1,0 +1,51 @@
+{
+  "fornecedor": {
+    "nome": "Brilho Higiene e Limpeza Ltda",
+    "cnpj": "40913276000185"
+  },
+  "data_emissao": "2026-10-02",
+  "itens": [
+    {
+      "descricao": "DETERG LIQ 500ML",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 190,
+      "valor_total_centavos": 2280,
+      "confianca": 1
+    },
+    {
+      "descricao": "AGUA SANIT 1L",
+      "quantidade": 6,
+      "unidade": "UN",
+      "valor_unitario_centavos": 210,
+      "valor_total_centavos": 1260,
+      "confianca": 1
+    },
+    {
+      "descricao": "PAPEL HIG F.DUPLA 4RL",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 690,
+      "valor_total_centavos": 8280,
+      "confianca": 1
+    },
+    {
+      "descricao": "SABONETE 85G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 120,
+      "valor_total_centavos": 2880,
+      "confianca": 1
+    },
+    {
+      "descricao": "CREME DENTAL 90G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 210,
+      "valor_total_centavos": 2520,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 17220,
+  "confianca_documento": 1
+}

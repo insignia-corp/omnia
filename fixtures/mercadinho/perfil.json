@@ -1,0 +1,14 @@
+{
+  "nome": "Mercadinho Vila Nova",
+  "tipo_comercio": "mercadinho",
+  "cidade": "Goiânia",
+  "uf": "GO",
+  "horario_funcionamento": {
+    "abre": "07:00",
+    "fecha": "22:00",
+    "dias": "todos"
+  },
+  "margem_meta_bps": 2500,
+  "telefone_whatsapp": "5562900000000",
+  "saldo_inicial_conta_centavos": 4500000
+}

@@ -34,7 +34,9 @@
     "drizzle-kit": "0.31.11",
     "eslint": "10.13.0",
     "eslint-config-prettier": "10.1.8",
+    "exceljs": "4.4.0",
     "jest": "30.5.2",
+    "jszip": "3.10.2",
     "pino-pretty": "13.2.0",
     "prettier": "3.9.10",
     "supertest": "7.3.1",
@@ -53,8 +55,11 @@
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:cov": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
     "test:e2e": "node --env-file-if-exists=.env --experimental-vm-modules ./node_modules/jest/bin/jest.js -c jest.e2e.config.js --runInBand",
+    "fixtures:gerar": "tsx scripts/fixtures/gerar-tudo.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/infra/database/migrar.ts",
-    "db:reset": "tsx src/infra/database/resetar.ts && tsx src/infra/database/migrar.ts"
+    "db:seed": "tsx src/infra/database/seed/semear.ts",
+    "db:reset": "tsx src/infra/database/resetar.ts && tsx src/infra/database/migrar.ts",
+    "seed:demo": "npm run db:reset && npm run db:seed"
   }
 }

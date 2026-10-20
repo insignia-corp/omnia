@@ -1,0 +1,35 @@
+{
+  "fornecedor": {
+    "nome": "Laticínios Vale Verde S.A.",
+    "cnpj": "18204965000161"
+  },
+  "data_emissao": "2026-10-17",
+  "itens": [
+    {
+      "descricao": "LEITE UHT INTEG 1L",
+      "quantidade": 72,
+      "unidade": "UN",
+      "valor_unitario_centavos": 380,
+      "valor_total_centavos": 27360,
+      "confianca": 1
+    },
+    {
+      "descricao": "IOGURTE MORANGO 170G",
+      "quantidade": 18,
+      "unidade": "UN",
+      "valor_unitario_centavos": 150,
+      "valor_total_centavos": 2700,
+      "confianca": 1
+    },
+    {
+      "descricao": "CREME LEITE 200G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 280,
+      "valor_total_centavos": 3360,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 33420,
+  "confianca_documento": 1
+}

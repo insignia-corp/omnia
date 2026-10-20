@@ -1,0 +1,35 @@
+{
+  "fornecedor": {
+    "nome": "Atacado Mix Goiás Ltda",
+    "cnpj": "29348650000104"
+  },
+  "data_emissao": "2026-09-25",
+  "itens": [
+    {
+      "descricao": "ARROZ BCO T1 5KG",
+      "quantidade": 10,
+      "unidade": "UN",
+      "valor_unitario_centavos": 2650,
+      "valor_total_centavos": 26500,
+      "confianca": 1
+    },
+    {
+      "descricao": "OVOS BRANCOS 12UN",
+      "quantidade": 36,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1100,
+      "valor_total_centavos": 39600,
+      "confianca": 1
+    },
+    {
+      "descricao": "PILHA ALC AA C/2",
+      "quantidade": 6,
+      "unidade": "UN",
+      "valor_unitario_centavos": 590,
+      "valor_total_centavos": 3540,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 70880,
+  "confianca_documento": 0.5
+}

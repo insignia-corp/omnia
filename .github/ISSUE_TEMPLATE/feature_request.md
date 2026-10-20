@@ -1,11 +1,17 @@
 ---
 name: Feature
 about: Sugerir uma funcionalidade
-labels: enhancement
+labels: tipo:feature
 ---
 
-**Problema / motivação**
+Épico: #
 
-**Solução proposta**
+## Contexto
 
-**Alternativas consideradas**
+## Tarefas
+- [ ]
+
+## Critério de pronto
+- [ ]
+
+**Tamanho estimado:** P / M / G

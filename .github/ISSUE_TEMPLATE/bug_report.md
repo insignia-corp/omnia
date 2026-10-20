@@ -1,7 +1,7 @@
 ---
 name: Bug
 about: Reportar um problema
-labels: bug
+labels: tipo:bug
 ---
 
 **Descrição**
@@ -12,3 +12,5 @@ labels: bug
 **Comportamento esperado**
 
 **Comportamento atual**
+
+**Fere alguma regra inviolável do CLAUDE.md?** (número inventado, dado de outro lojista, valor em ponto flutuante...)

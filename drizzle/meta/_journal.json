@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792464037620,
+      "tag": "0000_extensoes",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792464038339,
+      "tag": "0001_nucleo_agente",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792506101437,
+      "tag": "0002_modelo_de_dados",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792506102867,
+      "tag": "0003_historico_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792527405093,
+      "tag": "0004_vinculos_execucao_e_id_externo",
+      "breakpoints": true
+    }
+  ]
+}

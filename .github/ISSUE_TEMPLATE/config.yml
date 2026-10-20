@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Guia de desenvolvimento
+    url: https://github.com/outz1/omnia/blob/develop/docs/guia-desenvolvimento.md
+    about: Roteiro por etapas, modelo de dados, métricas e agente

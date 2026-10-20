@@ -32,9 +32,11 @@ O trabalho está organizado em [milestones](https://github.com/outz1/omnia/miles
 | 7. Avaliação | Metas da avaliação atingidas |
 | 8. Piloto e demo | Um lojista responde "estou lucrando em cima do que mais vende?" em menos de um minuto |
 
+Prazo: congelamento do código no **sábado 24/10/2026 às 15h30** ([alertas do hackathon](docs/alertas-hackathon.md)).
+
 Trilhas paralelas: **Segurança e LGPD**, **Validação e negócio** (entrevistas, custos, concorrentes) e **Pitch e equipe**.
 
-Acompanhe o andamento no [quadro do projeto](https://github.com/users/outz1/projects) e veja como escolher e abrir issues no [CONTRIBUTING](CONTRIBUTING.md).
+Acompanhe o andamento no [quadro do projeto](https://github.com/users/outz1/projects/1) e veja como escolher e abrir issues no [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Estrutura do repositório
 
@@ -54,6 +56,7 @@ Disponível ao final da Etapa 0. Enquanto isso, veja as issues do milestone [Eta
 
 - [Guia de desenvolvimento](docs/guia-desenvolvimento.md): arquitetura, etapas, modelo de dados, métricas, agente, avaliação, segurança
 - [Contexto do hackathon](docs/contexto-hackathon.md): critérios da banca, persona, viabilidade, custos, riscos
+- [Alertas do hackathon](docs/alertas-hackathon.md): prazo, escopo e critérios da banca (seção 9.4 do edital)
 - [CLAUDE.md](CLAUDE.md): regras invioláveis e convenções do projeto
 
 ## Equipe

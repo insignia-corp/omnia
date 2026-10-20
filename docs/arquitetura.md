@@ -78,7 +78,7 @@ Roxo: módulo com modelo de linguagem. Verde: código determinístico. Cinza: ca
 
 | Papel | Modelo | Observação |
 | --- | --- | --- |
-| Extrator | `claude-sonnet-5-5` | Visão, sem ferramentas. Variável `EXTRATOR_MODELO` (a criar) |
+| Extrator | `claude-sonnet-5-5` | Visão, sem ferramentas. Variável `EXTRATOR_MODELO` |
 | Analista | `claude-sonnet-5-5` | `claude-opus-5-5` só se o eval mostrar ganho. `LLM_MODELO` e `LLM_ESFORCO` |
 | Orquestrador e verificador | Nenhum | Código |
 

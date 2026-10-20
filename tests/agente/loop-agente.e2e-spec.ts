@@ -8,7 +8,6 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { z } from "zod";
 import { AgenteService, FALLBACK } from "../../src/agente/agente.service";
-import { ConversaService } from "../../src/agente/conversa/conversa.service";
 import { carregarHistorico } from "../../src/agente/conversa/historico";
 import { RegistroExecucoesPostgres } from "../../src/agente/execucao/registro-execucoes";
 import { definirFerramenta } from "../../src/agente/ferramentas/ferramenta";
@@ -281,13 +280,17 @@ describe("loop do agente com banco real (e2e)", () => {
       expect(JSON.stringify(await carregarHistorico(db, a, 10))).not.toContain("outro lojista");
     });
 
-    it("ConversaService passa o histórico ao agente e a resposta cita número da conversa sem bloqueio", async () => {
+    it("o histórico carregado entra no pedido do agente e a resposta cita número da conversa sem bloqueio", async () => {
       const modelo = new ModeloRoteirizado([texto("Como falei, subiu 12,05%.")]);
-      const conversa = new ConversaService(montar(modelo), db, 10);
-      const r = await conversa.responder({ contexto: contexto(a), texto: "Quanto foi mesmo?" });
+      const historico = await carregarHistorico(db, a, 10);
+      const r = await montar(modelo).executar({
+        contexto: contexto(a),
+        gatilho: "mensagem_dono",
+        entrada: "Quanto foi mesmo?",
+        historico,
+      });
       expect(r.resultado).toBe("aprovada");
-      const enviadas = modelo.pedidos[0]!.messages.map((m) => m.role);
-      expect(enviadas[0]).toBe("user");
+      expect(modelo.pedidos[0]!.messages[0]!.role).toBe("user");
       expect(JSON.stringify(modelo.pedidos[0]!.messages)).toContain("O arroz subiu 12,05%.");
       expect(JSON.stringify(modelo.pedidos[0]!.messages)).not.toContain("outro lojista");
       expect(r.mensagem).not.toBe(FALLBACK.erro);

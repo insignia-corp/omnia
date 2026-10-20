@@ -11,7 +11,6 @@ import {
   RegistroExecucoesPostgres,
   type RegistroExecucoes,
 } from "./execucao/registro-execucoes";
-import { ConversaService } from "./conversa/conversa.service";
 import { montarCatalogo } from "./ferramentas/catalogo";
 import { RegistroFerramentas } from "./ferramentas/registro-ferramentas";
 import { ModeloAnthropic } from "./llm/modelo-anthropic";
@@ -31,12 +30,6 @@ import { carregarPromptSistema } from "./prompts/prompt-sistema";
       useFactory: (db: Db) => new RegistroFerramentas(montarCatalogo({ db })),
     },
     { provide: REGISTRO_EXECUCOES, inject: [DB], useFactory: (db: Db) => new RegistroExecucoesPostgres(db) },
-    {
-      provide: ConversaService,
-      inject: [ENV, DB, AgenteService],
-      useFactory: (env: Env, db: Db, agente: AgenteService) =>
-        new ConversaService(agente, db, env.AGENTE_HISTORICO_TURNOS),
-    },
     {
       provide: AgenteService,
       inject: [ENV, MODELO_LINGUAGEM, RegistroFerramentas, REGISTRO_EXECUCOES],
@@ -58,6 +51,6 @@ import { carregarPromptSistema } from "./prompts/prompt-sistema";
         }),
     },
   ],
-  exports: [AgenteService, ConversaService, RegistroFerramentas],
+  exports: [AgenteService, RegistroFerramentas],
 })
 export class AgenteModule {}

@@ -13,6 +13,9 @@ export interface TurnoConversa {
  * guarda estado). As mensagens do assistente já passaram pelo verificador ou são fallback sem número.
  * O mais antigo primeiro; só o comerciante da sessão. `excluirMensagemId` tira a mensagem que está
  * sendo respondida, caso o canal já a tenha gravado: ela entra no pedido, não no histórico.
+ *
+ * Quem chama é o canal (modo conversa, plano C): grava a mensagem recebida, carrega o histórico com
+ * `AGENTE_HISTORICO_TURNOS` e passa o resultado em `PedidoAgente.historico`.
  */
 export async function carregarHistorico(
   db: Executor,

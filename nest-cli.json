@@ -5,6 +5,9 @@
   "compilerOptions": {
     "tsConfigPath": "tsconfig.build.json",
     "deleteOutDir": true,
-    "assets": [{ "include": "agente/prompts/*.md", "watchAssets": true }]
+    "assets": [
+      { "include": "agente/prompts/*.md", "watchAssets": true },
+      { "include": "ingestao/extracao/*.md", "watchAssets": true }
+    ]
   }
 }

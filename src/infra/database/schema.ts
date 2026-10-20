@@ -63,6 +63,7 @@ export const gatilhoExecucao = pgEnum("gatilho_execucao", [
   "relatorio_diario",
   "mensagem_dono",
   "nota_processada",
+  "extracao_nota",
 ]);
 export const resultadoExecucao = pgEnum("resultado_execucao", [
   "aprovada",
@@ -100,7 +101,10 @@ export const execucaoAgente = pgTable(
     erro: text("erro"),
     criadoEm: criadoEm(),
   },
-  (t) => [index("execucao_agente_comerciante_idx").on(t.comercianteId, t.criadoEm)],
+  (t) => [
+    unique("execucao_agente_id_comerciante_uq").on(t.id, t.comercianteId),
+    index("execucao_agente_comerciante_idx").on(t.comercianteId, t.criadoEm),
+  ],
 );
 
 /** Cada chamada de ferramenta feita pelo agente, em ordem (tela de bastidores e auditoria). */
@@ -108,9 +112,7 @@ export const chamadaFerramenta = pgTable(
   "chamada_ferramenta",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    execucaoId: uuid("execucao_id")
-      .notNull()
-      .references(() => execucaoAgente.id, { onDelete: "cascade" }),
+    execucaoId: uuid("execucao_id").notNull(),
     comercianteId: uuid("comerciante_id")
       .notNull()
       .references(() => comerciante.id, { onDelete: "cascade" }),
@@ -123,7 +125,15 @@ export const chamadaFerramenta = pgTable(
     latenciaMs: integer("latencia_ms").notNull(),
     criadoEm: criadoEm(),
   },
-  (t) => [index("chamada_ferramenta_execucao_idx").on(t.execucaoId, t.ordem)],
+  (t) => [
+    // Chave composta: a chamada só pode apontar para execução do mesmo comerciante.
+    foreignKey({
+      name: "chamada_ferramenta_execucao_fk",
+      columns: [t.execucaoId, t.comercianteId],
+      foreignColumns: [execucaoAgente.id, execucaoAgente.comercianteId],
+    }).onDelete("cascade"),
+    index("chamada_ferramenta_execucao_idx").on(t.execucaoId, t.ordem),
+  ],
 );
 
 /* ----------------------------------------------------------------------------------------------
@@ -165,6 +175,7 @@ export const categoriaTemplate = pgEnum("categoria_template", [
 export const tipoPergunta = pgEnum("tipo_pergunta", [
   "confirmar_item",
   "confirmar_vinculo",
+  "confirmar_documento",
   "informar_custo",
   "confirmar_acao",
 ]);
@@ -311,6 +322,10 @@ export const documento = pgTable(
     confiancaMedia: real("confianca_media"),
     /** Saída do modelo já validada pelo esquema Zod, guardada para auditoria. */
     extracaoJson: jsonb("extracao_json"),
+    /** Divergências achadas pelas conferências em código (soma, CNPJ, data...), uma por item da lista. */
+    motivosValidacao: jsonb("motivos_validacao")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     erro: text("erro"),
     criadoEm: criadoEm(),
     processadoEm: timestamp("processado_em", { withTimezone: true }),
@@ -440,8 +455,9 @@ export const vinculoDescricaoProduto = pgTable(
 );
 
 /**
- * Histórico de custo por produto, fornecedor e data. Append-only: uma linha por item de compra,
- * nunca atualizada nem apagada (só a exclusão do lojista apaga). Alimenta margem e variação de
+ * Histórico de custo por produto, fornecedor e data. Append-only: nunca atualizada nem apagada
+ * (só a exclusão do lojista apaga). Uma linha por leitura do item; quando o dono corrige o custo
+ * entra uma linha nova e vale a mais recente do item. Alimenta margem e variação de
  * custo, e é o ativo próprio de dados do projeto.
  */
 export const historicoCusto = pgTable(
@@ -459,7 +475,6 @@ export const historicoCusto = pgTable(
     criadoEm: criadoEm(),
   },
   (t) => [
-    unique("historico_custo_item_uq").on(t.itemDeCompraId),
     foreignKey({
       name: "historico_custo_produto_fk",
       columns: [t.produtoId, t.comercianteId],
@@ -476,6 +491,8 @@ export const historicoCusto = pgTable(
       foreignColumns: [itemDeCompra.id, itemDeCompra.comercianteId],
     }),
     index("historico_custo_busca_idx").on(t.comercianteId, t.produtoId, t.fornecedorId, t.data),
+    // Várias linhas por item: a correção do dono insere uma nova e vale a mais recente.
+    index("historico_custo_item_idx").on(t.itemDeCompraId, t.criadoEm),
     check("historico_custo_nao_negativo", sql`${t.custoUnitarioCentavos} >= 0`),
     confiancaNaFaixa("historico_custo_confianca_faixa", t.confianca),
   ],
@@ -484,6 +501,22 @@ export const historicoCusto = pgTable(
 /* ----------------------------------------------------------------------------------------------
  * Vendas
  * -------------------------------------------------------------------------------------------- */
+
+/** Mapeamento de colunas de uma planilha de vendas, confirmado pelo dono uma única vez. */
+export const mapeamentoPlanilha = pgTable(
+  "mapeamento_planilha",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    comercianteId: comercianteId(),
+    /** Cabeçalhos normalizados e ordenados, unidos: identifica o "formato" da planilha. */
+    assinatura: text("assinatura").notNull(),
+    /** Campo do sistema (data, produto, quantidade...) para o nome da coluna na planilha. */
+    mapeamento: jsonb("mapeamento").notNull(),
+    confirmadoPeloDono: boolean("confirmado_pelo_dono").notNull().default(false),
+    criadoEm: criadoEm(),
+  },
+  (t) => [unique("mapeamento_planilha_assinatura_uq").on(t.comercianteId, t.assinatura)],
+);
 
 export const venda = pgTable(
   "venda",
@@ -563,7 +596,7 @@ export const alerta = pgTable(
     metricasApoio: jsonb("metricas_apoio").notNull(),
     /** Por que o agente enviou ou descartou o candidato (log de decisão). */
     justificativa: text("justificativa"),
-    execucaoId: uuid("execucao_id").references(() => execucaoAgente.id, { onDelete: "set null" }),
+    execucaoId: uuid("execucao_id"),
     criadoEm: criadoEm(),
     enviadoEm: timestamp("enviado_em", { withTimezone: true }),
   },
@@ -579,6 +612,12 @@ export const alerta = pgTable(
       columns: [t.fornecedorId, t.comercianteId],
       foreignColumns: [fornecedor.id, fornecedor.comercianteId],
     }),
+    // Na migração, o SET NULL vale só para execucao_id (comerciante_id é NOT NULL).
+    foreignKey({
+      name: "alerta_execucao_fk",
+      columns: [t.execucaoId, t.comercianteId],
+      foreignColumns: [execucaoAgente.id, execucaoAgente.comercianteId],
+    }).onDelete("set null"),
     index("alerta_comerciante_data_idx").on(t.comercianteId, t.dataReferencia, t.status),
     check("alerta_prioridade_faixa", sql`${t.prioridade} between 1 and 3`),
   ],
@@ -602,10 +641,19 @@ export const mensagem = pgTable(
     /** Chave de idempotência do job (comerciante + data). */
     chaveIdempotencia: text("chave_idempotencia"),
     idExterno: text("id_externo"),
-    execucaoId: uuid("execucao_id").references(() => execucaoAgente.id, { onDelete: "set null" }),
+    execucaoId: uuid("execucao_id"),
     criadoEm: criadoEm(),
   },
   (t) => [
+    foreignKey({
+      name: "mensagem_execucao_fk",
+      columns: [t.execucaoId, t.comercianteId],
+      foreignColumns: [execucaoAgente.id, execucaoAgente.comercianteId],
+    }).onDelete("set null"),
+    // Redelivery do webhook: o mesmo id do canal não entra duas vezes (idempotência de entrada).
+    uniqueIndex("mensagem_id_externo_uq")
+      .on(t.comercianteId, t.canal, t.idExterno)
+      .where(sql`${t.idExterno} is not null`),
     unique("mensagem_idempotencia_uq").on(t.comercianteId, t.chaveIdempotencia),
     uniqueIndex("mensagem_uma_proativa_por_dia_uq")
       .on(t.comercianteId, t.dataEnvio)

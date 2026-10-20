@@ -5,17 +5,22 @@
  */
 
 /**
- * `numerador / denominador` em pontos-base, arredondado meio para cima (afastando do zero, como
+ * `numerador / denominador` arredondado para inteiro, meio para cima afastando do zero (como
  * `multiplicar` em src/lib/dinheiro). Devolve null quando o divisor é zero.
  */
-export function razaoEmBps(numerador: number, denominador: number): number | null {
+export function dividirArredondando(numerador: number, denominador: number): number | null {
   if (!Number.isFinite(numerador) || !Number.isFinite(denominador)) {
-    throw new RangeError(`Razão exige números finitos, recebido: ${numerador} / ${denominador}`);
+    throw new RangeError(`Divisão exige números finitos, recebido: ${numerador} / ${denominador}`);
   }
   if (denominador === 0) return null;
   const sinal = Math.sign(numerador) * Math.sign(denominador);
-  const bps = Math.floor((Math.abs(numerador) * 10_000) / Math.abs(denominador) + 0.5);
-  return sinal * bps || 0;
+  const inteiro = Math.floor(Math.abs(numerador) / Math.abs(denominador) + 0.5);
+  return sinal * inteiro || 0;
+}
+
+/** `numerador / denominador` em pontos-base, arredondado como `dividirArredondando`. */
+export function razaoEmBps(numerador: number, denominador: number): number | null {
+  return dividirArredondando(numerador * 10_000, denominador);
 }
 
 /**

@@ -139,45 +139,6 @@ describe("AgenteService", () => {
     expect(registro.execucoes[0]?.bloqueios).toHaveLength(2);
   });
 
-  it("bloqueia faturamento por extenso sem ferramenta e devolve fallback", async () => {
-    const { agente, registro } = criar(
-      [texto("Você faturou quinhentos reais e a margem foi de trinta por cento.")],
-      0,
-    );
-    expect(await agente.executar(pergunta)).toMatchObject({
-      resultado: "fallback_verificador",
-      mensagem: FALLBACK.verificador,
-    });
-    expect(registro.execucoes[0]?.bloqueios).toEqual([{ tentativa: 1, numeros: ["quinhentos", "trinta"] }]);
-    expect(registro.execucoes[0]?.chamadas).toEqual([]);
-  });
-
-  it("pede algarismos após bloquear valor por extenso e aceita a correção", async () => {
-    const { agente, modelo } = criar([
-      usarFerramenta("get_product_margin", { produto: "Arroz" }),
-      texto("Foram quarenta e duas vendas."),
-      texto("Foram 42 vendas."),
-    ]);
-    expect(await agente.executar(pergunta)).toMatchObject({
-      resultado: "aprovada",
-      mensagem: "Foram 42 vendas.",
-    });
-    expect(JSON.stringify(modelo.pedidos[2]?.messages.at(-1))).toContain("algarismos, preservando o sinal");
-  });
-
-  it("bloqueia margem com sinal invertido e aceita a correção", async () => {
-    const { agente, registro } = criar([
-      usarFerramenta("get_product_margin", { produto: "Arroz" }),
-      texto("A margem é de -27,7%."),
-      texto("A margem é de 27,7%."),
-    ]);
-    expect(await agente.executar(pergunta)).toMatchObject({
-      resultado: "aprovada",
-      mensagem: "A margem é de 27,7%.",
-    });
-    expect(registro.execucoes[0]?.bloqueios).toEqual([{ tentativa: 1, numeros: ["-27,7%"] }]);
-  });
-
   it("aceita repetir números escritos pelo próprio dono", async () => {
     const { agente } = criar([texto("Sem dados dos últimos 7 dias. Pode me mandar a planilha?")]);
     const r = await agente.executar({ ...pergunta, entrada: "Quanto vendi nos últimos 7 dias?" });

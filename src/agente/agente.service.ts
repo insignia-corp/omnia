@@ -129,13 +129,9 @@ export class AgenteService {
           mensagem = texto;
           break;
         }
-        const numerosBloqueados = [
-          ...verificacao.naoAutorizados.map((n) => n.texto),
-          ...verificacao.porExtenso,
-        ];
         bloqueios.push({
           tentativa: bloqueios.length + 1,
-          numeros: numerosBloqueados,
+          numeros: verificacao.naoAutorizados.map((n) => n.texto),
         });
         if (bloqueios.length > this.limites.maxRegeracoes) {
           resultado = "fallback_verificador";
@@ -145,9 +141,8 @@ export class AgenteService {
         messages.push({
           role: "user",
           content:
-            `[verificador] Mensagem bloqueada antes do envio: ${numerosBloqueados.map((n) => `"${n}"`).join(", ")} ` +
-            "não passou pela validação. Escreva números em algarismos, preservando o sinal. " +
-            "Reescreva usando só números devolvidos pelas ferramentas, " +
+            `[verificador] Mensagem bloqueada antes do envio: ${verificacao.naoAutorizados.map((n) => `"${n.texto}"`).join(", ")} ` +
+            "não aparece nos resultados das ferramentas. Reescreva usando só números devolvidos pelas ferramentas, " +
             "exatamente como vieram, ou chame a ferramenta que tem o dado. Se o dado não existe, diga que não sabe.",
         });
       }

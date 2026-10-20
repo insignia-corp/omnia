@@ -23,6 +23,10 @@ export interface EntradaGravacao {
   validada: NotaValidada;
   limiteConfiancaItem: number;
   limiteSimilaridade: number;
+  /** De onde veio a nota: foto lida pelo modelo ou XML de NF-e lido em código. */
+  origem: "foto_nota" | "nfe";
+  /** Número impresso na nota, quando a origem o traz (NF-e). */
+  numeroDocumento?: string | null;
 }
 
 export interface CompraGravada {
@@ -51,7 +55,7 @@ async function obterFornecedor(
   cnpj: string | null,
   confianca: number,
 ): Promise<string> {
-  const base = { comercianteId: e.comercianteId, nome, origem: "foto_nota" as const, confianca };
+  const base = { comercianteId: e.comercianteId, nome, origem: e.origem, confianca };
   if (cnpj) {
     await tx
       .insert(fornecedor)
@@ -148,7 +152,8 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
         data: dataCompra,
         totalCentavos: extracao.total_centavos,
         somaItensCentavos: e.validada.somaItensCentavos,
-        origem: "foto_nota",
+        numeroDocumento: e.numeroDocumento ?? null,
+        origem: e.origem,
         confianca: confiancaDocumento,
       })
       .returning({ id: compra.id });
@@ -167,7 +172,7 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
           valorUnitarioCentavos: item.valor_unitario_centavos,
           valorTotalCentavos: item.valor_total_centavos,
           confianca: item.confianca,
-          origem: "foto_nota" as const,
+          origem: e.origem,
           revisaoPendente: emRevisao(item),
         })),
       )
@@ -201,7 +206,7 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
           data: dataCompra,
           custoUnitarioCentavos: item.valor_unitario_centavos,
           itemDeCompraId: linha.id,
-          origem: "foto_nota",
+          origem: e.origem,
           // A confiança do documento (CNPJ, data e soma conferidos em código) também limita o custo.
           confianca: Math.min(item.confianca, vinculo.confianca, confiancaDocumento),
         });

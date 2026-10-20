@@ -91,6 +91,7 @@ export class ProcessadorExtracao {
         comercianteId,
         documentoId,
         extracaoOriginal: resultado.extracao,
+        origem: "foto_nota",
         validada,
         limiteConfiancaItem: this.dep.limiteConfiancaItem,
         limiteSimilaridade: this.dep.limiteSimilaridade,

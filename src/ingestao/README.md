@@ -22,7 +22,7 @@ Depois de gravar os itens, cada descrição tenta ligar a um produto (`vinculo/v
 1. vínculo já confirmado pelo dono (mesmo fornecedor primeiro, depois qualquer um): liga sem perguntar;
 2. similaridade `pg_trgm` contra o catálogo e contra descrições já confirmadas. Liga sozinho se passar de `LIMITE_SIMILARIDADE` e superar o segundo candidato por 0,1; senão pergunta ao dono com até 3 sugestões.
 
-Item ligado grava uma linha em `historico_custo` com a menor entre a confiança do item, a do vínculo e a do documento (CNPJ, data e soma conferidos em código). Item sem produto fica sem custo no histórico até o dono escolher. O código de barras entra com a NF-e (#29). A sugestão pelo modelo, quando as duas buscas falham, está pendente (#27).
+Item ligado grava uma linha em `historico_custo` com a menor entre a confiança do item, a do vínculo e a do documento (CNPJ, data e soma conferidos em código). Item sem produto fica sem custo no histórico até o dono escolher. O `cEAN` da NF-e é lido, mas o vínculo por código de barras ainda não o usa (#27). A sugestão pelo modelo, quando as duas buscas falham, está pendente (#27).
 
 Medido com as 18 notas de `fixtures/` e o catálogo de 50 produtos (`tests/vinculo-notas.e2e-spec.ts`): 94 itens, 97,9% ligam sozinhos ao produto certo, nenhum liga ao errado, e os 2 restantes vão ao dono com o produto certo entre as sugestões.
 
@@ -50,6 +50,14 @@ A venda é única por `(comerciante, data, cupom)`: reimportar o mesmo arquivo, 
 
 Conferido contra o gabarito (`tests/planilha-vendas.e2e-spec.ts`): CSV e XLSX importam 3.623 cupons e 11.365 itens sem rejeição; em 2026-10-19 são 78 cupons e R$ 1.221,51.
 
+## NF-e em XML (#29)
+
+O mesmo `POST /documentos/notas` aceita o XML (o tipo vem dos primeiros bytes, não da extensão). `nfe/ler-nfe.ts` lê em código, sem modelo: parser SAX (`saxes`) que não lê DTD nem resolve entidades e recusa qualquer DOCTYPE (XXE, entidades em cascata). Os elementos casam pelo nome local, então prefixo de namespace e o layout antigo (`dEmi`) funcionam. Só entram emitente, data, itens (`xProd`, `uCom`, `qCom`, `vUnCom`, `vProd`), número e `vNF`; texto livre como `infAdic` é ignorado e nada do XML vira instrução. Dinheiro vem por texto e inteiro (`parseDecimalNfe`, até 10 casas, arredonda na 3ª), sem ponto flutuante. O total é o `vNF`.
+
+O XML é lido antes de ser guardado (inválido devolve 422 e não deixa rastro). Depois passa pelas mesmas conferências da foto (`validarNota`) e pelo mesmo `gravarCompra`, na própria requisição e sem fila, com origem `nfe` e confiança 1 em compra e itens. Vínculo, perguntas e histórico de custo seguem o caminho da foto; como o vínculo por similaridade devolve a própria similaridade, o custo gravado pode ter confiança menor que 1. Nota com frete, desconto ou imposto que faz a soma dos itens divergir do `vNF` cai em `revisao` (`soma_diverge_do_total`) e o dono confirma.
+
+Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem outro hash e vira outra compra. Conferido em `tests/ingestao-nfe.e2e-spec.ts` contra `fixtures/notas/nota-18`.
+
 ## Falhas
 
 | Caso | Resultado |
@@ -62,4 +70,4 @@ Conferido contra o gabarito (`tests/planilha-vendas.e2e-spec.ts`): CSV e XLSX im
 
 ## Pendente nesta etapa
 
-Sugestão de vínculo pelo modelo (#27) e NF-e em XML (#29). O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.
+Sugestão de vínculo pelo modelo e código de barras no vínculo (#27). O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.

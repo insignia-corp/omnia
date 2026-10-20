@@ -4,14 +4,19 @@ import {
   Injectable,
   NotFoundException,
   PayloadTooLargeException,
+  UnprocessableEntityException,
   UnsupportedMediaTypeException,
 } from "@nestjs/common";
 import { and, asc, eq } from "drizzle-orm";
+import { ENV } from "../config/config.module";
+import type { Env } from "../config/env";
 import { ARMAZENAMENTO, ErroArmazenamento, type Armazenamento } from "../infra/armazenamento/armazenamento";
 import { detectarTipo } from "../infra/armazenamento/tipo-arquivo";
 import { DB, type Db } from "../infra/database/database.module";
 import { compra, documento, fornecedor, itemDeCompra } from "../infra/database/schema";
 import { FilaExtracao } from "./fila/fila-extracao";
+import { importarNfe } from "./nfe/importar-nfe";
+import { lerNfe } from "./nfe/ler-nfe";
 
 export interface NotaRecebida {
   documentoId: string;
@@ -26,13 +31,18 @@ export class DocumentosService {
     @Inject(DB) private readonly db: Db,
     @Inject(ARMAZENAMENTO) private readonly armazenamento: Armazenamento,
     private readonly fila: FilaExtracao,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
-  /** Guarda a foto, cria o documento (`pendente`) e enfileira a extração. */
+  /**
+   * Foto: guarda, cria o documento (`pendente`) e enfileira a extração pelo modelo. XML de NF-e: lê
+   * em código e grava na hora, sem fila e sem modelo.
+   */
   async receberNota(comercianteId: string, conteudo: Buffer): Promise<NotaRecebida> {
     const tipo = detectarTipo(conteudo);
+    if (tipo === "xml") return this.receberNfe(comercianteId, conteudo);
     if (tipo !== "jpeg" && tipo !== "png") {
-      throw new UnsupportedMediaTypeException("Envie a nota como foto JPEG ou PNG");
+      throw new UnsupportedMediaTypeException("Envie a nota como foto JPEG ou PNG, ou o XML da NF-e");
     }
     let salvo;
     try {
@@ -67,6 +77,53 @@ export class DocumentosService {
       await this.fila.enfileirar({ documentoId: existente.id, comercianteId });
     }
     return { documentoId: existente.id, status: existente.status, duplicado: true };
+  }
+
+  /** O XML é lido antes de guardar: o que não é NF-e válida não deixa rastro. */
+  private async receberNfe(comercianteId: string, conteudo: Buffer): Promise<NotaRecebida> {
+    const leitura = lerNfe(conteudo);
+    if (!leitura.ok) throw new UnprocessableEntityException(leitura.mensagem);
+    let salvo;
+    try {
+      salvo = await this.armazenamento.salvar(comercianteId, conteudo);
+    } catch (e) {
+      if (e instanceof ErroArmazenamento) {
+        if (e.motivo === "grande_demais") throw new PayloadTooLargeException(e.message);
+        throw new BadRequestException(e.message);
+      }
+      throw e;
+    }
+
+    const [criado] = await this.db
+      .insert(documento)
+      .values({ comercianteId, tipo: "nfe", arquivoCaminho: salvo.caminho, arquivoHash: salvo.hash })
+      .onConflictDoNothing({ target: [documento.comercianteId, documento.arquivoHash] })
+      .returning({ id: documento.id });
+    const [doc] = criado
+      ? [criado]
+      : await this.db
+          .select({ id: documento.id })
+          .from(documento)
+          .where(and(eq(documento.comercianteId, comercianteId), eq(documento.arquivoHash, salvo.hash)))
+          .limit(1);
+    if (!doc) throw new Error("Documento não encontrado depois do conflito de hash");
+
+    // `gravarCompra` é idempotente por documento: reenviar o arquivo, ou retomar um envio que caiu
+    // entre o insert e a gravação, não duplica a compra.
+    await importarNfe(this.db, {
+      comercianteId,
+      documentoId: doc.id,
+      leitura,
+      hoje: new Date().toISOString().slice(0, 10),
+      limiteConfiancaItem: this.env.LIMITE_CONFIANCA_ITEM,
+      limiteSimilaridade: this.env.LIMITE_SIMILARIDADE,
+    });
+    const [atual] = await this.db
+      .select({ status: documento.statusExtracao })
+      .from(documento)
+      .where(and(eq(documento.id, doc.id), eq(documento.comercianteId, comercianteId)))
+      .limit(1);
+    return { documentoId: doc.id, status: atual?.status ?? "extraido", duplicado: !criado };
   }
 
   /** Estado do documento, com a compra e os itens quando a extração terminou. */

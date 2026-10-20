@@ -1,4 +1,5 @@
 import { intervaloDeDatas, somarDias } from "../lib/datas/datas";
+import { NumerosAutorizados, verificarNumeros } from "../lib/verificador-numeros/verificador-numeros";
 import type { MovimentoDoDia } from "./dados-de-metricas";
 import {
   calcularGastoForaDoPadrao,
@@ -228,6 +229,23 @@ describe("calcularGastoForaDoPadrao", () => {
     it("sem extrato nenhum", () => {
       const r = calcularGastoForaDoPadrao(entrada([], 30, { intervaloDeMovimentos: null }));
       expect(r).toMatchObject({ ausente: true, codigo: "dia_sem_dados" });
+    });
+  });
+
+  describe("contrato com o verificador de números (regra inviolável 8)", () => {
+    // Histórico de R$ 40,00 e R$ 60,00 (mediana R$ 50,00) e um dia de R$ 100,00: 5 desvios.
+    const r = gasto(entrada([...metadeEMetade(30, 4000, 6000), saida(DIA, 10_000)]));
+    const autorizados = new NumerosAutorizados([r]);
+
+    it("aprova a mensagem que cita só números do resultado", () => {
+      const mensagem = "O gasto de hoje foi R$ 100,00, 5 desvios acima da mediana de R$ 50,00.";
+      expect(verificarNumeros(mensagem, autorizados).aprovado).toBe(true);
+    });
+
+    it("bloqueia o percentual que o modelo calculou por conta própria", () => {
+      const resultado = verificarNumeros("O gasto é 33% maior que o normal.", autorizados);
+      expect(resultado.aprovado).toBe(false);
+      expect(resultado.naoAutorizados.map((n) => n.valor)).toEqual([33]);
     });
   });
 

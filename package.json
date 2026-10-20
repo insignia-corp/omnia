@@ -58,6 +58,8 @@
     "fixtures:gerar": "tsx scripts/fixtures/gerar-tudo.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/infra/database/migrar.ts",
-    "db:reset": "tsx src/infra/database/resetar.ts && tsx src/infra/database/migrar.ts"
+    "db:seed": "tsx src/infra/database/seed/semear.ts",
+    "db:reset": "tsx src/infra/database/resetar.ts && tsx src/infra/database/migrar.ts",
+    "seed:demo": "npm run db:reset && npm run db:seed"
   }
 }

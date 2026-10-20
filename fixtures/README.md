@@ -24,6 +24,10 @@ Data de referência dos gabaritos: **2026-10-19** (segunda). Janela de dados: 20
 | `avaliacao/perguntas.json` | 46 perguntas de avaliação: numéricas com o número exato, sem resposta possível, injeção de instrução e ação com confirmação. Todo número vem do gabarito, nunca é digitado à mão |
 | `gabarito/metricas.json` | Métricas e alertas esperados, com os parâmetros usados e a lista de alertas que NÃO devem disparar |
 
+## Carga no banco
+
+`npm run seed:demo` (ou `npm run db:seed` com o banco já migrado) carrega estes arquivos em PostgreSQL para dois comerciantes. Ver [docs/modelo-de-dados.md](../docs/modelo-de-dados.md#seed).
+
 ## Convenções
 
 - Dinheiro em centavos inteiros. Razões em pontos-base inteiros (`margem_bps`, `variacao_bps`): 2500 = 25,00%.

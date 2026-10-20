@@ -2,6 +2,7 @@ import {
   combinarProcedencias,
   dadoAusente,
   ehDadoAusente,
+  procedenciaDe,
   procedenciaDeUmRegistro,
   resultadoMetrica,
   type Procedencia,
@@ -64,6 +65,24 @@ describe("resultado-metrica", () => {
 
     it("não repete origem", () => {
       expect(combinarProcedencias([venda(1, 1), venda(1, 1)]).origens).toEqual(["planilha"]);
+    });
+  });
+
+  it("procedenciaDe devolve a procedência de um resultado para uma métrica derivada", () => {
+    const base = resultadoMetrica(1, { inicio: "a", fim: "b" }, [
+      procedenciaDeUmRegistro("foto_nota", 0.7),
+      procedenciaDeUmRegistro("planilha", 1),
+    ]);
+    expect(procedenciaDe(base)).toEqual({
+      registros: 2,
+      menorConfianca: 0.7,
+      origens: ["foto_nota", "planilha"],
+    });
+    // Combinar a procedência de dois resultados equivale a combinar as fontes dos dois.
+    expect(combinarProcedencias([procedenciaDe(base), procedenciaDe(base)])).toEqual({
+      n_registros: 4,
+      menor_confianca: 0.7,
+      origens: ["foto_nota", "planilha"],
     });
   });
 

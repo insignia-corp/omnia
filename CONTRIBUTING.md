@@ -42,7 +42,8 @@ A CI roda os mesmos passos, mais a varredura de segredos e o build da imagem.
 
 ## Convenções de código
 
-- Dinheiro sempre em centavos como inteiro. Nunca ponto flutuante.
+- Dinheiro sempre em centavos como inteiro. Nunca ponto flutuante. Use `src/lib/dinheiro` (`centavos`, `parseCentavos`, `multiplicar`, `formatarBRL`); o lint bloqueia `parseFloat`.
+- Número que chega ao dono vem de uma ferramenta do agente e passa pelo verificador (`src/lib/verificador-numeros`). Ferramentas devolvem dinheiro em chaves `*_centavos` e percentuais prontos para exibir em `*_percentual`.
 - Toda consulta com dado do lojista filtra por `comerciante_id`, que vem da sessão.
 - Nomes de domínio em português (`comerciante`, `item_de_compra`); ferramentas do agente em inglês (`get_product_margin`).
 - Métricas são funções puras com teste unitário.

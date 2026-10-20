@@ -203,7 +203,8 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
           lte(venda.data, ate),
         ),
       )
-      .orderBy(asc(itemDeVenda.produtoId), desc(venda.data));
+      // Vários cupons do mesmo produto no último dia: o id desempata, para a linha escolhida ser sempre a mesma.
+      .orderBy(asc(itemDeVenda.produtoId), desc(venda.data), desc(itemDeVenda.id));
     return linhas.map((l) => ({
       produtoId: l.produtoId,
       data: l.data,

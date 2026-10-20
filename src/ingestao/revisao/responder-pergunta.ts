@@ -1,9 +1,10 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db, Tx } from "../../infra/database/database.module";
 import {
   compra,
   documento,
+  fornecedor,
   historicoCusto,
   itemDeCompra,
   perguntaDono,
@@ -13,8 +14,10 @@ import { centavos, multiplicar, somar } from "../../lib/dinheiro/dinheiro";
 import { extracaoNotaSchema } from "../extracao/esquema-extracao";
 import { normalizarDescricao } from "../normalizar-descricao";
 import type { MotivoValidacao } from "../validacao/validar-nota";
-import { confiancaDoVinculo, registrarVinculo } from "../vinculo/vincular-produto";
-import { recalcularDocumento } from "./recalcular-documento";
+import { registrarVinculo } from "../vinculo/vincular-produto";
+import { montarPerguntaDocumento } from "./perguntas";
+import { MOTIVOS_DO_DOCUMENTO, recalcularDocumento } from "./recalcular-documento";
+import { reemitirCustos } from "./custos-do-documento";
 
 export type CodigoErroPergunta =
   "nao_encontrada" | "ja_respondida" | "tipo_nao_suportado" | "resposta_invalida" | "produto_invalido";
@@ -42,9 +45,12 @@ export const respostaItemSchema = z
 /** Resposta a "qual produto é este item?": um produto do cadastro do próprio comerciante. */
 export const respostaVinculoSchema = z.object({ produto_id: z.uuid() }).strict();
 
+/** Resposta a "os dados da nota estão certos?": o dono só confirma; corrigir a nota é reenviá-la. */
+export const respostaDocumentoSchema = z.object({ confirmado: z.literal(true) }).strict();
+
 export interface ResultadoResposta {
   perguntaId: string;
-  tipo: "confirmar_item" | "informar_custo" | "confirmar_vinculo";
+  tipo: "confirmar_item" | "informar_custo" | "confirmar_vinculo" | "confirmar_documento";
   /** Status do documento depois da resposta, quando ela mexeu nele. */
   statusDocumento?: "extraido" | "revisao";
   /** Itens que passaram a ter produto ligado por causa desta resposta. */
@@ -57,10 +63,8 @@ export interface OpcoesResposta {
 
 /**
  * Grava a resposta do dono a uma pergunta pendente (issues #26 e #27), numa transação. O
- * `comerciante_id` vem da sessão. A resposta confirma só o que ela traz (valor unitário e, se vier,
- * quantidade): o custo entra no histórico como linha nova, com origem `dono`, e o que o modelo leu
- * antes continua lá. O que a resposta não cobre (descrição, unidade, vínculo incerto) mantém a
- * origem e a confiança que tinha.
+ * `comerciante_id` vem da sessão. A resposta entra com origem `dono` e confiança 1; o que o modelo
+ * leu antes continua no histórico, porque a correção é uma linha nova, nunca uma edição.
  */
 export async function responderPergunta(
   db: Db,
@@ -79,14 +83,21 @@ export async function responderPergunta(
     if (!pergunta) throw new ErroPergunta("nao_encontrada", "Pergunta não encontrada");
     if (pergunta.status !== "pendente")
       throw new ErroPergunta("ja_respondida", "Esta pergunta já foi respondida");
-    if (!pergunta.itemDeCompraId || pergunta.tipo === "confirmar_acao") {
+    if (
+      pergunta.tipo === "confirmar_acao" ||
+      (pergunta.tipo !== "confirmar_documento" && !pergunta.itemDeCompraId)
+    ) {
       throw new ErroPergunta("tipo_nao_suportado", "Este tipo de pergunta não é respondido por aqui");
     }
 
-    const resultado =
-      pergunta.tipo === "confirmar_vinculo"
-        ? await responderVinculo(tx, comercianteId, pergunta.itemDeCompraId, corpo)
-        : await responderItem(tx, comercianteId, pergunta.itemDeCompraId, corpo, opcoes);
+    let resultado: Pick<ResultadoResposta, "statusDocumento" | "itensLigados">;
+    if (pergunta.tipo === "confirmar_documento") {
+      resultado = await responderDocumento(tx, comercianteId, pergunta.contexto, corpo, opcoes);
+    } else if (pergunta.tipo === "confirmar_vinculo") {
+      resultado = await responderVinculo(tx, comercianteId, pergunta.itemDeCompraId!, corpo);
+    } else {
+      resultado = await responderItem(tx, comercianteId, pergunta.itemDeCompraId!, corpo, opcoes);
+    }
 
     await tx
       .update(perguntaDono)
@@ -131,42 +142,37 @@ async function responderItem(
 
   const quantidade = resposta.quantidade ?? item.quantidade;
   const unitario = centavos(resposta.valor_unitario_centavos);
-  const alterouValores = unitario !== item.valorUnitarioCentavos || quantidade !== item.quantidade;
-  // A confiança do item é a da leitura da linha inteira, e a resposta não cobre a linha inteira:
-  // fica a do modelo. A origem só muda quando os números gravados passam a ser os do dono.
   await tx
     .update(itemDeCompra)
     .set({
       quantidade,
       valorUnitarioCentavos: unitario,
       valorTotalCentavos: multiplicar(unitario, quantidade),
-      origem: alterouValores ? "dono" : item.origem,
+      confianca: 1,
+      origem: "dono",
       revisaoPendente: false,
     })
     .where(and(eq(itemDeCompra.id, itemId), eq(itemDeCompra.comercianteId, comercianteId)));
 
-  // Só há custo no histórico para item com produto. Sem produto, a linha nasce quando o dono
-  // confirmar o vínculo, já com este valor. O valor é do dono (confiança 1), mas a ligação com o
-  // produto pode ter vindo só da similaridade, e o custo não passa a valer mais que ela.
-  if (item.produtoId) {
-    const confiancaVinculo = await confiancaDoVinculo(tx, {
-      comercianteId,
-      fornecedorId: c.fornecedorId,
-      descricao: item.descricaoNota,
-      produtoId: item.produtoId,
-    });
-    await tx.insert(historicoCusto).values({
-      comercianteId,
-      produtoId: item.produtoId,
-      fornecedorId: c.fornecedorId,
-      data: c.data,
-      custoUnitarioCentavos: unitario,
-      itemDeCompraId: itemId,
-      origem: "dono",
-      confianca: Math.min(1, confiancaVinculo ?? 1),
-    });
-  }
+  // O custo entra no histórico por `atualizarDocumento`, que reemite as linhas dos itens com produto
+  // (sem produto, a linha nasce quando o dono confirmar o vínculo, já com este valor).
+  const recalculado = await atualizarDocumento(tx, comercianteId, c, item.ordem, opcoes);
+  return { statusDocumento: recalculado.status, itensLigados: 0 };
+}
 
+/**
+ * Recalcula soma, motivos, confiança e status da nota depois de uma resposta do dono e reemite os
+ * custos ligados com a confiança nova do documento. `motivosNovos` entram na lista antes da conta
+ * (a confirmação do documento usa isso).
+ */
+async function atualizarDocumento(
+  tx: Tx,
+  comercianteId: string,
+  c: typeof compra.$inferSelect,
+  ordemCorrigida: number,
+  opcoes: OpcoesResposta,
+  motivosNovos: MotivoValidacao[] = [],
+) {
   const itens = await tx
     .select({
       valorTotal: itemDeCompra.valorTotalCentavos,
@@ -186,8 +192,8 @@ async function responderItem(
     : [];
   const original = extracaoNotaSchema.pick({ confianca_documento: true }).safeParse(doc?.extracaoJson);
   const recalculado = recalcularDocumento({
-    motivos: (doc?.motivosValidacao as MotivoValidacao[] | undefined) ?? [],
-    ordemCorrigida: item.ordem,
+    motivos: [...((doc?.motivosValidacao as MotivoValidacao[] | undefined) ?? []), ...motivosNovos],
+    ordemCorrigida,
     somaItensCentavos: somaItens,
     totalCentavos: c.totalCentavos,
     confiancaOriginal: original.success
@@ -212,6 +218,78 @@ async function responderItem(
       })
       .where(and(eq(documento.id, doc.id), eq(documento.comercianteId, comercianteId)));
   }
+  await reemitirCustos(tx, comercianteId, c.id, recalculado.confiancaDocumento);
+  if (doc && recalculado.status === "revisao" && !itens.some((i) => i.pendente)) {
+    await garantirPerguntaDocumento(tx, comercianteId, c, doc.id, recalculado.motivos);
+  }
+  return recalculado;
+}
+
+/**
+ * Corrigir um item pode criar uma divergência de nota (a soma deixa de fechar). Com os itens todos
+ * respondidos e a nota ainda em revisão, a única saída é o dono confirmar a nota: pergunta uma vez.
+ */
+async function garantirPerguntaDocumento(
+  tx: Tx,
+  comercianteId: string,
+  c: typeof compra.$inferSelect,
+  documentoId: string,
+  motivos: MotivoValidacao[],
+): Promise<void> {
+  const [aberta] = await tx
+    .select({ id: perguntaDono.id })
+    .from(perguntaDono)
+    .where(
+      and(
+        eq(perguntaDono.comercianteId, comercianteId),
+        eq(perguntaDono.tipo, "confirmar_documento"),
+        eq(perguntaDono.status, "pendente"),
+        sql`${perguntaDono.contexto}->>'documento_id' = ${documentoId}`,
+      ),
+    )
+    .limit(1);
+  if (aberta) return;
+  const [forn] = await tx
+    .select({ nome: fornecedor.nome })
+    .from(fornecedor)
+    .where(and(eq(fornecedor.id, c.fornecedorId), eq(fornecedor.comercianteId, comercianteId)))
+    .limit(1);
+  await tx.insert(perguntaDono).values({
+    comercianteId,
+    tipo: "confirmar_documento",
+    pergunta: montarPerguntaDocumento({
+      data: c.data,
+      fornecedor: forn?.nome ?? "fornecedor não identificado",
+      motivos: motivos.filter((m) => MOTIVOS_DO_DOCUMENTO.includes(m.codigo)).map((m) => m.mensagem),
+    }),
+    contexto: { documento_id: documentoId, confianca: c.confianca },
+  });
+}
+
+async function responderDocumento(
+  tx: Tx,
+  comercianteId: string,
+  contexto: unknown,
+  corpo: unknown,
+  opcoes: OpcoesResposta,
+): Promise<Pick<ResultadoResposta, "statusDocumento" | "itensLigados">> {
+  validar(respostaDocumentoSchema, corpo);
+  const documentoId = z.object({ documento_id: z.uuid() }).safeParse(contexto);
+  if (!documentoId.success) throw new ErroPergunta("nao_encontrada", "Documento da pergunta não encontrado");
+  const [c] = await tx
+    .select()
+    .from(compra)
+    .where(
+      and(eq(compra.documentoId, documentoId.data.documento_id), eq(compra.comercianteId, comercianteId)),
+    )
+    .limit(1);
+  if (!c) throw new ErroPergunta("nao_encontrada", "Compra do documento não encontrada");
+
+  // Ordem 0: nenhum item foi corrigido, só a nota confirmada. O motivo marca a confirmação, e
+  // `recalcularDocumento` passa a não reduzir a confiança pelos motivos do documento.
+  const recalculado = await atualizarDocumento(tx, comercianteId, c, 0, opcoes, [
+    { codigo: "documento_confirmado", mensagem: "O dono confirmou os dados da nota" },
+  ]);
   return { statusDocumento: recalculado.status, itensLigados: 0 };
 }
 
@@ -261,29 +339,7 @@ async function responderVinculo(
     (l) => l.item.id === itemId || normalizarDescricao(l.item.descricaoNota) === chave,
   );
 
-  // Item cujo valor unitário o dono já confirmou entra no histórico como dado do dono; o vínculo
-  // acabou de ser confirmado por ele também, então a confiança é 1.
-  const jaConfirmados = new Set(
-    (
-      await tx
-        .select({ itemId: perguntaDono.itemDeCompraId })
-        .from(perguntaDono)
-        .where(
-          and(
-            eq(perguntaDono.comercianteId, comercianteId),
-            eq(perguntaDono.tipo, "confirmar_item"),
-            eq(perguntaDono.status, "respondida"),
-            inArray(
-              perguntaDono.itemDeCompraId,
-              ligar.map((l) => l.item.id),
-            ),
-          ),
-        )
-    ).map((p) => p.itemId),
-  );
-
   for (const l of ligar) {
-    const confirmadoPeloDono = jaConfirmados.has(l.item.id);
     await tx
       .update(itemDeCompra)
       .set({ produtoId: prod.id })
@@ -295,8 +351,9 @@ async function responderVinculo(
       data: l.compra.data,
       custoUnitarioCentavos: l.item.valorUnitarioCentavos,
       itemDeCompraId: l.item.id,
-      origem: confirmadoPeloDono ? "dono" : l.item.origem,
-      confianca: confirmadoPeloDono ? 1 : l.item.confianca,
+      origem: l.item.origem,
+      // A confiança do documento (já recalculada nas respostas anteriores) também limita o custo.
+      confianca: Math.min(l.item.confianca, l.compra.confianca),
     });
   }
   const outros = ligar.map((l) => l.item.id).filter((id) => id !== itemId);

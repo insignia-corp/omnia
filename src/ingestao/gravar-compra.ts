@@ -10,7 +10,8 @@ import {
   perguntaDono,
 } from "../infra/database/schema";
 import type { ExtracaoNota } from "./extracao/esquema-extracao";
-import { montarPerguntaItem, montarPerguntaVinculo } from "./revisao/perguntas";
+import { montarPerguntaDocumento, montarPerguntaItem, montarPerguntaVinculo } from "./revisao/perguntas";
+import { MOTIVOS_DO_DOCUMENTO } from "./revisao/recalcular-documento";
 import { dataDeCalendarioValida, type NotaValidada } from "./validacao/validar-nota";
 import { buscarVinculo, registrarVinculo } from "./vinculo/vincular-produto";
 
@@ -29,7 +30,7 @@ export interface CompraGravada {
   status: "extraido" | "revisao";
   /** Itens abaixo do limite de confiança: cada um pede uma pergunta ao dono. */
   itensEmRevisao: Array<{ id: string; ordem: number }>;
-  /** Perguntas ao dono criadas: uma por item duvidoso e uma por item sem produto ligado. */
+  /** Perguntas ao dono criadas: uma por item duvidoso, uma por item sem produto e uma se a nota toda é duvidosa. */
   perguntasCriadas: number;
   /** Verdadeiro quando um job repetido encontrou a compra já gravada. */
   jaExistia: boolean;
@@ -85,11 +86,8 @@ async function obterFornecedor(
  *
  * Cada item tenta ligar a um produto (issue #27). Ligado, entra uma linha em `historico_custo` com a
  * menor entre a confiança do item e a do vínculo. Sem vínculo certo, `produto_id` fica nulo e o dono
- * é perguntado. Item abaixo do limite de confiança também gera pergunta (issue #26).
- *
- * O documento só fica em `revisao` quando há pergunta de item a responder. Confiança baixa do
- * documento sem item duvidoso (soma, CNPJ, data) não tem pergunta que a resolva, então fica
- * registrada em `confianca_media` e `motivos_validacao` e o status é `extraido`.
+ * é perguntado. Item abaixo do limite de confiança também gera pergunta (issue #26), e a nota com
+ * confiança de documento abaixo do limite gera uma pergunta de documento.
  */
 export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGravada> {
   return db.transaction(async (tx) => {
@@ -204,7 +202,8 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
           custoUnitarioCentavos: item.valor_unitario_centavos,
           itemDeCompraId: linha.id,
           origem: "foto_nota",
-          confianca: Math.min(item.confianca, vinculo.confianca, dataSubstituida ? confiancaDocumento : 1),
+          // A confiança do documento (CNPJ, data e soma conferidos em código) também limita o custo.
+          confianca: Math.min(item.confianca, vinculo.confianca, confiancaDocumento),
         });
         if (vinculo.metodo === "similaridade") {
           await registrarVinculo(tx, {
@@ -249,7 +248,26 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
     }
 
     const itensEmRevisao = itens.filter((i) => i.revisao).map(({ id, ordem }) => ({ id, ordem }));
-    const status = itensEmRevisao.length > 0 ? "revisao" : "extraido";
+    const documentoEmDuvida = confiancaDocumento < e.limiteConfiancaItem;
+    const motivosDoDocumento = e.validada.motivos.filter((m) => MOTIVOS_DO_DOCUMENTO.includes(m.codigo));
+    // Dúvida da nota inteira (CNPJ, data, soma, leitura geral) não cabe em pergunta de item: sem esta
+    // pergunta o documento ficaria em revisão sem caminho para o dono resolver. Confiança baixa só
+    // por causa de um item ilegível já tem a pergunta do item, que ao ser respondida a recalcula.
+    if (motivosDoDocumento.length > 0 || (documentoEmDuvida && itensEmRevisao.length === 0)) {
+      await tx.insert(perguntaDono).values({
+        comercianteId: e.comercianteId,
+        tipo: "confirmar_documento",
+        pergunta: montarPerguntaDocumento({
+          data: extracao.data_emissao,
+          fornecedor: extracao.fornecedor.nome,
+          motivos: motivosDoDocumento.map((m) => m.mensagem),
+        }),
+        contexto: { documento_id: e.documentoId, confianca: confiancaDocumento },
+      });
+      perguntasCriadas++;
+    }
+
+    const status = itensEmRevisao.length > 0 || documentoEmDuvida ? "revisao" : "extraido";
     await tx
       .update(documento)
       .set({

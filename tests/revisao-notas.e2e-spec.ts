@@ -44,7 +44,6 @@ const notaDeUmItem = (descricao: string, data = "2026-10-10") =>
 interface DocumentoApi {
   id: string;
   status: string;
-  confianca_media: number | null;
   motivos: Array<{ codigo: string }>;
   compra: null | {
     soma_itens_centavos: number;
@@ -63,8 +62,8 @@ interface PerguntaApi {
   id: string;
   tipo: string;
   pergunta: string;
-  contexto: { candidatos?: Array<{ produto_id: string; nome: string }> };
-  item_de_compra_id: string;
+  contexto: { candidatos?: Array<{ produto_id: string; nome: string }>; documento_id?: string };
+  item_de_compra_id: string | null;
 }
 
 describe("revisão de itens e vínculo com o produto (e2e)", () => {
@@ -219,38 +218,21 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
       expect(pergunta.pergunta).toContain("R$ 3,30");
     });
 
-    it("a resposta do dono confirma o custo como dado do dono, sem apagar o que o modelo leu nem inflar o resto do item", async () => {
+    it("a resposta do dono corrige o item como origem dono, sem apagar o que o modelo leu", async () => {
       const res = await responder(ids.a, pergunta.id, { valor_unitario_centavos: 330 }).expect(200);
       expect(res.body).toMatchObject({ tipo: "confirmar_item", status_documento: "extraido" });
 
       const depois = await aguardar(ids.a, doc.id);
       expect(depois.status).toBe("extraido");
-      // O dono confirmou o valor que o modelo já tinha lido: a confiança e a origem da linha, que
-      // cobrem também descrição e unidade, ficam as do modelo; só a pendência sai.
       expect(depois.compra!.itens.find((i) => i.ordem === 3)).toMatchObject({
-        confianca: 0.5,
-        origem: "foto_nota",
+        confianca: 1,
+        origem: "dono",
         revisao_pendente: false,
       });
       const linhas = await historico(ids.a, itemDuvidoso.id);
       expect(linhas).toHaveLength(2);
       expect(linhas[0]!.origem).toBe("foto_nota");
-      expect(linhas[1]).toMatchObject({ origem: "dono", custoUnitarioCentavos: 330 });
-      // O custo é do dono, mas não vale mais que a ligação com o produto (confiança do vínculo).
-      const [item] = await db
-        .select()
-        .from(schema.itemDeCompra)
-        .where(eq(schema.itemDeCompra.id, itemDuvidoso.id));
-      const vinculos = await db
-        .select()
-        .from(schema.vinculoDescricaoProduto)
-        .where(
-          and(
-            eq(schema.vinculoDescricaoProduto.comercianteId, ids.a),
-            eq(schema.vinculoDescricaoProduto.produtoId, item!.produtoId!),
-          ),
-        );
-      expect(vinculos.map((v) => v.confianca)).toContain(linhas[1]!.confianca);
+      expect(linhas[1]).toMatchObject({ origem: "dono", confianca: 1, custoUnitarioCentavos: 330 });
       expect(await pendentes(ids.a)).toEqual([]);
     });
 
@@ -260,7 +242,7 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
       await responder(ids.a, "00000000-0000-4000-8000-000000000000", {}).expect(404);
     });
 
-    it("corrigir para um valor que não fecha com o total deixa o motivo e a confiança baixa, sem pergunta pendente", async () => {
+    it("corrigir para um valor que não fecha com o total mantém a nota em revisão, com o motivo", async () => {
       passos.push(resposta(esperado("nota-11")));
       const docB = await aguardar(ids.b, await enviar(ids.b, "nota-11"));
       const perguntaB = (await pendentes(ids.b))[0]!;
@@ -270,12 +252,9 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
       await responder(ids.b, perguntaB.id, { valor_unitario_centavos: 330, quantidade: 1.2345 }).expect(400);
 
       const res = await responder(ids.b, perguntaB.id, { valor_unitario_centavos: 350 }).expect(200);
-      expect(res.body).toMatchObject({ status_documento: "extraido" });
+      expect(res.body).toMatchObject({ status_documento: "revisao" });
       const depois = await aguardar(ids.b, docB.id);
       expect(depois.motivos.map((m) => m.codigo)).toEqual(["soma_diverge_do_total"]);
-      expect(depois.confianca_media).toBeLessThan(0.8);
-      // O dono mudou o valor: o número gravado passa a ser dele.
-      expect(depois.compra!.itens.find((i) => i.ordem === 3)).toMatchObject({ origem: "dono" });
       // 24 unidades a R$ 3,50 no lugar de R$ 3,30: a soma sobe R$ 4,80 acima do total impresso.
       expect(depois.compra!.soma_itens_centavos).toBe(depois.compra!.total_centavos + 480);
     });
@@ -367,6 +346,62 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
           confianca: 1,
         }),
       ]);
+    });
+  });
+
+  describe("dúvida da nota inteira (revisão do Codex, PR 124)", () => {
+    let doc: DocumentoApi;
+    let pergunta: PerguntaApi;
+
+    it("nota com a soma divergente gera uma pergunta de documento e limita a confiança do custo", async () => {
+      passos.push(resposta(esperado("nota-10")));
+      doc = await aguardar(ids.a, await enviar(ids.a, "nota-10"));
+      expect(doc.status).toBe("revisao");
+      expect(doc.motivos.map((m) => m.codigo)).toEqual(["soma_diverge_do_total"]);
+
+      const doDocumento = (await pendentes(ids.a)).filter((p) => p.tipo === "confirmar_documento");
+      expect(doDocumento).toHaveLength(1);
+      pergunta = doDocumento[0]!;
+      expect(pergunta).toMatchObject({ item_de_compra_id: null, contexto: { documento_id: doc.id } });
+      expect(pergunta.pergunta).toContain("2026-09-25");
+
+      // Os itens foram lidos com confiança 1, mas o custo não é mais confiável que a nota.
+      for (const item of doc.compra!.itens) {
+        for (const linha of await historico(ids.a, item.id)) expect(linha.confianca).toBeLessThanOrEqual(0.5);
+      }
+    });
+
+    it("só aceita a confirmação no formato certo, e uma vez", async () => {
+      await responder(ids.a, pergunta.id, {}).expect(400);
+      await responder(ids.a, pergunta.id, { confirmado: false }).expect(400);
+      await responder(ids.b, pergunta.id, { confirmado: true }).expect(404);
+    });
+
+    it("o dono confirma a nota: ela sai da revisão e o custo ganha uma linha com a confiança nova", async () => {
+      const res = await responder(ids.a, pergunta.id, { confirmado: true }).expect(200);
+      expect(res.body).toMatchObject({ tipo: "confirmar_documento", status_documento: "extraido" });
+      await responder(ids.a, pergunta.id, { confirmado: true }).expect(409);
+
+      const depois = await aguardar(ids.a, doc.id);
+      expect(depois.status).toBe("extraido");
+      expect(depois.motivos.map((m) => m.codigo)).toContain("documento_confirmado");
+      expect((await pendentes(ids.a)).filter((p) => p.tipo === "confirmar_documento")).toEqual([]);
+
+      const [compraDoDocumento] = await db
+        .select()
+        .from(schema.compra)
+        .where(eq(schema.compra.documentoId, doc.id));
+      const ligados = await db
+        .select()
+        .from(schema.itemDeCompra)
+        .where(eq(schema.itemDeCompra.compraId, compraDoDocumento!.id));
+      for (const item of ligados.filter((i) => i.produtoId !== null)) {
+        const linhas = await historico(ids.a, item.id);
+        // A linha antiga continua (histórico append-only) e a mais recente vale.
+        expect(linhas.length).toBeGreaterThanOrEqual(2);
+        expect(linhas.at(-1)!.confianca).toBeGreaterThan(0.5);
+        expect(linhas[0]!.confianca).toBeLessThanOrEqual(0.5);
+      }
     });
   });
 });

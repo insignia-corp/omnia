@@ -64,28 +64,38 @@ describe("recalcularDocumento", () => {
     const r = recalcularDocumento({ ...base, somaItensCentavos: 69640, totalCentavos: 70880 });
     expect(r.motivos.map((m) => m.codigo)).toEqual(["soma_diverge_do_total"]);
     expect(r.confiancaDocumento).toBe(0.5);
-    // Sem item duvidoso não há pergunta a responder: a confiança baixa fica registrada, sem revisão.
-    expect(r.status).toBe("extraido");
+    // Confiança baixa do documento mantém a revisão: a pergunta do documento é a saída.
+    expect(r.status).toBe("revisao");
   });
 
   it("motivo de CNPJ não some quando o dono corrige um item", () => {
     const r = recalcularDocumento({ ...base, motivos: [{ codigo: "cnpj_invalido", mensagem: "x" }] });
     expect(r.motivos.map((m) => m.codigo)).toEqual(["cnpj_invalido"]);
     expect(r.confiancaDocumento).toBe(0.5);
-    expect(r.status).toBe("extraido");
+    expect(r.status).toBe("revisao");
   });
 
   it("aceita diferença de poucos centavos na soma", () => {
     expect(recalcularDocumento({ ...base, somaItensCentavos: 36125 }).motivos).toEqual([]);
   });
 
-  it("documento de baixa confiança sem item em revisão não fica preso em revisão", () => {
-    const r = recalcularDocumento({ ...base, confiancaOriginal: 0.5, menorConfiancaItem: 0.5 });
-    expect(r.confiancaDocumento).toBe(0.5);
-    expect(r.status).toBe("extraido");
+  it("nota confirmada pelo dono: os motivos ficam na lista, mas a confiança deixa de ser reduzida", () => {
+    const motivos = [
+      { codigo: "cnpj_invalido" as const, mensagem: "x" },
+      { codigo: "documento_confirmado" as const, mensagem: "y" },
+    ];
+    const r = recalcularDocumento({ ...base, motivos, ordemCorrigida: 0 });
+    expect(r.motivos).toEqual(motivos);
+    expect(r).toMatchObject({ confiancaDocumento: 0.95, status: "extraido" });
   });
 
-  it("item ainda duvidoso mantém o documento em revisão", () => {
-    expect(recalcularDocumento({ ...base, itensAindaEmRevisao: 1 }).status).toBe("revisao");
+  it("nota confirmada com item ainda em revisão continua em revisão, pelo item", () => {
+    const r = recalcularDocumento({
+      ...base,
+      motivos: [{ codigo: "documento_confirmado", mensagem: "y" }],
+      ordemCorrigida: 0,
+      itensAindaEmRevisao: 1,
+    });
+    expect(r.status).toBe("revisao");
   });
 });

@@ -47,8 +47,8 @@ export class PerguntasController {
   }
 
   /**
-   * Resposta estruturada: `{ valor_unitario_centavos, quantidade? }` para item duvidoso e
-   * `{ produto_id }` para vínculo. A interpretação de texto livre do dono é do agente (#53).
+   * Resposta estruturada: `{ valor_unitario_centavos, quantidade? }` para item duvidoso,
+   * `{ produto_id }` para vínculo e `{ confirmado: true }` para a dúvida da nota inteira. A interpretação de texto livre do dono é do agente (#53).
    */
   @Post(":id/resposta")
   @HttpCode(200)

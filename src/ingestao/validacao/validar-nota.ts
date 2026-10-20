@@ -17,7 +17,9 @@ export type CodigoMotivo =
   | "cnpj_invalido"
   | "data_invalida"
   | "data_futura"
-  | "data_antiga";
+  | "data_antiga"
+  /** Marca que o dono confirmou os dados da nota (resposta a `confirmar_documento`). */
+  | "documento_confirmado";
 
 export interface MotivoValidacao {
   codigo: CodigoMotivo;

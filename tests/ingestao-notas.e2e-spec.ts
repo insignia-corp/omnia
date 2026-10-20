@@ -207,17 +207,11 @@ describe("ingestão de notas (e2e)", () => {
       expect(compras.rows[0].n).toBe(1);
     });
 
-    it("nota 10: a soma que não bate reduz a confiança do documento e deixa o motivo, sem pergunta a responder", async () => {
+    it("nota 10: a soma que não bate reduz a confiança do documento e deixa o motivo", async () => {
       passos.push(resposta(comoDoModelo("nota-10")));
       const enviado = await enviarOk(a, "nota-10");
       const doc = await aguardar(a, enviado.documento_id);
-      // Confiança baixa do documento sem item duvidoso não tem pergunta que a resolva: não fica em revisão.
-      expect(doc.status).toBe("extraido");
-      const perguntas = await pool.query(
-        "select count(*)::int as n from pergunta_dono p join item_de_compra i on i.id = p.item_de_compra_id where i.compra_id = $1 and p.tipo = 'confirmar_item'",
-        [doc.compra!.id],
-      );
-      expect(perguntas.rows[0].n).toBe(0);
+      expect(doc.status).toBe("revisao");
       expect(doc.motivos.map((m) => m.codigo)).toEqual(["soma_diverge_do_total"]);
       expect(doc.confianca_media).toBeLessThan(0.8);
       expect(doc.compra!.soma_itens_centavos).toBe(69640);

@@ -175,6 +175,7 @@ export const categoriaTemplate = pgEnum("categoria_template", [
 export const tipoPergunta = pgEnum("tipo_pergunta", [
   "confirmar_item",
   "confirmar_vinculo",
+  "confirmar_documento",
   "informar_custo",
   "confirmar_acao",
 ]);

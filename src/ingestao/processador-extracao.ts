@@ -35,7 +35,8 @@ const IMAGEM_POR_EXTENSAO: Record<string, TipoImagem> = { jpg: "image/jpeg", png
  * Extrator, confere em código, grava com confiança e registra a execução (tokens, custo, latência).
  *
  * Nenhuma falha deixa o documento sem estado: erro não transitório vira `falha`; erro transitório
- * sobe para o BullMQ repetir e só vira `falha` na última tentativa.
+ * (leitura, modelo, validação ou gravação) sobe para o BullMQ repetir e só vira `falha` na última
+ * tentativa.
  */
 export class ProcessadorExtracao {
   constructor(private readonly dep: DependenciasProcessador) {}

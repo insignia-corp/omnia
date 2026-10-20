@@ -43,6 +43,13 @@
       "when": 1792528314658,
       "tag": "0005_ingestao",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792528896706,
+      "tag": "0006_pergunta_documento",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { RegistroExecucoes, ResultadoExecucao } from "../agente/execucao/registro-execucoes";
 import { custoMicrodolares } from "../agente/llm/modelo-linguagem";
-import type { Db } from "../infra/database/database.module";
+import type { Db, Executor } from "../infra/database/database.module";
 import { documento } from "../infra/database/schema";
 import type { Armazenamento } from "../infra/armazenamento/armazenamento";
 import type { ExtratorNotas, ResultadoExtracao } from "./extracao/extrator-notas";
@@ -70,25 +70,38 @@ export class ProcessadorExtracao {
 
     if (!resultado.ok) return this.falhar(entrada, resultado.erro, resultado.mensagem, resultado);
 
-    const validada = validarNota(resultado.extracao, {
-      hoje: this.dep.hoje?.() ?? new Date().toISOString().slice(0, 10),
-      limiteConfiancaItem: this.dep.limiteConfiancaItem,
-    });
-    const gravada = await gravarCompra(db, {
-      comercianteId,
-      documentoId,
-      extracaoOriginal: resultado.extracao,
-      validada,
-      limiteConfiancaItem: this.dep.limiteConfiancaItem,
-    });
-    await this.registrar(
-      entrada,
-      resultado,
-      "aprovada",
-      `Extraídos ${validada.extracao.itens.length} itens`,
-      null,
-    );
-    return { status: gravada.status, compraId: gravada.compraId, itensEmRevisao: gravada.itensEmRevisao };
+    // Validar e gravar também podem falhar (banco fora, restrição violada). Na última tentativa o
+    // documento vira `falha`; antes dela o erro sobe e o BullMQ repete. A execução entra na mesma
+    // transação da compra, então uma falha ao registrar nunca deixa a compra sem o seu registro.
+    try {
+      const validada = validarNota(resultado.extracao, {
+        hoje: this.dep.hoje?.() ?? new Date().toISOString().slice(0, 10),
+        limiteConfiancaItem: this.dep.limiteConfiancaItem,
+      });
+      const gravada = await gravarCompra(
+        db,
+        {
+          comercianteId,
+          documentoId,
+          extracaoOriginal: resultado.extracao,
+          validada,
+          limiteConfiancaItem: this.dep.limiteConfiancaItem,
+        },
+        (tx) =>
+          this.registrar(
+            entrada,
+            resultado,
+            "aprovada",
+            `Extraídos ${validada.extracao.itens.length} itens`,
+            null,
+            tx,
+          ),
+      );
+      return { status: gravada.status, compraId: gravada.compraId, itensEmRevisao: gravada.itensEmRevisao };
+    } catch (e) {
+      if (!ultimaTentativa) throw e;
+      return this.falhar(entrada, "erro_gravacao", e instanceof Error ? e.message : String(e), resultado);
+    }
   }
 
   private async falhar(
@@ -97,18 +110,22 @@ export class ProcessadorExtracao {
     mensagem: string,
     resultado: ResultadoExtracao | null,
   ): Promise<ResultadoProcessamento> {
-    await this.dep.db
-      .update(documento)
-      .set({ statusExtracao: "falha", erro: `${tipo}: ${mensagem}`, processadoEm: new Date() })
-      .where(and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId)));
     const resultadoExecucao: ResultadoExecucao = tipo === "recusa" ? "recusa_modelo" : "fallback_erro";
-    await this.registrar(
-      { documentoId, comercianteId },
-      resultado,
-      resultadoExecucao,
-      "Extração falhou",
-      mensagem,
-    );
+    // Estado do documento e registro da execução juntos: se um falhar, o job repete os dois.
+    await this.dep.db.transaction(async (tx) => {
+      await tx
+        .update(documento)
+        .set({ statusExtracao: "falha", erro: `${tipo}: ${mensagem}`, processadoEm: new Date() })
+        .where(and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId)));
+      await this.registrar(
+        { documentoId, comercianteId },
+        resultado,
+        resultadoExecucao,
+        "Extração falhou",
+        mensagem,
+        tx,
+      );
+    });
     return { status: "falha" };
   }
 
@@ -118,26 +135,30 @@ export class ProcessadorExtracao {
     resultado: ResultadoExecucao,
     mensagemFinal: string,
     erro: string | null,
+    executor: Executor,
   ): Promise<void> {
     const modelo = r?.modelo || this.dep.modeloConfigurado;
     const consumo = r?.consumo ?? { entrada: 0, saida: 0, cacheLeitura: 0, cacheEscrita: 0 };
-    await this.dep.registro.salvar({
-      comercianteId,
-      gatilho: "extracao_nota",
-      entrada: `documento:${documentoId}`,
-      modelo,
-      versaoPrompt: r?.versaoPrompt ?? "extrator",
-      resultado,
-      mensagemFinal,
-      iteracoes: r?.tentativas ?? 0,
-      bloqueios: [],
-      tokensEntrada: consumo.entrada,
-      tokensSaida: consumo.saida,
-      tokensCacheLeitura: consumo.cacheLeitura,
-      custoEstimadoMicrodolares: custoMicrodolares(modelo, consumo),
-      latenciaMs: r?.latenciaMs ?? 0,
-      erro,
-      chamadas: [],
-    });
+    await this.dep.registro.salvar(
+      {
+        comercianteId,
+        gatilho: "extracao_nota",
+        entrada: `documento:${documentoId}`,
+        modelo,
+        versaoPrompt: r?.versaoPrompt ?? "extrator",
+        resultado,
+        mensagemFinal,
+        iteracoes: r?.tentativas ?? 0,
+        bloqueios: [],
+        tokensEntrada: consumo.entrada,
+        tokensSaida: consumo.saida,
+        tokensCacheLeitura: consumo.cacheLeitura,
+        custoEstimadoMicrodolares: custoMicrodolares(modelo, consumo),
+        latenciaMs: r?.latenciaMs ?? 0,
+        erro,
+        chamadas: [],
+      },
+      executor,
+    );
   }
 }

@@ -44,6 +44,14 @@ export interface NotaValidada {
 
 const DIA_MS = 86_400_000;
 
+/** `item_de_compra.quantidade` é numeric(14,3): a conferência precisa usar o que o banco guarda. */
+const CASAS_QUANTIDADE = 1000;
+
+/** Arredonda a três casas, sem nunca chegar a zero (o banco exige quantidade positiva). */
+function quantidadeGravavel(quantidade: number): number {
+  return Math.max(1 / CASAS_QUANTIDADE, Math.round(quantidade * CASAS_QUANTIDADE) / CASAS_QUANTIDADE);
+}
+
 function diasDesde(data: string, hoje: string): number | null {
   const d = Date.parse(`${data}T00:00:00Z`);
   const h = Date.parse(`${hoje}T00:00:00Z`);
@@ -56,6 +64,7 @@ function diasDesde(data: string, hoje: string): number | null {
 /**
  * Conferências em código sobre a saída do modelo (issue #25, regra inviolável 5). O modelo nunca
  * confere o próprio resultado: divergência não descarta a nota, reduz a confiança e deixa o motivo.
+ * A quantidade já sai com as três casas do banco, e é com ela que o item é conferido.
  * A função não altera a entrada.
  */
 export function validarNota(entrada: ExtracaoNota, opcoes: OpcoesValidacao): NotaValidada {
@@ -67,7 +76,8 @@ export function validarNota(entrada: ExtracaoNota, opcoes: OpcoesValidacao): Not
     confiancaDocumento = Math.min(confiancaDocumento, CONFIANCA_REDUZIDA);
   };
 
-  const itens = entrada.itens.map((item, indice) => {
+  const itens = entrada.itens.map((original, indice) => {
+    const item = { ...original, quantidade: quantidadeGravavel(original.quantidade) };
     const esperado = multiplicar(centavos(item.valor_unitario_centavos), item.quantidade);
     if (Math.abs(esperado - item.valor_total_centavos) <= TOLERANCIA_ITEM_CENTAVOS) return item;
     motivos.push({

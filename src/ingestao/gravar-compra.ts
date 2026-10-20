@@ -1,6 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
-import { somenteDigitos } from "../lib/cnpj/cnpj";
-import type { Db } from "../infra/database/database.module";
+import { cnpjValido, somenteDigitos } from "../lib/cnpj/cnpj";
+import type { Db, Tx } from "../infra/database/database.module";
 import { compra, documento, fornecedor, itemDeCompra } from "../infra/database/schema";
 import type { ExtracaoNota } from "./extracao/esquema-extracao";
 import type { NotaValidada } from "./validacao/validar-nota";
@@ -31,7 +31,12 @@ export interface CompraGravada {
  * `produto_id` fica nulo até a descrição ser ligada a um produto (issue #27), e por isso nenhuma
  * linha de `historico_custo` nasce aqui: o histórico só existe para item com produto.
  */
-export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGravada> {
+export async function gravarCompra(
+  db: Db,
+  e: EntradaGravacao,
+  /** Roda na mesma transação, depois de tudo gravado: o que precisa ficar atômico com a compra. */
+  aoGravar?: (tx: Tx) => Promise<void>,
+): Promise<CompraGravada> {
   return db.transaction(async (tx) => {
     const existente = await tx
       .select({ id: compra.id })
@@ -65,23 +70,7 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
       };
     }
 
-    const cnpj = somenteDigitos(extracao.fornecedor.cnpj);
-    await tx
-      .insert(fornecedor)
-      .values({
-        comercianteId: e.comercianteId,
-        nome: extracao.fornecedor.nome,
-        cnpj,
-        origem: "foto_nota",
-        confianca: confiancaDocumento,
-      })
-      .onConflictDoNothing({ target: [fornecedor.comercianteId, fornecedor.cnpj] });
-    const [forn] = await tx
-      .select({ id: fornecedor.id })
-      .from(fornecedor)
-      .where(and(eq(fornecedor.comercianteId, e.comercianteId), eq(fornecedor.cnpj, cnpj)))
-      .limit(1);
-    if (!forn) throw new Error("Fornecedor não encontrado depois de gravar");
+    const forn = await obterFornecedor(tx, e.comercianteId, extracao.fornecedor, confiancaDocumento);
 
     const [novaCompra] = await tx
       .insert(compra)
@@ -132,6 +121,41 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
       })
       .where(and(eq(documento.id, e.documentoId), eq(documento.comercianteId, e.comercianteId)));
 
+    await aoGravar?.(tx);
     return { compraId: novaCompra.id, status, itensEmRevisao, jaExistia: false };
   });
+}
+
+/**
+ * Fornecedor da nota. O CNPJ válido é a identidade: o mesmo CNPJ reaproveita o cadastro. CNPJ
+ * ilegível ou com dígito errado não identifica ninguém, então o fornecedor entra sem CNPJ e sem
+ * juntar notas de fornecedores diferentes (o histórico de custo é por fornecedor).
+ */
+async function obterFornecedor(
+  tx: Tx,
+  comercianteId: string,
+  dados: { nome: string; cnpj: string },
+  confianca: number,
+): Promise<{ id: string }> {
+  const valores = { comercianteId, nome: dados.nome, origem: "foto_nota" as const, confianca };
+  if (!cnpjValido(dados.cnpj)) {
+    const [novo] = await tx
+      .insert(fornecedor)
+      .values({ ...valores, cnpj: null })
+      .returning({ id: fornecedor.id });
+    if (!novo) throw new Error("Falha ao gravar o fornecedor");
+    return novo;
+  }
+  const cnpj = somenteDigitos(dados.cnpj);
+  await tx
+    .insert(fornecedor)
+    .values({ ...valores, cnpj })
+    .onConflictDoNothing({ target: [fornecedor.comercianteId, fornecedor.cnpj] });
+  const [existente] = await tx
+    .select({ id: fornecedor.id })
+    .from(fornecedor)
+    .where(and(eq(fornecedor.comercianteId, comercianteId), eq(fornecedor.cnpj, cnpj)))
+    .limit(1);
+  if (!existente) throw new Error("Fornecedor não encontrado depois de gravar");
+  return existente;
 }

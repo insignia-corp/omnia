@@ -55,7 +55,7 @@ Toda tabela, exceto `comerciante`, também aponta para `comerciante` (omitido no
 | `consentimento` | O que foi autorizado (`banco`, `notas`), quando e em qual versão do termo; `revogado_em` quando revogado | Uma linha por concessão |
 | `conta` | Conta bancária conectada. Guarda só o id da conexão no agregador, nunca credenciais | `saldo_inicial_centavos` e `saldo_inicial_em` permitem calcular o saldo de qualquer dia |
 | `transacao` | Entrada ou saída da conta, com `id_externo` único por conta para importar sem duplicar | Valor sempre positivo; o sentido está em `tipo` |
-| `fornecedor` | Nome e CNPJ (só dígitos), único por comerciante | |
+| `fornecedor` | Nome e CNPJ (só dígitos), único por comerciante | CNPJ ilegível ou com dígito errado entra nulo: cada nota vira um fornecedor próprio até o dono confirmar, em vez de juntar notas de fornecedores diferentes |
 | `produto` | Catálogo. Código de barras e SKU únicos por comerciante, índice `pg_trgm` no nome | `preco_meta_centavos` e `margem_meta_bps` são as metas do dono, opcionais |
 | `documento` | Arquivo enviado (foto, NF-e, planilha), com hash SHA-256 único por comerciante, status da extração (`pendente`, `processando`, `extraido`, `revisao`, `falha`), a saída do modelo já validada (`extracao_json`) e as divergências achadas em código (`motivos_validacao`) | O mesmo arquivo enviado duas vezes não vira dois documentos |
 | `compra` | Nota de compra: fornecedor, data, total impresso e soma dos itens calculada em código | Total diferente da soma reduz a confiança |

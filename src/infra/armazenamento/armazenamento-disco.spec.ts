@@ -74,8 +74,28 @@ describe("ArmazenamentoDisco", () => {
     await expect(soImagem.salvar(A, XLSX)).rejects.toMatchObject({ motivo: "tipo_nao_aceito" });
   });
 
+  it("remove um arquivo e tolera repetir a remoção", async () => {
+    const salvo = await armazenamento.salvar(A, JPEG);
+    await armazenamento.remover(salvo.caminho);
+    await expect(armazenamento.ler(salvo.caminho)).rejects.toThrow();
+    await expect(armazenamento.remover(salvo.caminho)).resolves.toBeUndefined();
+  });
+
+  it("remove todos os arquivos de um comerciante e preserva os dos outros", async () => {
+    const a1 = await armazenamento.salvar(A, JPEG);
+    const a2 = await armazenamento.salvar(A, PNG);
+    const b = await armazenamento.salvar(B, JPEG);
+    await armazenamento.removerDoComerciante(A);
+    await expect(armazenamento.ler(a1.caminho)).rejects.toThrow();
+    await expect(armazenamento.ler(a2.caminho)).rejects.toThrow();
+    expect(await armazenamento.ler(b.caminho)).toEqual(JPEG);
+    await expect(armazenamento.removerDoComerciante(A)).resolves.toBeUndefined();
+  });
+
   it("não aceita id que escape da raiz nem caminho fora dela", async () => {
     await expect(armazenamento.salvar("../fora", JPEG)).rejects.toThrow(/inválido/);
     await expect(armazenamento.ler("../../etc/passwd")).rejects.toThrow(/fora do armazenamento/);
+    await expect(armazenamento.remover("../../etc/passwd")).rejects.toThrow(/fora do armazenamento/);
+    await expect(armazenamento.removerDoComerciante("..")).rejects.toThrow(/inválido/);
   });
 });

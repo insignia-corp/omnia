@@ -1,0 +1,73 @@
+import { Inject, Injectable } from "@nestjs/common";
+import { eq } from "drizzle-orm";
+import { ENV } from "../../config/config.module";
+import type { Env } from "../../config/env";
+import { DB, type Db } from "../../infra/database/database.module";
+import { comerciante } from "../../infra/database/schema";
+import { CaixaMensagens } from "../caixa-mensagens";
+import { PORTA_AGENTE, type PortaAgente } from "../porta-agente";
+import { minutosDoDia, RELOGIO, type Relogio } from "../relogio";
+import { FONTE_RELATORIO, type FonteRelatorio } from "./fonte-relatorio";
+import { emSilencio } from "./horario-silencio";
+
+export type ResultadoRelatorio = "enviada" | "duplicada" | "silencio" | "ja_enviada_hoje" | "sem_comerciante";
+
+export interface JobRelatorioDiario {
+  comercianteId: string;
+  /** Data local "AAAA-MM-DD" a que o relatório se refere; faz parte da chave de idempotência. */
+  data: string;
+}
+
+export const chaveRelatorio = (j: JobRelatorioDiario) => `relatorio_${j.comercianteId}_${j.data}`;
+
+/**
+ * Relatório diário proativo (issue #64, regra inviolável 9): chave comerciante + data e no máximo
+ * uma mensagem proativa por dia. Quem garante é o banco (`CaixaMensagens.enviarProativa`); os
+ * testes antes dele só poupam uma chamada ao modelo.
+ */
+@Injectable()
+export class RelatorioDiarioService {
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(ENV) private readonly env: Env,
+    @Inject(RELOGIO) private readonly relogio: Relogio,
+    @Inject(PORTA_AGENTE) private readonly agente: PortaAgente,
+    @Inject(FONTE_RELATORIO) private readonly fonte: FonteRelatorio,
+    private readonly caixa: CaixaMensagens,
+  ) {}
+
+  emSilencioAgora(): boolean {
+    const minutos = minutosDoDia(this.relogio.agora(), this.env.FUSO_HORARIO);
+    return emSilencio(minutos, { inicio: this.env.SILENCIO_INICIO, fim: this.env.SILENCIO_FIM });
+  }
+
+  async processar(job: JobRelatorioDiario): Promise<ResultadoRelatorio> {
+    if (this.emSilencioAgora()) return "silencio";
+    if (await this.caixa.jaTemProativa(job.comercianteId, job.data)) return "ja_enviada_hoje";
+
+    const [dono] = await this.db
+      .select({ nome: comerciante.nome })
+      .from(comerciante)
+      .where(eq(comerciante.id, job.comercianteId))
+      .limit(1);
+    if (!dono) return "sem_comerciante";
+
+    const contexto = {
+      comercianteId: job.comercianteId,
+      nomeComercio: dono.nome,
+      dataReferencia: job.data,
+    };
+    const resposta = await this.agente.executar({
+      contexto,
+      gatilho: "relatorio_diario",
+      entrada: await this.fonte.entrada(contexto),
+    });
+    return this.caixa.enviarProativa({
+      comercianteId: job.comercianteId,
+      texto: resposta.mensagem,
+      execucaoId: resposta.execucaoId,
+      dataEnvio: job.data,
+      chave: chaveRelatorio(job),
+    });
+  }
+}

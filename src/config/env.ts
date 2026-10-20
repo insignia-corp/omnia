@@ -4,6 +4,8 @@ import { z } from "zod";
  * Esquema das variáveis de ambiente. A aplicação não sobe com configuração inválida.
  * Segredos ficam só no ambiente (regra inviolável 12); veja .env.example.
  */
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const esquemaEnv = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -37,6 +39,12 @@ const esquemaEnv = z.object({
 
   // Canal: "web" (chat web, padrão para a regional) ou "whatsapp"
   CANAL: z.enum(["web", "whatsapp"]).default("web"),
+
+  // Relatório diário (#64): horário em cron, fuso e janela de silêncio (HH:MM, pode virar a meia-noite)
+  FUSO_HORARIO: z.string().min(1).default("America/Sao_Paulo"),
+  RELATORIO_DIARIO_CRON: z.string().min(1).default("0 8 * * *"),
+  SILENCIO_INICIO: z.string().regex(HORA, "use HH:MM").default("22:00"),
+  SILENCIO_FIM: z.string().regex(HORA, "use HH:MM").default("07:00"),
 });
 
 export type Env = z.infer<typeof esquemaEnv>;

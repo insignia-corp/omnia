@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { LoggerModule } from "nestjs-pino";
 import { randomUUID } from "node:crypto";
 import { AgenteModule } from "./agente/agente.module";
+import { CanalModule } from "./canal/canal.module";
 import { ConfigModule, ENV } from "./config/config.module";
 import type { Env } from "./config/env";
 import { DatabaseModule } from "./infra/database/database.module";
@@ -39,6 +40,7 @@ function temPinoPretty(): boolean {
     RedisModule,
     AgenteModule,
     IngestaoModule,
+    CanalModule,
   ],
   controllers: [SaudeController],
 })

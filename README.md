@@ -66,6 +66,8 @@ docker compose up -d --build  # PostgreSQL, Redis e API, com migrações
 curl localhost:3000/health    # {"status":"ok","postgres":"ok","pgTrgm":"ok","redis":"ok"}
 ```
 
+O `/health` verifica as dependências em paralelo, com prazo de 1 segundo por checagem. Retorna HTTP 503 se uma delas falhar ou exceder o prazo. Redis desconectado retorna falha sem enfileirar novos pings na conexão de filas.
+
 Se alguma porta já estiver em uso, mude `API_PORTA`, `POSTGRES_PORTA` ou `REDIS_PORTA` no `.env`.
 
 Desenvolvimento local, com banco e Redis no Docker:

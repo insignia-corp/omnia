@@ -9,6 +9,11 @@ describe("extrairNumeros", () => {
     ["Em 15/10 o custo mudou", [15, 10]],
     ["Data 2026-10-15", [2026, 10, 15]],
     ["Total de 1.000.000", [1000000]],
+    ["Margem de -12,5% e saldo de R$ -1.234,50", [-12.5, -1234.5]],
+    ["Saldo de -R$ 12,50 e margem de −12,5%", [-12.5, -12.5]],
+    ["Margem de +12,5% e saldo de R$ +12,50", [12.5, 12.5]],
+    ["Margem de menos 12,5% e saldo de menos R$ 12,50", [-12.5, -12.5]],
+    ["Entre 12-15 dias, em 2026-10-20", [12, 15, 2026, 10, 20]],
     ["Sem números aqui", []],
   ])("%p", (msg, esperado) => {
     expect(extrairNumeros(msg).map((e) => e.valor)).toEqual(esperado);
@@ -57,6 +62,58 @@ describe("verificarNumeros", () => {
 
   it("bloqueia arredondamento feito pelo modelo", () => {
     expect(verificarNumeros("Margem de 28%.", autorizados).aprovado).toBe(false);
+    expect(verificarNumeros("Margem de 27,704%.", autorizados).aprovado).toBe(false);
+  });
+
+  it.each([
+    "Você faturou quinhentos reais e a margem foi de trinta por cento.",
+    "Foram vinte e três vendas.",
+    "Faturou dois milhões de reais.",
+    "Comprou duzentas unidades.",
+    "A margem foi de zero por cento.",
+    "Vendeu uma unidade e recebeu um real.",
+    "Vendeu em um mês.",
+    "Faturou R$ 5 mil.",
+  ])("bloqueia cardinais por extenso: %s", (mensagem) => {
+    const r = verificarNumeros(mensagem, new NumerosAutorizados());
+    expect(r.aprovado).toBe(false);
+    expect(r.porExtenso.length).toBeGreaterThan(0);
+  });
+
+  it("exige algarismos mesmo quando o valor por extenso existe nas fontes", () => {
+    const r = verificarNumeros(
+      "Margem de trinta por cento.",
+      new NumerosAutorizados([{ margem_percentual: 30 }]),
+    );
+    expect(r.aprovado).toBe(false);
+    expect(r.porExtenso).toEqual(["trinta"]);
+  });
+
+  it("não confunde artigos nem partes de palavras com cardinais", () => {
+    expect(
+      verificarNumeros(
+        "Pode mandar uma planilha? Tive um problema com o documento.",
+        new NumerosAutorizados(),
+      ).aprovado,
+    ).toBe(true);
+    expect(
+      verificarNumeros("O comércio fica no centro, na Rua Milena.", new NumerosAutorizados()).aprovado,
+    ).toBe(true);
+    expect(verificarNumeros("Margem de 27,7 por cento.", autorizados).aprovado).toBe(true);
+  });
+
+  it("preserva sinais de margens e de valores monetários", () => {
+    const a = new NumerosAutorizados([{ margem_percentual: -12.5, saldo_centavos: -123450 }]);
+    expect(verificarNumeros("Margem de -12,5% e saldo de R$ -1.234,50.", a).aprovado).toBe(true);
+    expect(verificarNumeros("Margem de 12,5%.", a).aprovado).toBe(false);
+    expect(verificarNumeros("Saldo de R$ 1.234,50.", a).aprovado).toBe(false);
+    expect(verificarNumeros("Margem de -27,7%.", autorizados).aprovado).toBe(false);
+  });
+
+  it("preserva o sinal de ponto decimal vindo em texto de ferramenta", () => {
+    const a = new NumerosAutorizados([{ descricao: "Margem -12.5" }]);
+    expect(verificarNumeros("Margem de -12,5%.", a).aprovado).toBe(true);
+    expect(verificarNumeros("Margem de 12,5%.", a).aprovado).toBe(false);
   });
 
   it("só converte para reais chaves terminadas em _centavos", () => {

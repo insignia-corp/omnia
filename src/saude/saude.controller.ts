@@ -7,6 +7,9 @@ import { REDIS } from "../infra/redis/redis.module";
 
 type Estado = "ok" | "falha";
 
+// A resposta deve chegar antes do timeout de 3 s do healthcheck do Docker.
+export const PRAZO_CHECAGEM_MS = 1000;
+
 export interface RespostaSaude {
   status: Estado;
   postgres: Estado;
@@ -33,6 +36,9 @@ export class SaudeController {
         if (r.rowCount !== 1) throw new Error("pg_trgm ausente");
       }),
       this.checar(async () => {
+        // A conexão de filas repete comandos indefinidamente. Não enfileirar um novo
+        // PING a cada healthcheck enquanto ela estiver desconectada/reconectando.
+        if (this.redis.status !== "ready") throw new Error("Redis desconectado");
         if ((await this.redis.ping()) !== "PONG") throw new Error("Redis sem PONG");
       }),
     ]);
@@ -42,11 +48,19 @@ export class SaudeController {
   }
 
   private async checar(fn: () => Promise<void>): Promise<Estado> {
+    let temporizador: ReturnType<typeof setTimeout> | undefined;
     try {
-      await fn();
+      await Promise.race([
+        fn(),
+        new Promise<never>((_, reject) => {
+          temporizador = setTimeout(() => reject(new Error("Prazo da checagem excedido")), PRAZO_CHECAGEM_MS);
+        }),
+      ]);
       return "ok";
     } catch {
       return "falha";
+    } finally {
+      clearTimeout(temporizador);
     }
   }
 }

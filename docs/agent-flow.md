@@ -1,6 +1,14 @@
 # Fluxo do agente
 
-Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado atual: núcleo do agente pronto; as ferramentas de dados entram com as métricas (issues #50 a #53).
+Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado atual: núcleo do agente pronto; as ferramentas de dados entram com as métricas (issues #50 a #53). A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
+
+## Dois agentes e um orquestrador em código
+
+- **Extrator** (visão, sem ferramentas): foto da nota para JSON validado por Zod. Roda como job de ingestão, antes do loop abaixo.
+- **Analista** (o loop abaixo): escolhe os alertas, responde perguntas e escreve a mensagem, com o verificador no fim.
+- **Orquestrador**: código (BullMQ e PostgreSQL), não um agente. Decide ordem, limites, idempotência e resolve a confirmação "sim" do dono sem modelo.
+
+O diagrama a seguir detalha o loop do Analista.
 
 ## Visão geral
 

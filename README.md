@@ -91,7 +91,8 @@ npm run dev
 - [Contexto do hackathon](docs/contexto-hackathon.md): critérios da banca, persona, viabilidade, custos, riscos
 - [Alertas do hackathon](docs/alertas-hackathon.md): prazo, escopo e critérios da banca (seção 9.4 do edital)
 - [Fluxo do agente](docs/agent-flow.md): inputs, lógica e outputs do agente
-- [Decisões](docs/decisoes/): ORM, modelo de linguagem
+- [Especificação dos agentes](docs/especificacao-agentes.md): Extrator, Analista, orquestrador, ferramentas, falhas e avaliação
+- [Decisões](docs/decisoes/): ORM, modelo de linguagem, arquitetura do agente
 - [CLAUDE.md](CLAUDE.md): regras invioláveis e convenções do projeto
 
 ## Equipe

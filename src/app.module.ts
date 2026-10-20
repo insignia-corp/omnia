@@ -6,6 +6,7 @@ import { ConfigModule, ENV } from "./config/config.module";
 import type { Env } from "./config/env";
 import { DatabaseModule } from "./infra/database/database.module";
 import { RedisModule } from "./infra/redis/redis.module";
+import { MetricasModule } from "./metricas/metricas.module";
 import { SaudeController } from "./saude/saude.controller";
 
 /** pino-pretty é dependência de desenvolvimento e não existe na imagem de produção. */
@@ -37,6 +38,7 @@ function temPinoPretty(): boolean {
     DatabaseModule,
     RedisModule,
     AgenteModule,
+    MetricasModule,
   ],
   controllers: [SaudeController],
 })

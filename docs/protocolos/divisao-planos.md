@@ -11,9 +11,14 @@ Antes de escrever qualquer código, pergunte (uma pergunta só):
 
 Só prossiga depois da resposta. Se o usuário já informou plano e issues, confirme em uma linha e siga. Trabalhe só nas pastas do plano escolhido; se a tarefa exigir outra pasta, avise antes.
 
-## Segurança fica para o fim
+## Só a parte técnica agora: labels no GitHub
 
-Segurança e LGPD (#81 a #87, #82, #83, #84, #85, #86, #87, #108, #109) são feitas no fim, pelo método do dono do projeto, depois do MVP. Nenhum plano mexe nelas agora e nenhum agente as sugere. Continuam valendo as regras invioláveis de `AGENTS.md` em todo código novo (ex.: `comerciante_id` vem da sessão, nunca do modelo; nenhum segredo no código).
+Toda issue aberta tem um destes labels (`gh issue list --label plano:A --state open`):
+
+- `plano:A`, `plano:B`, `plano:C`: técnica, entra neste esquema. Dentro de cada plano, `prioridade:P0` primeiro; P1 e P2 só depois do MVP.
+- `depois`: não técnica (validação com lojistas, negócio e custos, pitch, slides, roteiro e gravação da demo, checklist, conta Meta) ou segurança e LGPD (#81 a #87, #108, #109). Fica para depois do MVP ou se sobrar tempo. Segurança é feita no fim, pelo método do dono do projeto. Nenhum plano mexe nelas e nenhum agente as sugere.
+
+Continuam valendo as regras invioláveis de `AGENTS.md` em todo código novo (ex.: `comerciante_id` vem da sessão, nunca do modelo; nenhum segredo no código).
 
 ## Objetivo: MVP o quanto antes
 
@@ -71,14 +76,13 @@ Pastas: `src/canal`, `src/ingestao` (só o que falta), `src/agente/ferramentas/f
 | Desenvolver | #106 implementação `MessageChannel` em memória e web, #66 chat web (plano B da demo) chamando o `AgenteService` existente, #64 job diário idempotente com limite de 1 mensagem por dia e horário de silêncio, #63 envio de foto de nota pelo chat web | dono conversa e envia nota no chat web; job não duplica |
 | Refinar | #27 sugestão de vínculo pelo modelo, #76 reset da demo em um comando, #77 tela de bastidores (extração, confiança, chamadas de ferramenta); P1 WhatsApp só depois do MVP: #61, #62 (#59 bloqueada) | demo roda do zero em um comando |
 | Testar | e2e ponta a ponta no chat web com modelo falso (nota entra, mensagem sai), teste da regra de idempotência do #64 (`regra-inviolável`) | `npm run test:e2e -- tests/canal tests/demo` verde |
-| Entrega | #78 roteiro, #79 gravação (plano B), #111 checklist de congelamento | resultado salvo antes de 24/10 15h30 |
 
 ## Marcos de integração
 
 1. **Fase 0 mesclada** (hoje): ponto de encaixe pronto.
 2. **MVP ponta a ponta** (meta: 22/10): A tem métricas e ferramentas de leitura encaixadas, B tem o loop, C tem o chat web. Rodar a demo inteira com `npm run seed:demo`.
 3. **Refino e testes** (23/10): eval completo, bastidores, demo ensaiada.
-4. **Segurança, método do dono** (24/10 de manhã, antes do congelamento de 15h30).
+4. **Issues `depois` e segurança, método do dono** (24/10 de manhã, antes do congelamento de 15h30).
 
 ## Regras para nenhum plano quebrar outro
 
@@ -91,9 +95,9 @@ Pastas: `src/canal`, `src/ingestao` (só o que falta), `src/agente/ferramentas/f
 
 ## Fora dos planos de código
 
-- Trabalho humano: #59 (bloqueada), #60, #80 a #103 (entrevistas, pitch, slides, concorrentes, custos), #30 (fora do escopo regional).
+- Label `depois` (31 issues): #30, #59, #60, #78 a #96, #98 a #103, #111 e a segurança (#81 a #87, #108, #109).
 - Possivelmente já prontas, conferir e fechar: épicos #1 e #11, #7 (existe `ci.yml`), #16 (Etapa 1 feita).
-- Cortar se o tempo apertar: #29, #107, #37, #60 e o WhatsApp real (#61 a #63); o chat web cobre a demo.
+- Dentro dos planos, cortar se o tempo apertar: #29, #107, #37 e o WhatsApp real (#61 a #63); o chat web cobre a demo.
 
 ## Economia de tokens
 

@@ -111,6 +111,15 @@ Cada métrica é uma função pura em TypeScript, com testes unitários, que dev
 A margem usa o custo da compra mais recente porque é o que a reposição vai custar. Sem dado de estoque, o giro vira um ranking de quantidade vendida; estoque parado só funciona com PDV ou planilha de estoque.
  
 O motor de alertas apenas lista candidatos com prioridade. Quem decide o que entra na mensagem do dia é o agente, e quem calcula cada número é a função.
+
+O código aplica estas regras além da tabela. Os valores iniciais ficam nas constantes `PARAMETROS_*` de [src/metricas](../src/metricas/README.md), e o teste de regressão confere que são os do gabarito.
+
+- Sem custo ou sem venda a margem não sai: a métrica devolve dado ausente, com a pergunta ao dono, nunca uma estimativa.
+- Dia sem dado não é zero. O resumo diário conhece o intervalo de vendas importado: dentro dele, dia sem cupom vale zero; fora dele, a comparação fica ausente, e um dia depois da última venda importada vira dado ausente em vez de faturamento zero. Um buraco no meio do intervalo conta como dia sem venda.
+- O custo de cada item de compra vale pela leitura mais recente de `historico_custo`, então a correção do dono prevalece sem apagar a leitura do modelo. O custo mais recente de um produto é o de maior data; o empate desempata pela criação.
+- A variação de custo compara notas diferentes: duas linhas do mesmo produto na mesma nota não são um reajuste.
+- Razões em pontos-base e preço médio arredondam meio para cima, afastando do zero. Somas de quantidade são arredondadas em 3 casas, para o ruído de ponto flutuante não decidir um limite.
+- Nos rankings, o desempate é pelo nome em ordem alfabética do português e depois pelo id.
  
 ## O agente
  

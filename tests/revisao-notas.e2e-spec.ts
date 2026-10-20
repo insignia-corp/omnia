@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -395,13 +395,31 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
         .select()
         .from(schema.itemDeCompra)
         .where(eq(schema.itemDeCompra.compraId, compraDoDocumento!.id));
+      let reemitidos = 0;
       for (const item of ligados.filter((i) => i.produtoId !== null)) {
         const linhas = await historico(ids.a, item.id);
+        const [vinculo] = await db
+          .select({ confianca: schema.vinculoDescricaoProduto.confianca })
+          .from(schema.vinculoDescricaoProduto)
+          .where(eq(schema.vinculoDescricaoProduto.produtoId, item.produtoId!))
+          .orderBy(desc(schema.vinculoDescricaoProduto.criadoEm))
+          .limit(1);
+        const doVinculo = vinculo?.confianca ?? 1;
+        if (doVinculo <= 0.5) {
+          // Vínculo por similaridade fraca já limita o custo a esse valor: confirmar a nota não o
+          // muda, então não entra linha nova (o histórico só ganha linha quando o valor muda).
+          expect(linhas).toHaveLength(1);
+          expect(linhas[0]!.confianca).toBeCloseTo(doVinculo, 5);
+          continue;
+        }
+        reemitidos++;
         // A linha antiga continua (histórico append-only) e a mais recente vale.
         expect(linhas.length).toBeGreaterThanOrEqual(2);
         expect(linhas.at(-1)!.confianca).toBeGreaterThan(0.5);
         expect(linhas[0]!.confianca).toBeLessThanOrEqual(0.5);
       }
+      // Pelo menos um item mostra a reemissão, senão o teste não provaria nada.
+      expect(reemitidos).toBeGreaterThan(0);
     });
   });
 });

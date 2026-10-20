@@ -9,6 +9,14 @@ export interface OpcoesClienteVisaoAnthropic {
 }
 
 /**
+ * Mesma política de repetição do SDK: sem status (rede), 408 (timeout), 409 (conflito), 429 e 5xx
+ * valem outra tentativa do BullMQ; os demais 4xx (imagem grande demais, pedido inválido) não.
+ */
+export function statusTransitorio(status: number | undefined): boolean {
+  return status === undefined || status === 408 || status === 409 || status === 429 || status >= 500;
+}
+
+/**
  * Modelo com visão pela API da Anthropic.
  *
  * - Saída por `output_config.format` (JSON conforme o esquema). `tool_choice` forçado dá 400 no
@@ -75,7 +83,7 @@ export class ClienteVisaoAnthropic implements ClienteVisao {
         throw new ErroClienteVisao(e.message, true);
       }
       if (e instanceof Anthropic.APIError) {
-        throw new ErroClienteVisao(e.message, e.status === undefined || e.status >= 500);
+        throw new ErroClienteVisao(e.message, statusTransitorio(e.status as number | undefined));
       }
       throw e;
     }

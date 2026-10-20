@@ -95,6 +95,36 @@ describe("validarNota: conferências", () => {
     expect(r.motivos).toEqual([]);
   });
 
+  it("arredonda a quantidade às três casas do banco e confere o item com ela", () => {
+    const item = {
+      descricao: "QUEIJO",
+      quantidade: 0.3333,
+      unidade: "KG",
+      valor_unitario_centavos: 100_000,
+      valor_total_centavos: 33_330,
+      confianca: 1,
+    };
+    const r = validarNota({ ...base, itens: [item], total_centavos: 33_330 }, { hoje: HOJE });
+    expect(r.extracao.itens[0]?.quantidade).toBe(0.333);
+    // 0,333 x R$ 1.000,00 dá 33.300, não 33.330: a divergência aparece em vez de ficar escondida.
+    expect(r.motivos).toEqual([expect.objectContaining({ codigo: "item_nao_confere", item: 1 })]);
+    expect(r.itensParaRevisao).toEqual([1]);
+  });
+
+  it("quantidade que arredondaria a zero fica em 0,001 e vai para revisão", () => {
+    const item = {
+      descricao: "ISCA",
+      quantidade: 0.0001,
+      unidade: "KG",
+      valor_unitario_centavos: 5000,
+      valor_total_centavos: 500,
+      confianca: 1,
+    };
+    const r = validarNota({ ...base, itens: [item], total_centavos: 500 }, { hoje: HOJE });
+    expect(r.extracao.itens[0]?.quantidade).toBe(0.001);
+    expect(r.itensParaRevisao).toEqual([1]);
+  });
+
   it("CNPJ com dígito verificador errado reduz a confiança do documento", () => {
     const r = validarNota(
       { ...base, fornecedor: { ...base.fornecedor, cnpj: "11111111000100" } },

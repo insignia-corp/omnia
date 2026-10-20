@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { RegistroExecucoes, ResultadoExecucao } from "../agente/execucao/registro-execucoes";
 import { custoMicrodolares } from "../agente/llm/modelo-linguagem";
-import type { Db } from "../infra/database/database.module";
+import type { Db, Executor } from "../infra/database/database.module";
 import { documento } from "../infra/database/schema";
 import type { Armazenamento } from "../infra/armazenamento/armazenamento";
 import type { ExtratorNotas, ResultadoExtracao } from "./extracao/extrator-notas";
@@ -108,18 +108,23 @@ export class ProcessadorExtracao {
     mensagem: string,
     resultado: ResultadoExtracao | null,
   ): Promise<ResultadoProcessamento> {
-    await this.dep.db
-      .update(documento)
-      .set({ statusExtracao: "falha", erro: `${tipo}: ${mensagem}`, processadoEm: new Date() })
-      .where(and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId)));
     const resultadoExecucao: ResultadoExecucao = tipo === "recusa" ? "recusa_modelo" : "fallback_erro";
-    await this.registrar(
-      { documentoId, comercianteId },
-      resultado,
-      resultadoExecucao,
-      "Extração falhou",
-      mensagem,
-    );
+    // Estado do documento e registro da execução juntos: se um falhar, o job repete os dois, em vez
+    // de deixar o documento em `falha` (e ignorado nas repetições) sem o registro.
+    await this.dep.db.transaction(async (tx) => {
+      await tx
+        .update(documento)
+        .set({ statusExtracao: "falha", erro: `${tipo}: ${mensagem}`, processadoEm: new Date() })
+        .where(and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId)));
+      await this.registrar(
+        { documentoId, comercianteId },
+        resultado,
+        resultadoExecucao,
+        "Extração falhou",
+        mensagem,
+        tx,
+      );
+    });
     return { status: "falha" };
   }
 
@@ -129,26 +134,30 @@ export class ProcessadorExtracao {
     resultado: ResultadoExecucao,
     mensagemFinal: string,
     erro: string | null,
+    executor?: Executor,
   ): Promise<void> {
     const modelo = r?.modelo || this.dep.modeloConfigurado;
     const consumo = r?.consumo ?? { entrada: 0, saida: 0, cacheLeitura: 0, cacheEscrita: 0 };
-    await this.dep.registro.salvar({
-      comercianteId,
-      gatilho: "extracao_nota",
-      entrada: `documento:${documentoId}`,
-      modelo,
-      versaoPrompt: r?.versaoPrompt ?? "extrator",
-      resultado,
-      mensagemFinal,
-      iteracoes: r?.tentativas ?? 0,
-      bloqueios: [],
-      tokensEntrada: consumo.entrada,
-      tokensSaida: consumo.saida,
-      tokensCacheLeitura: consumo.cacheLeitura,
-      custoEstimadoMicrodolares: custoMicrodolares(modelo, consumo),
-      latenciaMs: r?.latenciaMs ?? 0,
-      erro,
-      chamadas: [],
-    });
+    await this.dep.registro.salvar(
+      {
+        comercianteId,
+        gatilho: "extracao_nota",
+        entrada: `documento:${documentoId}`,
+        modelo,
+        versaoPrompt: r?.versaoPrompt ?? "extrator",
+        resultado,
+        mensagemFinal,
+        iteracoes: r?.tentativas ?? 0,
+        bloqueios: [],
+        tokensEntrada: consumo.entrada,
+        tokensSaida: consumo.saida,
+        tokensCacheLeitura: consumo.cacheLeitura,
+        custoEstimadoMicrodolares: custoMicrodolares(modelo, consumo),
+        latenciaMs: r?.latenciaMs ?? 0,
+        erro,
+        chamadas: [],
+      },
+      executor,
+    );
   }
 }

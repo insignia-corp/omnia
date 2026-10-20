@@ -101,7 +101,10 @@ export const execucaoAgente = pgTable(
     erro: text("erro"),
     criadoEm: criadoEm(),
   },
-  (t) => [index("execucao_agente_comerciante_idx").on(t.comercianteId, t.criadoEm)],
+  (t) => [
+    unique("execucao_agente_id_comerciante_uq").on(t.id, t.comercianteId),
+    index("execucao_agente_comerciante_idx").on(t.comercianteId, t.criadoEm),
+  ],
 );
 
 /** Cada chamada de ferramenta feita pelo agente, em ordem (tela de bastidores e auditoria). */
@@ -109,9 +112,7 @@ export const chamadaFerramenta = pgTable(
   "chamada_ferramenta",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    execucaoId: uuid("execucao_id")
-      .notNull()
-      .references(() => execucaoAgente.id, { onDelete: "cascade" }),
+    execucaoId: uuid("execucao_id").notNull(),
     comercianteId: uuid("comerciante_id")
       .notNull()
       .references(() => comerciante.id, { onDelete: "cascade" }),
@@ -124,7 +125,15 @@ export const chamadaFerramenta = pgTable(
     latenciaMs: integer("latencia_ms").notNull(),
     criadoEm: criadoEm(),
   },
-  (t) => [index("chamada_ferramenta_execucao_idx").on(t.execucaoId, t.ordem)],
+  (t) => [
+    // Chave composta: a chamada só pode apontar para execução do mesmo comerciante.
+    foreignKey({
+      name: "chamada_ferramenta_execucao_fk",
+      columns: [t.execucaoId, t.comercianteId],
+      foreignColumns: [execucaoAgente.id, execucaoAgente.comercianteId],
+    }).onDelete("cascade"),
+    index("chamada_ferramenta_execucao_idx").on(t.execucaoId, t.ordem),
+  ],
 );
 
 /* ----------------------------------------------------------------------------------------------
@@ -586,7 +595,7 @@ export const alerta = pgTable(
     metricasApoio: jsonb("metricas_apoio").notNull(),
     /** Por que o agente enviou ou descartou o candidato (log de decisão). */
     justificativa: text("justificativa"),
-    execucaoId: uuid("execucao_id").references(() => execucaoAgente.id, { onDelete: "set null" }),
+    execucaoId: uuid("execucao_id"),
     criadoEm: criadoEm(),
     enviadoEm: timestamp("enviado_em", { withTimezone: true }),
   },
@@ -602,6 +611,12 @@ export const alerta = pgTable(
       columns: [t.fornecedorId, t.comercianteId],
       foreignColumns: [fornecedor.id, fornecedor.comercianteId],
     }),
+    // Na migração, o SET NULL vale só para execucao_id (comerciante_id é NOT NULL).
+    foreignKey({
+      name: "alerta_execucao_fk",
+      columns: [t.execucaoId, t.comercianteId],
+      foreignColumns: [execucaoAgente.id, execucaoAgente.comercianteId],
+    }).onDelete("set null"),
     index("alerta_comerciante_data_idx").on(t.comercianteId, t.dataReferencia, t.status),
     check("alerta_prioridade_faixa", sql`${t.prioridade} between 1 and 3`),
   ],
@@ -625,10 +640,19 @@ export const mensagem = pgTable(
     /** Chave de idempotência do job (comerciante + data). */
     chaveIdempotencia: text("chave_idempotencia"),
     idExterno: text("id_externo"),
-    execucaoId: uuid("execucao_id").references(() => execucaoAgente.id, { onDelete: "set null" }),
+    execucaoId: uuid("execucao_id"),
     criadoEm: criadoEm(),
   },
   (t) => [
+    foreignKey({
+      name: "mensagem_execucao_fk",
+      columns: [t.execucaoId, t.comercianteId],
+      foreignColumns: [execucaoAgente.id, execucaoAgente.comercianteId],
+    }).onDelete("set null"),
+    // Redelivery do webhook: o mesmo id do canal não entra duas vezes (idempotência de entrada).
+    uniqueIndex("mensagem_id_externo_uq")
+      .on(t.comercianteId, t.canal, t.idExterno)
+      .where(sql`${t.idExterno} is not null`),
     unique("mensagem_idempotencia_uq").on(t.comercianteId, t.chaveIdempotencia),
     uniqueIndex("mensagem_uma_proativa_por_dia_uq")
       .on(t.comercianteId, t.dataEnvio)

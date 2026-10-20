@@ -27,6 +27,13 @@ export class ErroArmazenamento extends Error {
 export interface Armazenamento {
   salvar(comercianteId: string, conteudo: Buffer): Promise<ArquivoSalvo>;
   ler(caminho: string): Promise<Buffer>;
+  /** Apaga um arquivo. Silencioso quando ele não existe, para a exclusão poder ser repetida. */
+  remover(caminho: string): Promise<void>;
+  /**
+   * Apaga todos os arquivos do comerciante. É o que a exclusão a pedido (LGPD) e a política de
+   * retenção chamam junto com o `DELETE` no banco, que sozinho não alcança os arquivos.
+   */
+  removerDoComerciante(comercianteId: string): Promise<void>;
 }
 
 export const ARMAZENAMENTO = Symbol("ARMAZENAMENTO");

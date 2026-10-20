@@ -123,8 +123,8 @@ O agente é um modelo de linguagem com chamada de ferramentas (tool use), rodand
 | `get_product_margin` | produto, período | Margem, custo, preço e confiança | Nenhum |
 | `get_cost_changes` | período | Reajustes por produto e fornecedor | Nenhum |
 | `list_alert_candidates` | data | Candidatos a alerta com prioridade e métricas de apoio | Nenhum |
-| `ask_owner` | pergunta, contexto | Envia a pergunta e aguarda a resposta | Envia mensagem |
-| `save_owner_answer` | campo, valor | Grava o dado informado, com origem "dono" | Escreve no banco |
+| `ask_owner` | campo, produto | Registra a pergunta pendente e devolve `pergunta_id` e o texto; o envio é do canal | Grava a pergunta |
+| `save_owner_answer` | pergunta, campo, valor em centavos | Grava o dado informado como linha nova do histórico, com origem "dono" e confiança 1 | Escreve no banco, só depois de o dono confirmar |
 | `send_message` | texto, template | Envia a mensagem e registra o custo | Envia mensagem |
  
 A execução diária segue este roteiro: o job dispara, o agente chama `list_alert_candidates`, escolhe até 3 alertas, busca o detalhe de cada um, escreve a mensagem e chama `send_message`.

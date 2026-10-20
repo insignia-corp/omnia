@@ -41,7 +41,7 @@ describe("ProcessadorExtracao com o banco (e2e)", () => {
   let comercianteId = "";
   let sufixo = 0;
 
-  /** Falha só ao registrar a execução aprovada, depois de a compra já estar gravada na transação. */
+  /** Falha só ao registrar a execução aprovada, que o processador registra antes de gravar a compra. */
   const registroQueFalhaNaAprovada = (): RegistroExecucoes => {
     const real = new RegistroExecucoesPostgres(db);
     return {
@@ -59,6 +59,7 @@ describe("ProcessadorExtracao com o banco (e2e)", () => {
       extrator: extratorCom(extracao),
       registro,
       limiteConfiancaItem: 0.8,
+      limiteSimilaridade: 0.5,
       modeloConfigurado: "claude-sonnet-5-5",
       hoje: () => "2026-10-20",
     });
@@ -119,7 +120,7 @@ describe("ProcessadorExtracao com o banco (e2e)", () => {
     expect(execucoes[0]).toMatchObject({ resultado: "fallback_erro", gatilho: "extracao_nota" });
   });
 
-  it("compra e execução aprovada ficam juntas: uma tentativa que dá certo grava as duas", async () => {
+  it("uma tentativa que dá certo grava a compra e a execução aprovada", async () => {
     const documentoId = await novoDocumento();
     const p = processador(notaBase, new RegistroExecucoesPostgres(db));
     const r = await p.processar({ documentoId, comercianteId }, false);

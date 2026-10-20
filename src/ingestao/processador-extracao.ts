@@ -6,7 +6,7 @@ import { documento } from "../infra/database/schema";
 import type { Armazenamento } from "../infra/armazenamento/armazenamento";
 import type { ExtratorNotas, ResultadoExtracao } from "./extracao/extrator-notas";
 import type { TipoImagem } from "./extracao/cliente-visao";
-import { gravarCompra } from "./gravar-compra";
+import { gravarCompra, type CompraGravada } from "./gravar-compra";
 import { validarNota } from "./validacao/validar-nota";
 
 export interface DependenciasProcessador {
@@ -15,6 +15,7 @@ export interface DependenciasProcessador {
   extrator: ExtratorNotas;
   registro: RegistroExecucoes;
   limiteConfiancaItem: number;
+  limiteSimilaridade: number;
   /** Modelo configurado, para registrar a execução mesmo quando a chamada nem chegou a responder. */
   modeloConfigurado: string;
   /** Data de hoje (AAAA-MM-DD). Injetável para os testes. */
@@ -70,38 +71,35 @@ export class ProcessadorExtracao {
 
     if (!resultado.ok) return this.falhar(entrada, resultado.erro, resultado.mensagem, resultado);
 
-    // Validar e gravar também podem falhar (banco fora, restrição violada). Na última tentativa o
-    // documento vira `falha`; antes dela o erro sobe e o BullMQ repete. A execução entra na mesma
-    // transação da compra, então uma falha ao registrar nunca deixa a compra sem o seu registro.
+    // A chamada ao modelo já foi cobrada: a execução é registrada antes da gravação, assim uma queda
+    // entre as duas (ou o job repetido que se segue) nunca deixa extração cobrada sem auditoria.
+    let gravada: CompraGravada;
     try {
       const validada = validarNota(resultado.extracao, {
         hoje: this.dep.hoje?.() ?? new Date().toISOString().slice(0, 10),
         limiteConfiancaItem: this.dep.limiteConfiancaItem,
       });
-      const gravada = await gravarCompra(
-        db,
-        {
-          comercianteId,
-          documentoId,
-          extracaoOriginal: resultado.extracao,
-          validada,
-          limiteConfiancaItem: this.dep.limiteConfiancaItem,
-        },
-        (tx) =>
-          this.registrar(
-            entrada,
-            resultado,
-            "aprovada",
-            `Extraídos ${validada.extracao.itens.length} itens`,
-            null,
-            tx,
-          ),
+      await this.registrar(
+        entrada,
+        resultado,
+        "aprovada",
+        `Extraídos ${validada.extracao.itens.length} itens`,
+        null,
       );
-      return { status: gravada.status, compraId: gravada.compraId, itensEmRevisao: gravada.itensEmRevisao };
+      gravada = await gravarCompra(db, {
+        comercianteId,
+        documentoId,
+        extracaoOriginal: resultado.extracao,
+        validada,
+        limiteConfiancaItem: this.dep.limiteConfiancaItem,
+        limiteSimilaridade: this.dep.limiteSimilaridade,
+      });
     } catch (e) {
+      // Sem isto, uma falha que se repete até o fim das tentativas deixaria o documento em `processando`.
       if (!ultimaTentativa) throw e;
-      return this.falhar(entrada, "erro_gravacao", e instanceof Error ? e.message : String(e), resultado);
+      return this.falhar(entrada, "erro_gravacao", e instanceof Error ? e.message : String(e), null);
     }
+    return { status: gravada.status, compraId: gravada.compraId, itensEmRevisao: gravada.itensEmRevisao };
   }
 
   private async falhar(
@@ -111,7 +109,8 @@ export class ProcessadorExtracao {
     resultado: ResultadoExtracao | null,
   ): Promise<ResultadoProcessamento> {
     const resultadoExecucao: ResultadoExecucao = tipo === "recusa" ? "recusa_modelo" : "fallback_erro";
-    // Estado do documento e registro da execução juntos: se um falhar, o job repete os dois.
+    // Estado do documento e registro da execução juntos: se um falhar, o job repete os dois, em vez
+    // de deixar o documento em `falha` (e ignorado nas repetições) sem o registro.
     await this.dep.db.transaction(async (tx) => {
       await tx
         .update(documento)
@@ -135,7 +134,7 @@ export class ProcessadorExtracao {
     resultado: ResultadoExecucao,
     mensagemFinal: string,
     erro: string | null,
-    executor: Executor,
+    executor?: Executor,
   ): Promise<void> {
     const modelo = r?.modelo || this.dep.modeloConfigurado;
     const consumo = r?.consumo ?? { entrada: 0, saida: 0, cacheLeitura: 0, cacheEscrita: 0 };

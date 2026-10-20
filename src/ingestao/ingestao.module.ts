@@ -13,6 +13,7 @@ import { ExtratorNotas } from "./extracao/extrator-notas";
 import { carregarPromptExtrator } from "./extracao/prompt-extrator";
 import { DocumentosController } from "./documentos.controller";
 import { DocumentosService } from "./documentos.service";
+import { PerguntasController } from "./perguntas.controller";
 import { FilaExtracao, PROCESSADOR_EXTRACAO } from "./fila/fila-extracao";
 import { ProcessadorExtracao } from "./processador-extracao";
 
@@ -26,7 +27,7 @@ export const CLIENTE_VISAO = Symbol("CLIENTE_VISAO");
       useFactory: (env: Env) => ({ limits: { fileSize: env.UPLOAD_MAX_BYTES, files: 1 } }),
     }),
   ],
-  controllers: [DocumentosController],
+  controllers: [DocumentosController, PerguntasController],
   providers: [
     SessaoGuard,
     DocumentosService,
@@ -57,6 +58,7 @@ export const CLIENTE_VISAO = Symbol("CLIENTE_VISAO");
           extrator: new ExtratorNotas(cliente, carregarPromptExtrator()),
           registro: new RegistroExecucoesPostgres(db),
           limiteConfiancaItem: env.LIMITE_CONFIANCA_ITEM,
+          limiteSimilaridade: env.LIMITE_SIMILARIDADE,
           modeloConfigurado: env.EXTRATOR_MODELO,
         }),
     },

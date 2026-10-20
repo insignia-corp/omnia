@@ -22,6 +22,8 @@ const esquemaEnv = z.object({
 
   // Ingestão
   LIMITE_CONFIANCA_ITEM: z.coerce.number().min(0).max(1).default(0.8),
+  /** Similaridade (pg_trgm, 0 a 1) a partir da qual a descrição da nota liga sozinha a um produto. */
+  LIMITE_SIMILARIDADE: z.coerce.number().min(0).max(1).default(0.45),
   EXTRATOR_MODELO: z.string().min(1).default("claude-sonnet-5-5"),
   ARMAZENAMENTO_DIR: z.string().min(1).default("./.dados/arquivos"),
   UPLOAD_MAX_BYTES: z.coerce

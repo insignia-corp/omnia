@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { extracaoNotaSchema, type ExtracaoNota } from "../extracao/esquema-extracao";
-import { validarNota } from "./validar-nota";
+import { dataDeCalendarioValida, validarNota } from "./validar-nota";
 
 const DIR = "fixtures/notas";
 const HOJE = "2026-10-20";
@@ -161,5 +161,19 @@ describe("validarNota: conferências", () => {
     );
     expect(r.itensParaRevisao).toEqual([]);
     expect(base).toEqual(antes);
+  });
+});
+
+describe("dataDeCalendarioValida", () => {
+  it("aceita datas que existem, inclusive 29 de fevereiro de ano bissexto", () => {
+    expect(dataDeCalendarioValida("2026-10-15")).toBe(true);
+    expect(dataDeCalendarioValida("2028-02-29")).toBe(true);
+  });
+
+  it("recusa datas bem formadas que não existem no calendário", () => {
+    expect(dataDeCalendarioValida("2026-02-31")).toBe(false);
+    expect(dataDeCalendarioValida("2026-02-29")).toBe(false);
+    expect(dataDeCalendarioValida("2026-13-01")).toBe(false);
+    expect(dataDeCalendarioValida("2026-00-10")).toBe(false);
   });
 });

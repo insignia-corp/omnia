@@ -52,13 +52,17 @@ function quantidadeGravavel(quantidade: number): number {
   return Math.max(1 / CASAS_QUANTIDADE, Math.round(quantidade * CASAS_QUANTIDADE) / CASAS_QUANTIDADE);
 }
 
-function diasDesde(data: string, hoje: string): number | null {
+/** Verdadeiro só para datas que existem no calendário. `Date.parse` aceita "2026-02-31" e rola para março. */
+export function dataDeCalendarioValida(data: string): boolean {
   const d = Date.parse(`${data}T00:00:00Z`);
+  return !Number.isNaN(d) && new Date(d).toISOString().slice(0, 10) === data;
+}
+
+function diasDesde(data: string, hoje: string): number | null {
+  if (!dataDeCalendarioValida(data)) return null;
   const h = Date.parse(`${hoje}T00:00:00Z`);
-  if (Number.isNaN(d) || Number.isNaN(h)) return null;
-  // Date.parse aceita "2026-02-31" e rola para março; só vale a data que volta igual.
-  if (new Date(d).toISOString().slice(0, 10) !== data) return null;
-  return Math.round((h - d) / DIA_MS);
+  if (Number.isNaN(h)) return null;
+  return Math.round((h - Date.parse(`${data}T00:00:00Z`)) / DIA_MS);
 }
 
 /**

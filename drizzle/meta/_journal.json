@@ -29,6 +29,13 @@
       "when": 1792506102867,
       "tag": "0003_historico_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792513855076,
+      "tag": "0004_ingestao",
+      "breakpoints": true
     }
   ]
 }

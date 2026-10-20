@@ -13,6 +13,26 @@ Foto de nota (modelo com visão + validação em código), planilha de vendas e 
 
 `GET /documentos/:id` devolve status, motivos, compra e itens com a confiança de cada um.
 
+## Vínculo com o produto (#27)
+
+Depois de gravar os itens, cada descrição tenta ligar a um produto (`vinculo/vincular-produto.ts`), nesta ordem:
+
+1. vínculo já confirmado pelo dono (mesmo fornecedor primeiro, depois qualquer um): liga sem perguntar;
+2. similaridade `pg_trgm` contra o catálogo e contra descrições já confirmadas. Liga sozinho se passar de `LIMITE_SIMILARIDADE` e superar o segundo candidato por 0,1; senão pergunta ao dono com até 3 sugestões.
+
+Item ligado grava uma linha em `historico_custo` com a menor entre a confiança do item e a do vínculo. Item sem produto fica sem custo no histórico até o dono escolher. O código de barras entra com a NF-e (#29). A sugestão pelo modelo, quando as duas buscas falham, está pendente (#27).
+
+Medido com as 18 notas de `fixtures/` e o catálogo de 50 produtos (`tests/vinculo-notas.e2e-spec.ts`): 94 itens, 97,9% ligam sozinhos ao produto certo, nenhum liga ao errado, e os 2 restantes vão ao dono com o produto certo entre as sugestões.
+
+## Perguntas ao dono (#26)
+
+Item abaixo de `LIMITE_CONFIANCA_ITEM` gera uma `pergunta_dono` `confirmar_item`; item sem produto gera `confirmar_vinculo`. O texto é montado pelo código (`revisao/perguntas.ts`), sem modelo.
+
+- `GET /perguntas` lista as pendentes.
+- `POST /perguntas/:id/resposta` com `{ "valor_unitario_centavos": 330, "quantidade": 24 }` (item) ou `{ "produto_id": "..." }` (vínculo). A interpretação de texto livre do dono é do agente (#53).
+
+A correção do item entra com origem `dono` e confiança 1, e o `historico_custo` ganha uma linha nova: o que o modelo leu continua lá. O documento é recalculado (`revisao/recalcular-documento.ts`): soma refeita contra o total, motivo do item resolvido sai, status volta a `extraido` quando não resta item duvidoso nem motivo do documento. Confirmar um vínculo liga também os outros itens iguais do mesmo fornecedor e dispensa as perguntas deles.
+
 ## Falhas
 
 | Caso | Resultado |
@@ -24,4 +44,4 @@ Foto de nota (modelo com visão + validação em código), planilha de vendas e 
 
 ## Pendente nesta etapa
 
-Vínculo item-produto e histórico de custo (#27), pergunta ao dono por item duvidoso (#26), planilha (#28). O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.
+Sugestão de vínculo pelo modelo (#27), planilha (#28), NF-e em XML (#29). O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.

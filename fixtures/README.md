@@ -18,7 +18,7 @@ Data de referência dos gabaritos: **2026-10-19** (segunda). Janela de dados: 20
 | `mercadinho/vendas.csv` / `vendas.xlsx` | Vendas como um PDV exportaria: `;` como separador, data `dd/mm/aaaa`, vírgula decimal, uma linha por item de cupom |
 | `mercadinho/extrato.csv` | Extrato PJ de 61 dias (`valor_centavos`, tipo e categoria). O faturamento entra como um depósito por dia |
 | `notas/nota-NN.jpg` | 17 notas de compra desenhadas por script e levemente "fotografadas" (inclinação, ruído) |
-| `notas/nota-18.xml` | NF-e em XML (layout 4.00 simplificado): parse determinístico, sem modelo com visão (issue #26). Não gera saída no extrato (boleto a prazo) |
+| `notas/nota-18.xml` | NF-e em XML (layout 4.00 simplificado): parse determinístico, sem modelo com visão (issue #29). Não gera saída no extrato (boleto a prazo) |
 | `notas/nota-NN.esperado.json` | Gabarito de extração, no formato do esquema Zod (`src/ingestao/extracao/esquema-extracao.ts`) |
 | `notas/manifesto.json` | Por nota: casos difíceis, itens de confiança baixa, soma dos itens, vínculo item -> produto, reajuste plantado |
 | `avaliacao/perguntas.json` | 46 perguntas de avaliação: numéricas com o número exato, sem resposta possível, injeção de instrução e ação com confirmação. Todo número vem do gabarito, nunca é digitado à mão |

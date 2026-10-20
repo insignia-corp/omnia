@@ -1,13 +1,17 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { RegistroExecucoes, ResultadoExecucao } from "../agente/execucao/registro-execucoes";
 import { custoMicrodolares } from "../agente/llm/modelo-linguagem";
 import type { Db, Executor } from "../infra/database/database.module";
-import { documento } from "../infra/database/schema";
+import { compra, documento, fornecedor } from "../infra/database/schema";
+import { somenteDigitos } from "../lib/cnpj/cnpj";
 import type { Armazenamento } from "../infra/armazenamento/armazenamento";
 import type { ExtratorNotas, ResultadoExtracao } from "./extracao/extrator-notas";
 import type { TipoImagem } from "./extracao/cliente-visao";
 import { gravarCompra, type CompraGravada } from "./gravar-compra";
+import type { ExtracaoNota } from "./extracao/esquema-extracao";
 import { validarNota } from "./validacao/validar-nota";
+import type { SugestaoModelo, SugestorVinculo } from "./vinculo/sugestor-vinculo";
+import { buscarVinculo } from "./vinculo/vincular-produto";
 
 export interface DependenciasProcessador {
   db: Db;
@@ -20,6 +24,8 @@ export interface DependenciasProcessador {
   modeloConfigurado: string;
   /** Data de hoje (AAAA-MM-DD). Injetável para os testes. */
   hoje?: () => string;
+  /** Sugere o produto dos itens que não ligaram sozinhos (issue #27). Sem ele, só a pergunta ao dono. */
+  sugestor?: SugestorVinculo;
 }
 
 export interface ResultadoProcessamento {
@@ -87,11 +93,13 @@ export class ProcessadorExtracao {
         `Extraídos ${validada.extracao.itens.length} itens`,
         null,
       );
+      const sugestoesModelo = await this.sugerirVinculos(entrada, validada.extracao);
       gravada = await gravarCompra(db, {
         comercianteId,
         documentoId,
         extracaoOriginal: resultado.extracao,
         validada,
+        sugestoesModelo,
         limiteConfiancaItem: this.dep.limiteConfiancaItem,
         limiteSimilaridade: this.dep.limiteSimilaridade,
       });
@@ -101,6 +109,67 @@ export class ProcessadorExtracao {
       return this.falhar(entrada, "erro_gravacao", e instanceof Error ? e.message : String(e), null);
     }
     return { status: gravada.status, compraId: gravada.compraId, itensEmRevisao: gravada.itensEmRevisao };
+  }
+
+  /**
+   * Pede ao modelo o produto dos itens que código de barras, memória do dono e similaridade não
+   * ligaram. Fica fora da transação de gravação (é chamada de rede) e nunca derruba a nota: qualquer
+   * falha vira "sem sugestão", e o erro não sobe para não repetir o job e cobrar a extração de novo.
+   * Só roda quando sobra item sem vínculo, então o caso comum (97,9% dos itens) não gasta chamada.
+   */
+  private async sugerirVinculos(
+    { documentoId, comercianteId }: { documentoId: string; comercianteId: string },
+    extracao: ExtracaoNota,
+  ): Promise<Map<number, SugestaoModelo>> {
+    const { db, sugestor } = this.dep;
+    const nenhuma = new Map<number, SugestaoModelo>();
+    if (!sugestor) return nenhuma;
+    try {
+      // Job repetido para nota já gravada: a compra existe e nada será perguntado de novo.
+      const [jaGravada] = await db
+        .select({ id: compra.id })
+        .from(compra)
+        .where(and(eq(compra.comercianteId, comercianteId), eq(compra.documentoId, documentoId)))
+        .limit(1);
+      if (jaGravada) return nenhuma;
+
+      const cnpj = somenteDigitos(extracao.fornecedor.cnpj);
+      const [conhecido] = await db
+        .select({ id: fornecedor.id })
+        .from(fornecedor)
+        .where(
+          and(
+            eq(fornecedor.comercianteId, comercianteId),
+            cnpj.length === 14
+              ? eq(fornecedor.cnpj, cnpj)
+              : and(
+                  isNull(fornecedor.cnpj),
+                  sql`lower(${fornecedor.nome}) = ${extracao.fornecedor.nome.trim().toLowerCase()}`,
+                ),
+          ),
+        )
+        .limit(1);
+
+      const semVinculo = [];
+      for (const [indice, item] of extracao.itens.entries()) {
+        const vinculo = await buscarVinculo(db, {
+          comercianteId,
+          fornecedorId: conhecido?.id ?? null,
+          descricao: item.descricao,
+          limiteSimilaridade: this.dep.limiteSimilaridade,
+        });
+        if (vinculo.tipo !== "vinculado") {
+          semVinculo.push({ ordem: indice + 1, descricao: item.descricao, unidade: item.unidade });
+        }
+      }
+      if (semVinculo.length === 0) return nenhuma;
+
+      const r = await sugestor.sugerir(db, comercianteId, documentoId, semVinculo, extracao.fornecedor.nome);
+      if (r.execucao) await this.dep.registro.salvar(r.execucao);
+      return r.sugestoes;
+    } catch {
+      return nenhuma;
+    }
   }
 
   private async falhar(

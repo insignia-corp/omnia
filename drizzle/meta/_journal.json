@@ -50,6 +50,13 @@
       "when": 1792528896706,
       "tag": "0006_pergunta_documento",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792535941521,
+      "tag": "0012_gatilho_vinculo",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { NumerosAutorizados, verificarNumeros } from "../lib/verificador-numeros/verificador-numeros";
 import type { CustoDeCompra, ProdutoParaMetrica } from "./dados-de-metricas";
 import {
   calcularVariacoesDeCusto,
@@ -197,6 +198,22 @@ describe("calcularVariacoesDeCusto", () => {
         custo("p-arroz", "2026-10-16", 2600, { compraId: "nota-16", itemDeCompraId: "i-2" }),
       ]);
       expect(r.valor).toEqual([]);
+    });
+  });
+
+  describe("contrato com o verificador de números (regra inviolável 8)", () => {
+    const r = calcular([custo("p-arroz", "2026-09-14", 2490), custo("p-arroz", "2026-10-16", 2790)]);
+    const autorizados = new NumerosAutorizados([r]);
+
+    it("aprova a mensagem que cita só números do resultado", () => {
+      const mensagem = "O Arroz 5kg subiu 12,05%: de R$ 24,90 para R$ 27,90.";
+      expect(verificarNumeros(mensagem, autorizados).aprovado).toBe(true);
+    });
+
+    it("bloqueia o percentual arredondado pelo modelo", () => {
+      const resultado = verificarNumeros("O Arroz 5kg subiu 12%.", autorizados);
+      expect(resultado.aprovado).toBe(false);
+      expect(resultado.naoAutorizados.map((n) => n.valor)).toEqual([12]);
     });
   });
 

@@ -1,3 +1,4 @@
+import { NumerosAutorizados, verificarNumeros } from "../lib/verificador-numeros/verificador-numeros";
 import type { CustoDeCompra, ProdutoParaMetrica, VendaDoProdutoNoDia } from "./dados-de-metricas";
 import { calcularMargemDoProduto, PARAMETROS_MARGEM, type EntradaMargem } from "./margem-por-produto";
 import { ehDadoAusente } from "./resultado-metrica";
@@ -200,6 +201,32 @@ describe("calcularMargemDoProduto", () => {
     it("não conta venda fora da janela", () => {
       const r = valorDe(entrada({ vendas: [venda("2026-08-01", 5, 5000), venda("2026-10-18", 10, 35_000)] }));
       expect(r.n_registros).toBe(2);
+    });
+  });
+
+  describe("contrato com o verificador de números (regra inviolável 8)", () => {
+    // Preço médio de R$ 34,99 e custo de R$ 27,90: margem de 20,26% contra a meta de 25%.
+    const r = valorDe(
+      entrada({ vendas: [venda("2026-10-18", 150, 150 * 3499)], custos: [custo("2026-10-16", 2790)] }),
+    );
+    const autorizados = new NumerosAutorizados([r]);
+
+    it("aprova a mensagem que cita só números do resultado", () => {
+      const mensagem =
+        "A margem do Arroz 5kg está em 20,26%, abaixo da meta de 25%: vende a R$ 34,99 e custa R$ 27,90.";
+      expect(verificarNumeros(mensagem, autorizados).aprovado).toBe(true);
+    });
+
+    it("bloqueia o percentual que o modelo arredondou por conta própria", () => {
+      const resultado = verificarNumeros("A margem do Arroz 5kg está em 20,3%.", autorizados);
+      expect(resultado.aprovado).toBe(false);
+      expect(resultado.naoAutorizados.map((n) => n.valor)).toEqual([20.3]);
+    });
+
+    it("bloqueia o número que o modelo calculou: o lucro por unidade não está no resultado", () => {
+      const resultado = verificarNumeros("Sobram R$ 7,09 por pacote.", autorizados);
+      expect(resultado.aprovado).toBe(false);
+      expect(resultado.naoAutorizados.map((n) => n.valor)).toEqual([7.09]);
     });
   });
 

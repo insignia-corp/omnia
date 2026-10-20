@@ -109,12 +109,13 @@ describe("importação da planilha de vendas (e2e)", () => {
     await app.init();
   });
 
+  // Apagar em cascata ~15 mil linhas por lojista leva segundos: o limite padrão de 30 s é curto para CI lenta.
   afterAll(async () => {
     await app?.close();
     await db.delete(schema.comerciante).where(inArray(schema.comerciante.id, [a, b]));
     await pool.end();
     rmSync(dirArquivos, { recursive: true, force: true });
-  });
+  }, 120_000);
 
   it("recusa arquivo que não é planilha e envio sem arquivo", async () => {
     await enviar(a, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), "foto.jpg").expect(415);

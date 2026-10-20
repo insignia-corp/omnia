@@ -125,7 +125,7 @@ Decisões do orquestrador:
 
 `send_message`, que está na tabela do guia, **não é ferramenta** nesta arquitetura: o envio é feito pelo canal depois do verificador, e o `AgenteService` já devolve a mensagem pronta (`RespostaAgente`). Deixar o modelo enviar abriria um caminho que pula o verificador.
 
-**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A versão v2 acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; pedir confirmação só por `propose_target_price`. A versão fica gravada em cada execução.
+**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` (padrão desde o #55) acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado. Falta no v2: pedir confirmação só por `propose_target_price` (#104). A versão fica gravada em cada execução.
 
 **Falhas e comportamento.**
 
@@ -186,11 +186,11 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 | --- | --- | --- |
 | Esforço por gatilho (feito) e padrão do modelo para `claude-sonnet-5-5` (falta: só depois do eval #74) | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
 | Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
-| Ferramentas P0 e `select_alerts` | `src/agente/ferramentas/` | #50 a #53 |
+| Ferramentas P0 (`select_alerts` feito em `select-alerts.ts`; leitura são do plano A) | `src/agente/ferramentas/` | #50 a #53 |
 | `propose_target_price`, tabela `confirmacao_pendente` e resolução do "sim" em código | `src/agente/`, `src/infra/database/schema.ts` | #104 |
 | Motor de alertas com impacto mensal em centavos e prioridade | `src/alertas/` | #43, #44 |
 | Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
-| Prompt `sistema-v2.md` | `src/agente/prompts/` | #54 |
+| Prompt `sistema-v2.md` (feito, sem a regra do `propose_target_price`) | `src/agente/prompts/` | #54, #55 |
 | Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |
 
 ## 10. Caminho de evolução: especialistas como ferramentas

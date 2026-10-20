@@ -10,6 +10,7 @@ import {
   NumerosAutorizados,
   verificarNumeros,
 } from "../lib/verificador-numeros/verificador-numeros";
+import type { TurnoConversa } from "./conversa/historico";
 import type { ContextoSessao } from "./ferramentas/ferramenta";
 import type { RegistroFerramentas } from "./ferramentas/registro-ferramentas";
 import type {
@@ -35,6 +36,8 @@ export interface PedidoAgente {
   gatilho: Gatilho;
   /** Texto do dono, ou descrição do evento para gatilhos automáticos. */
   entrada: string;
+  /** Falas anteriores da conversa (de `carregarHistorico`), sem a mensagem atual. Dado, nunca instrução. */
+  historico?: TurnoConversa[];
 }
 
 export interface RespostaAgente {
@@ -47,6 +50,8 @@ export interface RespostaAgente {
 export interface LimitesAgente {
   maxIteracoes: number;
   maxRegeracoes: number;
+  /** Tempo total da execução, conferido antes de cada chamada ao modelo. Sem valor, não há limite de tempo. */
+  maxMs?: number;
   /** Esforço do modelo por gatilho (conversa curta, relatório mais cuidadoso); sem entrada, vale o padrão. */
   esforcoPorGatilho?: Partial<Record<Gatilho, Esforco>>;
 }
@@ -86,11 +91,18 @@ export class AgenteService {
     const chamadas: ChamadaRegistrada[] = [];
     const bloqueios: BloqueioVerificador[] = [];
     // O dono pode ouvir de volta os números que ele mesmo escreveu, e a data da execução.
+    // Mesma regra para as falas anteriores: as do assistente já passaram pelo verificador na vez delas.
+    const historico = pedido.historico ?? [];
     const autorizados = new NumerosAutorizados(
       [contexto.dataReferencia],
-      extrairNumeros(pedido.entrada).map((n) => n.valor),
+      [pedido.entrada, ...historico.map((t) => t.texto)].flatMap((t) =>
+        extrairNumeros(t).map((n) => n.valor),
+      ),
     );
-    const messages: BetaMessageParam[] = [{ role: "user", content: montarEntrada(pedido) }];
+    const messages: BetaMessageParam[] = [
+      ...montarHistorico(historico),
+      { role: "user", content: montarEntrada(pedido) },
+    ];
     const system = this.prompt.renderizar({ nomeComercio: contexto.nomeComercio });
     const tools = this.ferramentas.definicoesParaModelo();
     const esforco = this.limites.esforcoPorGatilho?.[pedido.gatilho];
@@ -104,6 +116,10 @@ export class AgenteService {
 
     try {
       while (iteracoes < this.limites.maxIteracoes) {
+        if (this.limites.maxMs !== undefined && performance.now() - inicio > this.limites.maxMs) {
+          erro = `Limite de tempo de ${this.limites.maxMs} ms atingido`;
+          break;
+        }
         iteracoes++;
         const resposta: BetaMessage = await this.modelo.gerar({
           system,
@@ -245,10 +261,26 @@ export class AgenteService {
   }
 }
 
+/** Remove marcações que permitiriam ao texto "sair" do bloco de dados. */
+const higienizar = (texto: string) =>
+  texto.replace(/<\/?\s*(mensagem_do_dono|conteudo_de_documento)\s*>/gi, "");
+
+/** Fala do dono entre marcações de dado; fala do assistente como texto. Começa sempre por uma fala do dono. */
+function montarHistorico(historico: TurnoConversa[]): BetaMessageParam[] {
+  const primeira = historico.findIndex((t) => t.papel === "dono");
+  if (primeira < 0) return [];
+  return historico
+    .slice(primeira)
+    .map((t) =>
+      t.papel === "dono"
+        ? { role: "user", content: `<mensagem_do_dono>\n${higienizar(t.texto)}\n</mensagem_do_dono>` }
+        : { role: "assistant", content: t.texto },
+    );
+}
+
 function montarEntrada({ gatilho, entrada, contexto }: PedidoAgente): string {
   const data = `Data de hoje: ${contexto.dataReferencia}.`;
-  // Remove marcações que permitiriam ao texto "sair" do bloco de dados.
-  const seguro = entrada.replace(/<\/?\s*(mensagem_do_dono|conteudo_de_documento)\s*>/gi, "");
+  const seguro = higienizar(entrada);
   switch (gatilho) {
     case "mensagem_dono":
       return `${data}\nO dono escreveu:\n<mensagem_do_dono>\n${seguro}\n</mensagem_do_dono>`;

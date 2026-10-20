@@ -21,6 +21,8 @@ ENV NODE_ENV=production
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY drizzle ./drizzle
+# Fotos e planilhas enviadas ficam num volume, fora do código.
+RUN mkdir -p /dados/arquivos && chown -R node:node /dados
 USER node
 EXPOSE 3000
 CMD ["sh", "-c", "node dist/infra/database/migrar.js && node dist/main.js"]

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."tipo_pergunta" ADD VALUE 'confirmar_documento' BEFORE 'informar_custo';

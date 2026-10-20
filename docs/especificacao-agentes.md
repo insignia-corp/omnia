@@ -62,7 +62,7 @@ Decisões do orquestrador:
 | Quando roda | Job `extrair-nota`, uma vez por nota. Fora do loop do Analista |
 | Entrada | Imagem (JPEG ou PNG) lida do armazenamento; `comerciante_id` do job; nada vindo do texto da nota |
 | Saída | `ExtracaoNota`, conforme `src/ingestao/extracao/esquema-extracao.ts`: fornecedor (nome, CNPJ), `data_emissao`, itens (descrição, quantidade, unidade, valor unitário e total em centavos, confiança), `total_centavos`, `confianca_documento` |
-| Modelo | `claude-sonnet-5-5` (visão), configurável por `EXTRATOR_MODELO` (**novo**). Esforço `low` |
+| Modelo | `claude-sonnet-5-5` (visão), configurável por `EXTRATOR_MODELO`. Esforço `low` |
 | Ferramentas | Nenhuma. Não consulta dados do lojista |
 | Efeito | Nenhum direto. Quem grava é o código, depois de validar |
 
@@ -79,7 +79,7 @@ Decisões do orquestrador:
 
 | Falha | Comportamento |
 | --- | --- |
-| JSON inválido ou fora do esquema | Uma nova tentativa com a mensagem de erro do Zod; se falhar, o documento fica com status `extracao_falhou` e o dono é avisado por mensagem fixa |
+| JSON inválido ou fora do esquema | Uma nova tentativa com a mensagem de erro do Zod; se falhar, o documento fica com status `falha` (com o tipo do erro em `erro`) e o dono é avisado por mensagem fixa pelo canal (#106) |
 | Imagem ilegível ou sem nota | Mesmo status, com mensagem pedindo outra foto |
 | Timeout ou erro da API | Nova tentativa do job pelo BullMQ com espera; depois de esgotar, mesmo status |
 | Recusa do modelo | Mesmo status; nenhum dado é gravado |
@@ -156,7 +156,7 @@ Limite conhecido: o verificador confere se o número aparece nos resultados das 
 ## 6. Observabilidade
 
 - Cada execução do Analista grava em `execucao_agente` o gatilho, as ferramentas chamadas (em `chamada_ferramenta`), tokens, custo estimado, latência, bloqueios do verificador, versão do prompt e modelo.
-- O Extrator também precisa gravar tokens, custo e latência, senão o custo por lojista fica incompleto. Proposta: novo valor `extracao_nota` no enum `gatilho_execucao` e o mesmo registro, com `resultado` em `aprovada` ou `fallback_erro`. A confirmar (seção 9).
+- O Extrator também precisa gravar tokens, custo e latência, senão o custo por lojista fica incompleto. Feito (migração 0005): o valor `extracao_nota` do enum `gatilho_execucao` usa o mesmo registro, com `resultado` em `aprovada`, `fallback_erro` ou `recusa_modelo`; `entrada` guarda `documento:<id>`.
 - Métrica de degradação: taxa de bloqueio do verificador por dia.
 - Tela de bastidores (#77): mostra, em ordem, extração com confiança, chamadas de ferramenta, candidatos de alerta, a chamada de `select_alerts` com as justificativas, resultado do verificador e mensagem final.
 
@@ -185,11 +185,11 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 | Mudança | Onde | Issue |
 | --- | --- | --- |
 | Padrão do modelo para `claude-sonnet-5-5` e esforço por gatilho | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
-| Variável `EXTRATOR_MODELO` e cliente do Extrator | `src/ingestao/extracao/` | #24 |
+| Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
 | Ferramentas P0 e `select_alerts` | `src/agente/ferramentas/` | #50 a #53 |
 | `propose_target_price`, tabela `confirmacao_pendente` e resolução do "sim" em código | `src/agente/`, `src/infra/database/schema.ts` | #104 |
 | Motor de alertas com impacto mensal em centavos e prioridade | `src/alertas/` | #43, #44 |
-| Gatilho `extracao_nota` no registro de execuções | `schema.ts`, migração | #57 |
+| Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
 | Prompt `sistema-v2.md` | `src/agente/prompts/` | #54 |
 | Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |
 
@@ -227,7 +227,7 @@ Se o prazo apertar, cortar nesta ordem: Opus (Sonnet em tudo), `compare_supplier
 ## 12. Em aberto
 
 - Confirmar `claude-sonnet-5-5` como padrão do Analista (hoje o padrão é o Opus, decisão 0002) e medir `low` contra `medium` no eval. O pensamento é cobrado como saída e é a maior alavanca de custo.
-- Escolher entre o gatilho `extracao_nota` no enum atual ou tabela própria para as execuções do Extrator.
+- Decidido: gatilho `extracao_nota` no enum atual, sem tabela própria.
 - Confirmar no SDK fixado (`@anthropic-ai/sdk` 0.135.0) o suporte a saída estruturada com o esquema do Zod; se não houver, pedir JSON e validar.
 - Definir o conjunto aceitável de top 3 no gabarito.
 - Reconfirmar os preços por token antes do pitch.

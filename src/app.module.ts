@@ -5,6 +5,7 @@ import { AgenteModule } from "./agente/agente.module";
 import { ConfigModule, ENV } from "./config/config.module";
 import type { Env } from "./config/env";
 import { DatabaseModule } from "./infra/database/database.module";
+import { IngestaoModule } from "./ingestao/ingestao.module";
 import { RedisModule } from "./infra/redis/redis.module";
 import { MetricasModule } from "./metricas/metricas.module";
 import { SaudeController } from "./saude/saude.controller";
@@ -38,6 +39,7 @@ function temPinoPretty(): boolean {
     DatabaseModule,
     RedisModule,
     AgenteModule,
+    IngestaoModule,
     MetricasModule,
   ],
   controllers: [SaudeController],

@@ -8,6 +8,9 @@ import * as schema from "./schema";
 export const PG_POOL = Symbol("PG_POOL");
 export const DB = Symbol("DB");
 export type Db = NodePgDatabase<typeof schema>;
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+/** O que as consultas recebem: o banco ou uma transação aberta. */
+export type Executor = Db | Tx;
 
 @Global()
 @Module({
@@ -15,7 +18,9 @@ export type Db = NodePgDatabase<typeof schema>;
     {
       provide: PG_POOL,
       inject: [ENV],
-      useFactory: (env: Env) => new Pool({ connectionString: env.DATABASE_URL, max: 10 }),
+      useFactory: (env: Env) =>
+        // Sem prazo para obter conexão, pedidos pendentes se acumulam enquanto o banco está fora.
+        new Pool({ connectionString: env.DATABASE_URL, max: 10, connectionTimeoutMillis: 5000 }),
     },
     { provide: DB, inject: [PG_POOL], useFactory: (pool: Pool): Db => drizzle(pool, { schema }) },
   ],

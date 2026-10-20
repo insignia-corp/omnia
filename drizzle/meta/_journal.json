@@ -29,6 +29,27 @@
       "when": 1792506102867,
       "tag": "0003_historico_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792527405093,
+      "tag": "0004_vinculos_execucao_e_id_externo",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792528314658,
+      "tag": "0005_ingestao",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792528896706,
+      "tag": "0006_pergunta_documento",
+      "breakpoints": true
     }
   ]
 }

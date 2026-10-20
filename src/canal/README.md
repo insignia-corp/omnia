@@ -8,6 +8,6 @@ Fala com o dono. O agente e as ferramentas só conhecem `MessageChannel` (`messa
 - Relatório diário (#64, regra 9): `jobs/`. Agendador BullMQ (`RELATORIO_DIARIO_CRON`, `FUSO_HORARIO`) cria um job por comerciante com `jobId` = `relatorio_<comerciante>_<data>`. Em horário de silêncio (`SILENCIO_INICIO`, `SILENCIO_FIM`) o job é adiado para o fim da janela. O texto vem do agente com a entrada de `FONTE_RELATORIO`, que o plano A troca quando o resumo diário (#40) existir.
 
 - Bastidores (#77): `GET /bastidores` (página) e `GET /bastidores/painel` (execuções com chamadas de ferramenta em ordem, verificador, última nota com confiança por item, candidatos a alerta). Atualiza por polling a cada 3 s, sem estado no processo. Os candidatos a alerta vêm de `FONTE_DECISOES_ALERTA` (padrão: tabela `alerta`, que os planos A e B preenchem).
-- Reset da demo (#76): `npm run demo:reset` (`scripts/demo`).
+- Reset da demo (#76): `npm run demo:reset` (`scripts/demo`). Com `DEMO_DATA_REFERENCIA=AAAA-MM-DD` no `.env`, o relógio do canal usa essa data (e a hora real), então a conversa e o relatório diário olham o período dos dados de teste, que terminam em 2026-10-19. Recusado em produção.
 
 Testes: unitários em `src/canal`, e2e em `tests/canal` e `tests/demo` (`npm run test:e2e -- tests/canal tests/demo`).

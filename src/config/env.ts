@@ -44,6 +44,12 @@ const esquemaEnv = z.object({
   FUSO_HORARIO: z.string().min(1).default("America/Sao_Paulo"),
   RELATORIO_DIARIO_CRON: z.string().min(1).default("0 8 * * *"),
   SILENCIO_INICIO: z.string().regex(HORA, "use HH:MM").default("22:00"),
+  /** Só para a demo: trava a data do sistema (AAAA-MM-DD) para ela cair dentro do período dos dados de teste. */
+  DEMO_DATA_REFERENCIA: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "use AAAA-MM-DD")
+    .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)), "data inválida")
+    .optional(),
   SILENCIO_FIM: z.string().regex(HORA, "use HH:MM").default("07:00"),
 });
 

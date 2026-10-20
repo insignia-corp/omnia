@@ -34,6 +34,19 @@ describe("carregarEnv", () => {
     expect(() => carregarEnv({ ...base, SILENCIO_INICIO: "25:00" })).toThrow(/SILENCIO_INICIO/);
   });
 
+  it("aceita a data fixa da demo só no formato AAAA-MM-DD", () => {
+    expect(carregarEnv(base).DEMO_DATA_REFERENCIA).toBeUndefined();
+    expect(carregarEnv({ ...base, DEMO_DATA_REFERENCIA: "2026-10-20" }).DEMO_DATA_REFERENCIA).toBe(
+      "2026-10-20",
+    );
+    expect(() => carregarEnv({ ...base, DEMO_DATA_REFERENCIA: "20/10/2026" })).toThrow(
+      /DEMO_DATA_REFERENCIA/,
+    );
+    expect(() => carregarEnv({ ...base, DEMO_DATA_REFERENCIA: "2026-13-40" })).toThrow(
+      /DEMO_DATA_REFERENCIA/,
+    );
+  });
+
   it("trata variável vazia como não definida", () => {
     const env = carregarEnv({ ...base, ANTHROPIC_API_KEY: "", LLM_MODELO: "" });
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();

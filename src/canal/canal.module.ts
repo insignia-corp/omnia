@@ -16,7 +16,7 @@ import { FilaRelatorioDiario } from "./jobs/fila-relatorio-diario";
 import { RelatorioDiarioService } from "./jobs/relatorio-diario.service";
 import { MESSAGE_CHANNEL } from "./message-channel";
 import { PORTA_AGENTE } from "./porta-agente";
-import { RELOGIO, relogioDoSistema } from "./relogio";
+import { RELOGIO, relogioComDataFixa, relogioDoSistema } from "./relogio";
 import { BastidoresController } from "./web/bastidores.controller";
 import { PaginaBastidoresController } from "./web/pagina-bastidores.controller";
 import { ChatWebController } from "./web/chat-web.controller";
@@ -36,7 +36,15 @@ import { PaginaChatController } from "./web/pagina-chat.controller";
   providers: [
     SessaoGuard,
     { provide: MESSAGE_CHANNEL, inject: [ENV], useFactory: (env: Env) => criarCanal(env) },
-    { provide: RELOGIO, useValue: relogioDoSistema },
+    {
+      provide: RELOGIO,
+      inject: [ENV],
+      useFactory: (env: Env) => {
+        if (!env.DEMO_DATA_REFERENCIA) return relogioDoSistema;
+        if (env.NODE_ENV === "production") throw new Error("DEMO_DATA_REFERENCIA não vale em produção");
+        return relogioComDataFixa(env.DEMO_DATA_REFERENCIA, env.FUSO_HORARIO);
+      },
+    },
     { provide: PORTA_AGENTE, useExisting: AgenteService },
     // Até o resumo diário (#40) e o motor de alertas (#43) existirem; o plano A troca a fonte.
     { provide: FONTE_RELATORIO, useValue: fonteRelatorioPadrao },

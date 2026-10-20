@@ -1,0 +1,3319 @@
+{
+  "descricao": "Respostas corretas calculadas à parte, a partir dos arquivos de fixtures/mercadinho e fixtures/notas. Dinheiro em centavos inteiros; razões em pontos-base (bps).",
+  "gerado_por": "npm run fixtures:gerar (scripts/fixtures/gabarito.ts)",
+  "parametros": {
+    "data_referencia": "2026-10-19",
+    "janela_dados": {
+      "inicio": "2026-08-20",
+      "fim": "2026-10-19"
+    },
+    "margem": {
+      "formula": "(preco_medio_venda - custo_compra_mais_recente) / preco_medio_venda",
+      "janela_preco_dias": 30,
+      "preco_medio": "receita / quantidade dos últimos 30 dias, arredondado em centavos",
+      "custo": "custo unitário da nota mais recente do produto, de qualquer fornecedor",
+      "unidade": "margem_bps em pontos-base (2500 = 25,00%)"
+    },
+    "variacao_custo": {
+      "formula": "(custo da compra atual - custo da compra anterior do mesmo produto e fornecedor) / custo anterior",
+      "limite_bps": 500,
+      "alerta_se": "variacao_bps > limite_bps e a compra atual tem no máximo 7 dias na data de referência",
+      "janela_alerta_dias": 7
+    },
+    "giro": {
+      "formula": "unidades dos últimos 7 dias / média semanal das unidades dos 28 dias anteriores",
+      "ultimos_dias": 7,
+      "anteriores_dias": 28,
+      "alta_bps": "(4 * unidades_7d - unidades_28d) / unidades_28d, em pontos-base",
+      "minimo_media_semanal": 14,
+      "top_n": 5,
+      "giro_alto": "entre os 5 de maior alta (com média semanal mínima) ou entre os 5 de maior volume em 7 dias"
+    },
+    "espaco_subir_preco": "giro_alto e margem_bps abaixo da meta, ao mesmo tempo",
+    "estoque_parado": {
+      "limite_dias": 30,
+      "regra": "produto com compra e mais de 30 dias sem venda na data de referência"
+    },
+    "ticket_medio": {
+      "formula": "faturamento do dia / número de cupons do dia",
+      "base": "média ponderada dos 28 dias anteriores (faturamento total / cupons totais)",
+      "limite_queda_bps": 3000
+    },
+    "gasto_fora_do_padrao": {
+      "formula": "(valor do dia - mediana dos 60 dias anteriores) / desvio absoluto mediano",
+      "serie": "saídas da categoria despesa_operacional somadas por dia",
+      "janela_dias": 60,
+      "minimo_dias_de_historico": 30,
+      "limite_desvio": 3,
+      "nota": "compras de mercadoria e despesas fixas ficam fora da série: variam por natureza"
+    }
+  },
+  "meta_margem_bps": 2500,
+  "fornecedores": [
+    {
+      "id": "AUR",
+      "nome": "Distribuidora Aurora Alimentos Ltda"
+    },
+    {
+      "id": "BEB",
+      "nome": "Bebidas Centro-Oeste Distribuidora Ltda"
+    },
+    {
+      "id": "LAT",
+      "nome": "Laticínios Vale Verde S.A."
+    },
+    {
+      "id": "HIG",
+      "nome": "Brilho Higiene e Limpeza Ltda"
+    },
+    {
+      "id": "PAD",
+      "nome": "Pão Quente Biscoitos e Snacks Ltda"
+    },
+    {
+      "id": "FRI",
+      "nome": "Frigorífico Boa Carne Ltda"
+    },
+    {
+      "id": "MIX",
+      "nome": "Atacado Mix Goiás Ltda"
+    }
+  ],
+  "resumo_diario": {
+    "referencia": {
+      "data": "2026-10-19",
+      "faturamento_centavos": 122151,
+      "gastos_centavos": 101534,
+      "saldo_do_dia_centavos": 20617,
+      "saldo_da_conta_centavos": 11392128,
+      "cupons": 78,
+      "ticket_medio_centavos": 1566,
+      "media_faturamento_7_dias_anteriores_centavos": 175072,
+      "variacao_faturamento_bps": -3023,
+      "n_registros": 78
+    },
+    "dia_anterior": {
+      "data": "2026-10-18",
+      "faturamento_centavos": 131761,
+      "gastos_centavos": 8923,
+      "saldo_do_dia_centavos": 122838,
+      "saldo_da_conta_centavos": 11371511,
+      "cupons": 54,
+      "ticket_medio_centavos": 2440,
+      "media_faturamento_7_dias_anteriores_centavos": 174649,
+      "variacao_faturamento_bps": -2456,
+      "n_registros": 54
+    }
+  },
+  "margem_por_produto": [
+    {
+      "produto_id": "P01",
+      "nome": "Arroz branco tipo 1 5kg",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 3499,
+      "custo_compra_mais_recente_centavos": 2790,
+      "compra_data": "2026-10-16",
+      "compra_nota": "nota-16",
+      "fornecedor_id": "AUR",
+      "margem_bps": 2026,
+      "margem_percentual": 20.26,
+      "abaixo_da_meta": true,
+      "n_registros": 150,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P02",
+      "nome": "Feijão carioca tipo 1 1kg",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 899,
+      "custo_compra_mais_recente_centavos": 640,
+      "compra_data": "2026-10-13",
+      "compra_nota": "nota-15",
+      "fornecedor_id": "AUR",
+      "margem_bps": 2881,
+      "margem_percentual": 28.81,
+      "abaixo_da_meta": false,
+      "n_registros": 196,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P03",
+      "nome": "Óleo de soja 900ml",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 729,
+      "custo_compra_mais_recente_centavos": 560,
+      "compra_data": "2026-10-13",
+      "compra_nota": "nota-15",
+      "fornecedor_id": "AUR",
+      "margem_bps": 2318,
+      "margem_percentual": 23.18,
+      "abaixo_da_meta": true,
+      "n_registros": 187,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P04",
+      "nome": "Açúcar refinado 1kg",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 449,
+      "custo_compra_mais_recente_centavos": 322,
+      "compra_data": "2026-10-13",
+      "compra_nota": "nota-15",
+      "fornecedor_id": "AUR",
+      "margem_bps": 2829,
+      "margem_percentual": 28.29,
+      "abaixo_da_meta": false,
+      "n_registros": 206,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P05",
+      "nome": "Café torrado e moído 500g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 1790,
+      "custo_compra_mais_recente_centavos": 1250,
+      "compra_data": "2026-10-13",
+      "compra_nota": "nota-15",
+      "fornecedor_id": "AUR",
+      "margem_bps": 3017,
+      "margem_percentual": 30.17,
+      "abaixo_da_meta": false,
+      "n_registros": 181,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P06",
+      "nome": "Macarrão espaguete 500g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 369,
+      "custo_compra_mais_recente_centavos": 245,
+      "compra_data": "2026-10-13",
+      "compra_nota": "nota-15",
+      "fornecedor_id": "AUR",
+      "margem_bps": 3360,
+      "margem_percentual": 33.6,
+      "abaixo_da_meta": false,
+      "n_registros": 206,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P07",
+      "nome": "Farinha de trigo 1kg",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 479,
+      "custo_compra_mais_recente_centavos": 330,
+      "compra_data": "2026-10-16",
+      "compra_nota": "nota-16",
+      "fornecedor_id": "AUR",
+      "margem_bps": 3111,
+      "margem_percentual": 31.11,
+      "abaixo_da_meta": false,
+      "n_registros": 66,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P08",
+      "nome": "Sal refinado 1kg",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 219,
+      "custo_compra_mais_recente_centavos": 125,
+      "compra_data": "2026-10-16",
+      "compra_nota": "nota-16",
+      "fornecedor_id": "AUR",
+      "margem_bps": 4292,
+      "margem_percentual": 42.92,
+      "abaixo_da_meta": false,
+      "n_registros": 49,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P09",
+      "nome": "Molho de tomate 340g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 259,
+      "custo_compra_mais_recente_centavos": 160,
+      "compra_data": "2026-10-13",
+      "compra_nota": "nota-15",
+      "fornecedor_id": "AUR",
+      "margem_bps": 3822,
+      "margem_percentual": 38.22,
+      "abaixo_da_meta": false,
+      "n_registros": 145,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P10",
+      "nome": "Milho verde em conserva 200g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 289,
+      "custo_compra_mais_recente_centavos": 175,
+      "compra_data": "2026-08-24",
+      "compra_nota": "nota-01",
+      "fornecedor_id": "AUR",
+      "margem_bps": 3945,
+      "margem_percentual": 39.45,
+      "abaixo_da_meta": false,
+      "n_registros": 71,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P11",
+      "nome": "Farinha de mandioca 500g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 429,
+      "custo_compra_mais_recente_centavos": 280,
+      "compra_data": "2026-08-24",
+      "compra_nota": "nota-01",
+      "fornecedor_id": "AUR",
+      "margem_bps": 3473,
+      "margem_percentual": 34.73,
+      "abaixo_da_meta": false,
+      "n_registros": 43,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P12",
+      "nome": "Vinagre de álcool 750ml",
+      "situacao": "sem_venda_na_janela",
+      "preco_medio_venda_centavos": null,
+      "custo_compra_mais_recente_centavos": 150,
+      "compra_data": "2026-08-24",
+      "compra_nota": "nota-01",
+      "fornecedor_id": "AUR",
+      "margem_bps": null,
+      "margem_percentual": null,
+      "abaixo_da_meta": null,
+      "n_registros": 0,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P13",
+      "nome": "Achocolatado em pó 400g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 849,
+      "custo_compra_mais_recente_centavos": 590,
+      "compra_data": "2026-08-24",
+      "compra_nota": "nota-01",
+      "fornecedor_id": "AUR",
+      "margem_bps": 3051,
+      "margem_percentual": 30.51,
+      "abaixo_da_meta": false,
+      "n_registros": 14,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P14",
+      "nome": "Refrigerante cola 2L",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 899,
+      "custo_compra_mais_recente_centavos": 580,
+      "compra_data": "2026-10-06",
+      "compra_nota": "nota-13",
+      "fornecedor_id": "BEB",
+      "margem_bps": 3548,
+      "margem_percentual": 35.48,
+      "abaixo_da_meta": false,
+      "n_registros": 339,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P15",
+      "nome": "Refrigerante guaraná 2L",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 849,
+      "custo_compra_mais_recente_centavos": 540,
+      "compra_data": "2026-09-16",
+      "compra_nota": "nota-08",
+      "fornecedor_id": "BEB",
+      "margem_bps": 3640,
+      "margem_percentual": 36.4,
+      "abaixo_da_meta": false,
+      "n_registros": 213,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P16",
+      "nome": "Refrigerante cola lata 350ml",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 399,
+      "custo_compra_mais_recente_centavos": 245,
+      "compra_data": "2026-10-06",
+      "compra_nota": "nota-13",
+      "fornecedor_id": "BEB",
+      "margem_bps": 3860,
+      "margem_percentual": 38.6,
+      "abaixo_da_meta": false,
+      "n_registros": 235,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P17",
+      "nome": "Cerveja pilsen lata 350ml",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 329,
+      "custo_compra_mais_recente_centavos": 259,
+      "compra_data": "2026-10-06",
+      "compra_nota": "nota-13",
+      "fornecedor_id": "BEB",
+      "margem_bps": 2128,
+      "margem_percentual": 21.28,
+      "abaixo_da_meta": true,
+      "n_registros": 474,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P18",
+      "nome": "Cerveja long neck 330ml",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 599,
+      "custo_compra_mais_recente_centavos": 380,
+      "compra_data": "2026-10-06",
+      "compra_nota": "nota-13",
+      "fornecedor_id": "BEB",
+      "margem_bps": 3656,
+      "margem_percentual": 36.56,
+      "abaixo_da_meta": false,
+      "n_registros": 109,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P19",
+      "nome": "Água mineral sem gás 1,5L",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 249,
+      "custo_compra_mais_recente_centavos": 120,
+      "compra_data": "2026-10-06",
+      "compra_nota": "nota-13",
+      "fornecedor_id": "BEB",
+      "margem_bps": 5181,
+      "margem_percentual": 51.81,
+      "abaixo_da_meta": false,
+      "n_registros": 306,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P20",
+      "nome": "Água mineral com gás 500ml",
+      "situacao": "sem_custo",
+      "preco_medio_venda_centavos": 229,
+      "custo_compra_mais_recente_centavos": null,
+      "compra_data": null,
+      "compra_nota": null,
+      "fornecedor_id": null,
+      "margem_bps": null,
+      "margem_percentual": null,
+      "abaixo_da_meta": null,
+      "n_registros": 55,
+      "menor_confianca": null
+    },
+    {
+      "produto_id": "P21",
+      "nome": "Suco de laranja 1L",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 549,
+      "custo_compra_mais_recente_centavos": 350,
+      "compra_data": "2026-08-26",
+      "compra_nota": "nota-02",
+      "fornecedor_id": "BEB",
+      "margem_bps": 3625,
+      "margem_percentual": 36.25,
+      "abaixo_da_meta": false,
+      "n_registros": 96,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P22",
+      "nome": "Energético 250ml",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 799,
+      "custo_compra_mais_recente_centavos": 520,
+      "compra_data": "2026-08-26",
+      "compra_nota": "nota-02",
+      "fornecedor_id": "BEB",
+      "margem_bps": 3492,
+      "margem_percentual": 34.92,
+      "abaixo_da_meta": false,
+      "n_registros": 126,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P23",
+      "nome": "Leite integral 1L",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 479,
+      "custo_compra_mais_recente_centavos": 380,
+      "compra_data": "2026-10-17",
+      "compra_nota": "nota-17",
+      "fornecedor_id": "LAT",
+      "margem_bps": 2067,
+      "margem_percentual": 20.67,
+      "abaixo_da_meta": true,
+      "n_registros": 447,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P24",
+      "nome": "Iogurte de morango 170g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 249,
+      "custo_compra_mais_recente_centavos": 150,
+      "compra_data": "2026-10-17",
+      "compra_nota": "nota-17",
+      "fornecedor_id": "LAT",
+      "margem_bps": 3976,
+      "margem_percentual": 39.76,
+      "abaixo_da_meta": false,
+      "n_registros": 122,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P25",
+      "nome": "Queijo mussarela fatiado 150g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 1099,
+      "custo_compra_mais_recente_centavos": 790,
+      "compra_data": "2026-08-28",
+      "compra_nota": "nota-03",
+      "fornecedor_id": "LAT",
+      "margem_bps": 2812,
+      "margem_percentual": 28.12,
+      "abaixo_da_meta": false,
+      "n_registros": 77,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P26",
+      "nome": "Manteiga com sal 200g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 1499,
+      "custo_compra_mais_recente_centavos": 1090,
+      "compra_data": "2026-08-28",
+      "compra_nota": "nota-03",
+      "fornecedor_id": "LAT",
+      "margem_bps": 2728,
+      "margem_percentual": 27.28,
+      "abaixo_da_meta": false,
+      "n_registros": 42,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P27",
+      "nome": "Requeijão cremoso 200g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 849,
+      "custo_compra_mais_recente_centavos": 590,
+      "compra_data": "2026-09-18",
+      "compra_nota": "nota-09",
+      "fornecedor_id": "LAT",
+      "margem_bps": 3051,
+      "margem_percentual": 30.51,
+      "abaixo_da_meta": false,
+      "n_registros": 51,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P28",
+      "nome": "Creme de leite 200g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 429,
+      "custo_compra_mais_recente_centavos": 280,
+      "compra_data": "2026-10-17",
+      "compra_nota": "nota-17",
+      "fornecedor_id": "LAT",
+      "margem_bps": 3473,
+      "margem_percentual": 34.73,
+      "abaixo_da_meta": false,
+      "n_registros": 91,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P29",
+      "nome": "Detergente líquido 500ml",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 299,
+      "custo_compra_mais_recente_centavos": 190,
+      "compra_data": "2026-10-02",
+      "compra_nota": "nota-12",
+      "fornecedor_id": "HIG",
+      "margem_bps": 3645,
+      "margem_percentual": 36.45,
+      "abaixo_da_meta": false,
+      "n_registros": 84,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P30",
+      "nome": "Sabão em pó 800g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 1199,
+      "custo_compra_mais_recente_centavos": 840,
+      "compra_data": "2026-08-31",
+      "compra_nota": "nota-04",
+      "fornecedor_id": "HIG",
+      "margem_bps": 2994,
+      "margem_percentual": 29.94,
+      "abaixo_da_meta": false,
+      "n_registros": 56,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P31",
+      "nome": "Água sanitária 1L",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 349,
+      "custo_compra_mais_recente_centavos": 210,
+      "compra_data": "2026-10-02",
+      "compra_nota": "nota-12",
+      "fornecedor_id": "HIG",
+      "margem_bps": 3983,
+      "margem_percentual": 39.83,
+      "abaixo_da_meta": false,
+      "n_registros": 44,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P32",
+      "nome": "Desinfetante 500ml",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 449,
+      "custo_compra_mais_recente_centavos": 290,
+      "compra_data": "2026-08-31",
+      "compra_nota": "nota-04",
+      "fornecedor_id": "HIG",
+      "margem_bps": 3541,
+      "margem_percentual": 35.41,
+      "abaixo_da_meta": false,
+      "n_registros": 43,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P33",
+      "nome": "Papel higiênico folha dupla 4 rolos",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 999,
+      "custo_compra_mais_recente_centavos": 690,
+      "compra_data": "2026-10-02",
+      "compra_nota": "nota-12",
+      "fornecedor_id": "HIG",
+      "margem_bps": 3093,
+      "margem_percentual": 30.93,
+      "abaixo_da_meta": false,
+      "n_registros": 123,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P34",
+      "nome": "Sabonete 85g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 199,
+      "custo_compra_mais_recente_centavos": 120,
+      "compra_data": "2026-10-02",
+      "compra_nota": "nota-12",
+      "fornecedor_id": "HIG",
+      "margem_bps": 3970,
+      "margem_percentual": 39.7,
+      "abaixo_da_meta": false,
+      "n_registros": 113,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P35",
+      "nome": "Creme dental 90g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 349,
+      "custo_compra_mais_recente_centavos": 210,
+      "compra_data": "2026-10-02",
+      "compra_nota": "nota-12",
+      "fornecedor_id": "HIG",
+      "margem_bps": 3983,
+      "margem_percentual": 39.83,
+      "abaixo_da_meta": false,
+      "n_registros": 110,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P36",
+      "nome": "Shampoo 325ml",
+      "situacao": "sem_custo",
+      "preco_medio_venda_centavos": 999,
+      "custo_compra_mais_recente_centavos": null,
+      "compra_data": null,
+      "compra_nota": null,
+      "fornecedor_id": null,
+      "margem_bps": null,
+      "margem_percentual": null,
+      "abaixo_da_meta": null,
+      "n_registros": 18,
+      "menor_confianca": null
+    },
+    {
+      "produto_id": "P37",
+      "nome": "Esponja de cozinha 3 unidades",
+      "situacao": "sem_custo",
+      "preco_medio_venda_centavos": 199,
+      "custo_compra_mais_recente_centavos": null,
+      "compra_data": null,
+      "compra_nota": null,
+      "fornecedor_id": null,
+      "margem_bps": null,
+      "margem_percentual": null,
+      "abaixo_da_meta": null,
+      "n_registros": 43,
+      "menor_confianca": null
+    },
+    {
+      "produto_id": "P38",
+      "nome": "Pão de forma tradicional 500g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 849,
+      "custo_compra_mais_recente_centavos": 580,
+      "compra_data": "2026-09-30",
+      "compra_nota": "nota-11",
+      "fornecedor_id": "PAD",
+      "margem_bps": 3168,
+      "margem_percentual": 31.68,
+      "abaixo_da_meta": false,
+      "n_registros": 225,
+      "menor_confianca": 0.5
+    },
+    {
+      "produto_id": "P39",
+      "nome": "Biscoito recheado chocolate 120g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 279,
+      "custo_compra_mais_recente_centavos": 160,
+      "compra_data": "2026-09-30",
+      "compra_nota": "nota-11",
+      "fornecedor_id": "PAD",
+      "margem_bps": 4265,
+      "margem_percentual": 42.65,
+      "abaixo_da_meta": false,
+      "n_registros": 213,
+      "menor_confianca": 0.5
+    },
+    {
+      "produto_id": "P40",
+      "nome": "Biscoito cream cracker 400g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 459,
+      "custo_compra_mais_recente_centavos": 290,
+      "compra_data": "2026-09-30",
+      "compra_nota": "nota-11",
+      "fornecedor_id": "PAD",
+      "margem_bps": 3682,
+      "margem_percentual": 36.82,
+      "abaixo_da_meta": false,
+      "n_registros": 94,
+      "menor_confianca": 0.5
+    },
+    {
+      "produto_id": "P41",
+      "nome": "Salgadinho de milho 100g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 549,
+      "custo_compra_mais_recente_centavos": 330,
+      "compra_data": "2026-09-30",
+      "compra_nota": "nota-11",
+      "fornecedor_id": "PAD",
+      "margem_bps": 3989,
+      "margem_percentual": 39.89,
+      "abaixo_da_meta": false,
+      "n_registros": 160,
+      "menor_confianca": 0.5
+    },
+    {
+      "produto_id": "P42",
+      "nome": "Chocolate ao leite 80g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 459,
+      "custo_compra_mais_recente_centavos": 280,
+      "compra_data": "2026-09-30",
+      "compra_nota": "nota-11",
+      "fornecedor_id": "PAD",
+      "margem_bps": 3900,
+      "margem_percentual": 39,
+      "abaixo_da_meta": false,
+      "n_registros": 112,
+      "menor_confianca": 0.5
+    },
+    {
+      "produto_id": "P43",
+      "nome": "Bala de goma 90g",
+      "situacao": "sem_custo",
+      "preco_medio_venda_centavos": 249,
+      "custo_compra_mais_recente_centavos": null,
+      "compra_data": null,
+      "compra_nota": null,
+      "fornecedor_id": null,
+      "margem_bps": null,
+      "margem_percentual": null,
+      "abaixo_da_meta": null,
+      "n_registros": 95,
+      "menor_confianca": null
+    },
+    {
+      "produto_id": "P44",
+      "nome": "Linguiça toscana 500g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 1699,
+      "custo_compra_mais_recente_centavos": 1190,
+      "compra_data": "2026-10-09",
+      "compra_nota": "nota-14",
+      "fornecedor_id": "FRI",
+      "margem_bps": 2996,
+      "margem_percentual": 29.96,
+      "abaixo_da_meta": false,
+      "n_registros": 79,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P45",
+      "nome": "Presunto fatiado 200g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 999,
+      "custo_compra_mais_recente_centavos": 690,
+      "compra_data": "2026-10-09",
+      "compra_nota": "nota-14",
+      "fornecedor_id": "FRI",
+      "margem_bps": 3093,
+      "margem_percentual": 30.93,
+      "abaixo_da_meta": false,
+      "n_registros": 75,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P46",
+      "nome": "Salsicha hot dog 500g",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 999,
+      "custo_compra_mais_recente_centavos": 690,
+      "compra_data": "2026-10-09",
+      "compra_nota": "nota-14",
+      "fornecedor_id": "FRI",
+      "margem_bps": 3093,
+      "margem_percentual": 30.93,
+      "abaixo_da_meta": false,
+      "n_registros": 56,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P47",
+      "nome": "Carvão vegetal 3kg",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 1599,
+      "custo_compra_mais_recente_centavos": 1090,
+      "compra_data": "2026-10-09",
+      "compra_nota": "nota-14",
+      "fornecedor_id": "FRI",
+      "margem_bps": 3183,
+      "margem_percentual": 31.83,
+      "abaixo_da_meta": false,
+      "n_registros": 121,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P48",
+      "nome": "Ovos brancos dúzia",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 1499,
+      "custo_compra_mais_recente_centavos": 1100,
+      "compra_data": "2026-09-25",
+      "compra_nota": "nota-10",
+      "fornecedor_id": "MIX",
+      "margem_bps": 2662,
+      "margem_percentual": 26.62,
+      "abaixo_da_meta": false,
+      "n_registros": 261,
+      "menor_confianca": 0.5
+    },
+    {
+      "produto_id": "P49",
+      "nome": "Pilha alcalina AA 2 unidades",
+      "situacao": "ok",
+      "preco_medio_venda_centavos": 1099,
+      "custo_compra_mais_recente_centavos": 590,
+      "compra_data": "2026-09-25",
+      "compra_nota": "nota-10",
+      "fornecedor_id": "MIX",
+      "margem_bps": 4631,
+      "margem_percentual": 46.31,
+      "abaixo_da_meta": false,
+      "n_registros": 23,
+      "menor_confianca": 0.5
+    },
+    {
+      "produto_id": "P50",
+      "nome": "Guardanapo de papel 50 folhas",
+      "situacao": "sem_custo",
+      "preco_medio_venda_centavos": 229,
+      "custo_compra_mais_recente_centavos": null,
+      "compra_data": null,
+      "compra_nota": null,
+      "fornecedor_id": null,
+      "margem_bps": null,
+      "margem_percentual": null,
+      "abaixo_da_meta": null,
+      "n_registros": 64,
+      "menor_confianca": null
+    }
+  ],
+  "variacao_de_custo": [
+    {
+      "produto_id": "P01",
+      "nome": "Arroz branco tipo 1 5kg",
+      "fornecedor_id": "AUR",
+      "custo_anterior_centavos": 2490,
+      "custo_atual_centavos": 2790,
+      "compra_anterior": {
+        "nota": "nota-07",
+        "data": "2026-09-14"
+      },
+      "compra_atual": {
+        "nota": "nota-16",
+        "data": "2026-10-16"
+      },
+      "variacao_bps": 1205,
+      "variacao_percentual": 12.05,
+      "acima_do_limite": true,
+      "dispara_alerta": true,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P03",
+      "nome": "Óleo de soja 900ml",
+      "fornecedor_id": "AUR",
+      "custo_anterior_centavos": 520,
+      "custo_atual_centavos": 560,
+      "compra_anterior": {
+        "nota": "nota-07",
+        "data": "2026-09-14"
+      },
+      "compra_atual": {
+        "nota": "nota-15",
+        "data": "2026-10-13"
+      },
+      "variacao_bps": 769,
+      "variacao_percentual": 7.69,
+      "acima_do_limite": true,
+      "dispara_alerta": true,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P04",
+      "nome": "Açúcar refinado 1kg",
+      "fornecedor_id": "AUR",
+      "custo_anterior_centavos": 310,
+      "custo_atual_centavos": 322,
+      "compra_anterior": {
+        "nota": "nota-07",
+        "data": "2026-09-14"
+      },
+      "compra_atual": {
+        "nota": "nota-15",
+        "data": "2026-10-13"
+      },
+      "variacao_bps": 387,
+      "variacao_percentual": 3.87,
+      "acima_do_limite": false,
+      "dispara_alerta": false,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P17",
+      "nome": "Cerveja pilsen lata 350ml",
+      "fornecedor_id": "BEB",
+      "custo_anterior_centavos": 255,
+      "custo_atual_centavos": 259,
+      "compra_anterior": {
+        "nota": "nota-08",
+        "data": "2026-09-16"
+      },
+      "compra_atual": {
+        "nota": "nota-13",
+        "data": "2026-10-06"
+      },
+      "variacao_bps": 157,
+      "variacao_percentual": 1.57,
+      "acima_do_limite": false,
+      "dispara_alerta": false,
+      "menor_confianca": 1
+    },
+    {
+      "produto_id": "P05",
+      "nome": "Café torrado e moído 500g",
+      "fornecedor_id": "AUR",
+      "custo_anterior_centavos": 1290,
+      "custo_atual_centavos": 1250,
+      "compra_anterior": {
+        "nota": "nota-07",
+        "data": "2026-09-14"
+      },
+      "compra_atual": {
+        "nota": "nota-15",
+        "data": "2026-10-13"
+      },
+      "variacao_bps": -310,
+      "variacao_percentual": -3.1,
+      "acima_do_limite": false,
+      "dispara_alerta": false,
+      "menor_confianca": 1
+    }
+  ],
+  "giro": {
+    "periodo": {
+      "ultimos_7_dias": {
+        "inicio": "2026-10-13",
+        "fim": "2026-10-19"
+      },
+      "anteriores_28_dias": {
+        "inicio": "2026-09-15",
+        "fim": "2026-10-12"
+      }
+    },
+    "maior_alta": [
+      {
+        "produto_id": "P47",
+        "nome": "Carvão vegetal 3kg",
+        "unidades_7_dias": 55,
+        "unidades_28_dias_anteriores": 80,
+        "media_semanal_28_dias": 20,
+        "alta_bps": 17500,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P17",
+        "nome": "Cerveja pilsen lata 350ml",
+        "unidades_7_dias": 172,
+        "unidades_28_dias_anteriores": 384,
+        "media_semanal_28_dias": 96,
+        "alta_bps": 7917,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P43",
+        "nome": "Bala de goma 90g",
+        "unidades_7_dias": 31,
+        "unidades_28_dias_anteriores": 73,
+        "media_semanal_28_dias": 18.25,
+        "alta_bps": 6986,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P25",
+        "nome": "Queijo mussarela fatiado 150g",
+        "unidades_7_dias": 24,
+        "unidades_28_dias_anteriores": 70,
+        "media_semanal_28_dias": 17.5,
+        "alta_bps": 3714,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P41",
+        "nome": "Salgadinho de milho 100g",
+        "unidades_7_dias": 47,
+        "unidades_28_dias_anteriores": 139,
+        "media_semanal_28_dias": 34.75,
+        "alta_bps": 3525,
+        "elegivel_para_alta": true
+      }
+    ],
+    "maior_volume": [
+      {
+        "produto_id": "P17",
+        "nome": "Cerveja pilsen lata 350ml",
+        "unidades_7_dias": 172,
+        "unidades_28_dias_anteriores": 384,
+        "media_semanal_28_dias": 96,
+        "alta_bps": 7917,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P23",
+        "nome": "Leite integral 1L",
+        "unidades_7_dias": 104,
+        "unidades_28_dias_anteriores": 426,
+        "media_semanal_28_dias": 106.5,
+        "alta_bps": -235,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P14",
+        "nome": "Refrigerante cola 2L",
+        "unidades_7_dias": 81,
+        "unidades_28_dias_anteriores": 312,
+        "media_semanal_28_dias": 78,
+        "alta_bps": 385,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P19",
+        "nome": "Água mineral sem gás 1,5L",
+        "unidades_7_dias": 65,
+        "unidades_28_dias_anteriores": 305,
+        "media_semanal_28_dias": 76.25,
+        "alta_bps": -1475,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P48",
+        "nome": "Ovos brancos dúzia",
+        "unidades_7_dias": 65,
+        "unidades_28_dias_anteriores": 236,
+        "media_semanal_28_dias": 59,
+        "alta_bps": 1017,
+        "elegivel_para_alta": true
+      }
+    ],
+    "por_produto": [
+      {
+        "produto_id": "P01",
+        "nome": "Arroz branco tipo 1 5kg",
+        "unidades_7_dias": 36,
+        "unidades_28_dias_anteriores": 142,
+        "media_semanal_28_dias": 35.5,
+        "alta_bps": 141,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P02",
+        "nome": "Feijão carioca tipo 1 1kg",
+        "unidades_7_dias": 33,
+        "unidades_28_dias_anteriores": 201,
+        "media_semanal_28_dias": 50.25,
+        "alta_bps": -3433,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P03",
+        "nome": "Óleo de soja 900ml",
+        "unidades_7_dias": 33,
+        "unidades_28_dias_anteriores": 189,
+        "media_semanal_28_dias": 47.25,
+        "alta_bps": -3016,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P04",
+        "nome": "Açúcar refinado 1kg",
+        "unidades_7_dias": 57,
+        "unidades_28_dias_anteriores": 175,
+        "media_semanal_28_dias": 43.75,
+        "alta_bps": 3029,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P05",
+        "nome": "Café torrado e moído 500g",
+        "unidades_7_dias": 48,
+        "unidades_28_dias_anteriores": 168,
+        "media_semanal_28_dias": 42,
+        "alta_bps": 1429,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P06",
+        "nome": "Macarrão espaguete 500g",
+        "unidades_7_dias": 42,
+        "unidades_28_dias_anteriores": 195,
+        "media_semanal_28_dias": 48.75,
+        "alta_bps": -1385,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P07",
+        "nome": "Farinha de trigo 1kg",
+        "unidades_7_dias": 10,
+        "unidades_28_dias_anteriores": 68,
+        "media_semanal_28_dias": 17,
+        "alta_bps": -4118,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P08",
+        "nome": "Sal refinado 1kg",
+        "unidades_7_dias": 10,
+        "unidades_28_dias_anteriores": 50,
+        "media_semanal_28_dias": 12.5,
+        "alta_bps": -2000,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P09",
+        "nome": "Molho de tomate 340g",
+        "unidades_7_dias": 40,
+        "unidades_28_dias_anteriores": 126,
+        "media_semanal_28_dias": 31.5,
+        "alta_bps": 2698,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P10",
+        "nome": "Milho verde em conserva 200g",
+        "unidades_7_dias": 19,
+        "unidades_28_dias_anteriores": 62,
+        "media_semanal_28_dias": 15.5,
+        "alta_bps": 2258,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P11",
+        "nome": "Farinha de mandioca 500g",
+        "unidades_7_dias": 9,
+        "unidades_28_dias_anteriores": 43,
+        "media_semanal_28_dias": 10.75,
+        "alta_bps": -1628,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P12",
+        "nome": "Vinagre de álcool 750ml",
+        "unidades_7_dias": 0,
+        "unidades_28_dias_anteriores": 0,
+        "media_semanal_28_dias": 0,
+        "alta_bps": null,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P13",
+        "nome": "Achocolatado em pó 400g",
+        "unidades_7_dias": 0,
+        "unidades_28_dias_anteriores": 20,
+        "media_semanal_28_dias": 5,
+        "alta_bps": -10000,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P14",
+        "nome": "Refrigerante cola 2L",
+        "unidades_7_dias": 81,
+        "unidades_28_dias_anteriores": 312,
+        "media_semanal_28_dias": 78,
+        "alta_bps": 385,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P15",
+        "nome": "Refrigerante guaraná 2L",
+        "unidades_7_dias": 43,
+        "unidades_28_dias_anteriores": 198,
+        "media_semanal_28_dias": 49.5,
+        "alta_bps": -1313,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P16",
+        "nome": "Refrigerante cola lata 350ml",
+        "unidades_7_dias": 56,
+        "unidades_28_dias_anteriores": 230,
+        "media_semanal_28_dias": 57.5,
+        "alta_bps": -261,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P17",
+        "nome": "Cerveja pilsen lata 350ml",
+        "unidades_7_dias": 172,
+        "unidades_28_dias_anteriores": 384,
+        "media_semanal_28_dias": 96,
+        "alta_bps": 7917,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P18",
+        "nome": "Cerveja long neck 330ml",
+        "unidades_7_dias": 32,
+        "unidades_28_dias_anteriores": 111,
+        "media_semanal_28_dias": 27.75,
+        "alta_bps": 1532,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P19",
+        "nome": "Água mineral sem gás 1,5L",
+        "unidades_7_dias": 65,
+        "unidades_28_dias_anteriores": 305,
+        "media_semanal_28_dias": 76.25,
+        "alta_bps": -1475,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P20",
+        "nome": "Água mineral com gás 500ml",
+        "unidades_7_dias": 20,
+        "unidades_28_dias_anteriores": 47,
+        "media_semanal_28_dias": 11.75,
+        "alta_bps": 7021,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P21",
+        "nome": "Suco de laranja 1L",
+        "unidades_7_dias": 22,
+        "unidades_28_dias_anteriores": 88,
+        "media_semanal_28_dias": 22,
+        "alta_bps": 0,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P22",
+        "nome": "Energético 250ml",
+        "unidades_7_dias": 34,
+        "unidades_28_dias_anteriores": 106,
+        "media_semanal_28_dias": 26.5,
+        "alta_bps": 2830,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P23",
+        "nome": "Leite integral 1L",
+        "unidades_7_dias": 104,
+        "unidades_28_dias_anteriores": 426,
+        "media_semanal_28_dias": 106.5,
+        "alta_bps": -235,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P24",
+        "nome": "Iogurte de morango 170g",
+        "unidades_7_dias": 22,
+        "unidades_28_dias_anteriores": 126,
+        "media_semanal_28_dias": 31.5,
+        "alta_bps": -3016,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P25",
+        "nome": "Queijo mussarela fatiado 150g",
+        "unidades_7_dias": 24,
+        "unidades_28_dias_anteriores": 70,
+        "media_semanal_28_dias": 17.5,
+        "alta_bps": 3714,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P26",
+        "nome": "Manteiga com sal 200g",
+        "unidades_7_dias": 7,
+        "unidades_28_dias_anteriores": 44,
+        "media_semanal_28_dias": 11,
+        "alta_bps": -3636,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P27",
+        "nome": "Requeijão cremoso 200g",
+        "unidades_7_dias": 10,
+        "unidades_28_dias_anteriores": 58,
+        "media_semanal_28_dias": 14.5,
+        "alta_bps": -3103,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P28",
+        "nome": "Creme de leite 200g",
+        "unidades_7_dias": 25,
+        "unidades_28_dias_anteriores": 77,
+        "media_semanal_28_dias": 19.25,
+        "alta_bps": 2987,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P29",
+        "nome": "Detergente líquido 500ml",
+        "unidades_7_dias": 20,
+        "unidades_28_dias_anteriores": 84,
+        "media_semanal_28_dias": 21,
+        "alta_bps": -476,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P30",
+        "nome": "Sabão em pó 800g",
+        "unidades_7_dias": 18,
+        "unidades_28_dias_anteriores": 45,
+        "media_semanal_28_dias": 11.25,
+        "alta_bps": 6000,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P31",
+        "nome": "Água sanitária 1L",
+        "unidades_7_dias": 7,
+        "unidades_28_dias_anteriores": 45,
+        "media_semanal_28_dias": 11.25,
+        "alta_bps": -3778,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P32",
+        "nome": "Desinfetante 500ml",
+        "unidades_7_dias": 5,
+        "unidades_28_dias_anteriores": 54,
+        "media_semanal_28_dias": 13.5,
+        "alta_bps": -6296,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P33",
+        "nome": "Papel higiênico folha dupla 4 rolos",
+        "unidades_7_dias": 29,
+        "unidades_28_dias_anteriores": 117,
+        "media_semanal_28_dias": 29.25,
+        "alta_bps": -85,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P34",
+        "nome": "Sabonete 85g",
+        "unidades_7_dias": 24,
+        "unidades_28_dias_anteriores": 106,
+        "media_semanal_28_dias": 26.5,
+        "alta_bps": -943,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P35",
+        "nome": "Creme dental 90g",
+        "unidades_7_dias": 31,
+        "unidades_28_dias_anteriores": 96,
+        "media_semanal_28_dias": 24,
+        "alta_bps": 2917,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P36",
+        "nome": "Shampoo 325ml",
+        "unidades_7_dias": 6,
+        "unidades_28_dias_anteriores": 15,
+        "media_semanal_28_dias": 3.75,
+        "alta_bps": 6000,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P37",
+        "nome": "Esponja de cozinha 3 unidades",
+        "unidades_7_dias": 8,
+        "unidades_28_dias_anteriores": 44,
+        "media_semanal_28_dias": 11,
+        "alta_bps": -2727,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P38",
+        "nome": "Pão de forma tradicional 500g",
+        "unidades_7_dias": 51,
+        "unidades_28_dias_anteriores": 207,
+        "media_semanal_28_dias": 51.75,
+        "alta_bps": -145,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P39",
+        "nome": "Biscoito recheado chocolate 120g",
+        "unidades_7_dias": 57,
+        "unidades_28_dias_anteriores": 196,
+        "media_semanal_28_dias": 49,
+        "alta_bps": 1633,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P40",
+        "nome": "Biscoito cream cracker 400g",
+        "unidades_7_dias": 23,
+        "unidades_28_dias_anteriores": 97,
+        "media_semanal_28_dias": 24.25,
+        "alta_bps": -515,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P41",
+        "nome": "Salgadinho de milho 100g",
+        "unidades_7_dias": 47,
+        "unidades_28_dias_anteriores": 139,
+        "media_semanal_28_dias": 34.75,
+        "alta_bps": 3525,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P42",
+        "nome": "Chocolate ao leite 80g",
+        "unidades_7_dias": 28,
+        "unidades_28_dias_anteriores": 102,
+        "media_semanal_28_dias": 25.5,
+        "alta_bps": 980,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P43",
+        "nome": "Bala de goma 90g",
+        "unidades_7_dias": 31,
+        "unidades_28_dias_anteriores": 73,
+        "media_semanal_28_dias": 18.25,
+        "alta_bps": 6986,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P44",
+        "nome": "Linguiça toscana 500g",
+        "unidades_7_dias": 16,
+        "unidades_28_dias_anteriores": 77,
+        "media_semanal_28_dias": 19.25,
+        "alta_bps": -1688,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P45",
+        "nome": "Presunto fatiado 200g",
+        "unidades_7_dias": 21,
+        "unidades_28_dias_anteriores": 69,
+        "media_semanal_28_dias": 17.25,
+        "alta_bps": 2174,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P46",
+        "nome": "Salsicha hot dog 500g",
+        "unidades_7_dias": 19,
+        "unidades_28_dias_anteriores": 53,
+        "media_semanal_28_dias": 13.25,
+        "alta_bps": 4340,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P47",
+        "nome": "Carvão vegetal 3kg",
+        "unidades_7_dias": 55,
+        "unidades_28_dias_anteriores": 80,
+        "media_semanal_28_dias": 20,
+        "alta_bps": 17500,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P48",
+        "nome": "Ovos brancos dúzia",
+        "unidades_7_dias": 65,
+        "unidades_28_dias_anteriores": 236,
+        "media_semanal_28_dias": 59,
+        "alta_bps": 1017,
+        "elegivel_para_alta": true
+      },
+      {
+        "produto_id": "P49",
+        "nome": "Pilha alcalina AA 2 unidades",
+        "unidades_7_dias": 1,
+        "unidades_28_dias_anteriores": 25,
+        "media_semanal_28_dias": 6.25,
+        "alta_bps": -8400,
+        "elegivel_para_alta": false
+      },
+      {
+        "produto_id": "P50",
+        "nome": "Guardanapo de papel 50 folhas",
+        "unidades_7_dias": 20,
+        "unidades_28_dias_anteriores": 54,
+        "media_semanal_28_dias": 13.5,
+        "alta_bps": 4815,
+        "elegivel_para_alta": false
+      }
+    ]
+  },
+  "espaco_para_subir_preco": [
+    {
+      "produto_id": "P17",
+      "nome": "Cerveja pilsen lata 350ml",
+      "margem_bps": 2128
+    },
+    {
+      "produto_id": "P23",
+      "nome": "Leite integral 1L",
+      "margem_bps": 2067
+    }
+  ],
+  "estoque_parado": [
+    {
+      "produto_id": "P12",
+      "nome": "Vinagre de álcool 750ml",
+      "ultima_venda": "2026-09-08",
+      "dias_sem_venda": 41,
+      "dispara_alerta": true
+    },
+    {
+      "produto_id": "P13",
+      "nome": "Achocolatado em pó 400g",
+      "ultima_venda": "2026-09-24",
+      "dias_sem_venda": 25,
+      "dispara_alerta": false
+    },
+    {
+      "produto_id": "P49",
+      "nome": "Pilha alcalina AA 2 unidades",
+      "ultima_venda": "2026-10-13",
+      "dias_sem_venda": 6,
+      "dispara_alerta": false
+    },
+    {
+      "produto_id": "P31",
+      "nome": "Água sanitária 1L",
+      "ultima_venda": "2026-10-17",
+      "dias_sem_venda": 2,
+      "dispara_alerta": false
+    },
+    {
+      "produto_id": "P08",
+      "nome": "Sal refinado 1kg",
+      "ultima_venda": "2026-10-18",
+      "dias_sem_venda": 1,
+      "dispara_alerta": false
+    }
+  ],
+  "ticket_medio": {
+    "dia_de_referencia": {
+      "data": "2026-10-19",
+      "faturamento_centavos": 122151,
+      "cupons": 78,
+      "ticket_medio_centavos": 1566,
+      "gastos_total_centavos": 101534,
+      "gastos_operacionais_centavos": 101534,
+      "base": {
+        "media_28_dias_centavos": 2753,
+        "queda_bps": 4312,
+        "queda_percentual": 43.12
+      }
+    },
+    "dias_com_queda_relevante": [
+      "2026-10-19"
+    ],
+    "por_dia": [
+      {
+        "data": "2026-08-20",
+        "faturamento_centavos": 195408,
+        "cupons": 70,
+        "ticket_medio_centavos": 2792,
+        "gastos_total_centavos": 52795,
+        "gastos_operacionais_centavos": 4585,
+        "base": null
+      },
+      {
+        "data": "2026-08-21",
+        "faturamento_centavos": 242115,
+        "cupons": 88,
+        "ticket_medio_centavos": 2751,
+        "gastos_total_centavos": 6091,
+        "gastos_operacionais_centavos": 6091,
+        "base": null
+      },
+      {
+        "data": "2026-08-22",
+        "faturamento_centavos": 230943,
+        "cupons": 91,
+        "ticket_medio_centavos": 2538,
+        "gastos_total_centavos": 4545,
+        "gastos_operacionais_centavos": 4545,
+        "base": null
+      },
+      {
+        "data": "2026-08-23",
+        "faturamento_centavos": 132953,
+        "cupons": 47,
+        "ticket_medio_centavos": 2829,
+        "gastos_total_centavos": 7855,
+        "gastos_operacionais_centavos": 7855,
+        "base": null
+      },
+      {
+        "data": "2026-08-24",
+        "faturamento_centavos": 192778,
+        "cupons": 58,
+        "ticket_medio_centavos": 3324,
+        "gastos_total_centavos": 164404,
+        "gastos_operacionais_centavos": 5104,
+        "base": null
+      },
+      {
+        "data": "2026-08-25",
+        "faturamento_centavos": 104374,
+        "cupons": 44,
+        "ticket_medio_centavos": 2372,
+        "gastos_total_centavos": 7508,
+        "gastos_operacionais_centavos": 7508,
+        "base": null
+      },
+      {
+        "data": "2026-08-26",
+        "faturamento_centavos": 150336,
+        "cupons": 50,
+        "ticket_medio_centavos": 3007,
+        "gastos_total_centavos": 83912,
+        "gastos_operacionais_centavos": 4292,
+        "base": null
+      },
+      {
+        "data": "2026-08-27",
+        "faturamento_centavos": 157061,
+        "cupons": 47,
+        "ticket_medio_centavos": 3342,
+        "gastos_total_centavos": 8772,
+        "gastos_operacionais_centavos": 8772,
+        "base": null
+      },
+      {
+        "data": "2026-08-28",
+        "faturamento_centavos": 209594,
+        "cupons": 75,
+        "ticket_medio_centavos": 2795,
+        "gastos_total_centavos": 67726,
+        "gastos_operacionais_centavos": 8126,
+        "base": null
+      },
+      {
+        "data": "2026-08-29",
+        "faturamento_centavos": 255601,
+        "cupons": 89,
+        "ticket_medio_centavos": 2872,
+        "gastos_total_centavos": 4789,
+        "gastos_operacionais_centavos": 4789,
+        "base": null
+      },
+      {
+        "data": "2026-08-30",
+        "faturamento_centavos": 197828,
+        "cupons": 59,
+        "ticket_medio_centavos": 3353,
+        "gastos_total_centavos": 3905,
+        "gastos_operacionais_centavos": 3905,
+        "base": null
+      },
+      {
+        "data": "2026-08-31",
+        "faturamento_centavos": 151119,
+        "cupons": 54,
+        "ticket_medio_centavos": 2799,
+        "gastos_total_centavos": 32594,
+        "gastos_operacionais_centavos": 4454,
+        "base": null
+      },
+      {
+        "data": "2026-09-01",
+        "faturamento_centavos": 128049,
+        "cupons": 42,
+        "ticket_medio_centavos": 3049,
+        "gastos_total_centavos": 5966,
+        "gastos_operacionais_centavos": 5966,
+        "base": null
+      },
+      {
+        "data": "2026-09-02",
+        "faturamento_centavos": 147035,
+        "cupons": 50,
+        "ticket_medio_centavos": 2941,
+        "gastos_total_centavos": 41499,
+        "gastos_operacionais_centavos": 3699,
+        "base": null
+      },
+      {
+        "data": "2026-09-03",
+        "faturamento_centavos": 165465,
+        "cupons": 67,
+        "ticket_medio_centavos": 2470,
+        "gastos_total_centavos": 4304,
+        "gastos_operacionais_centavos": 4304,
+        "base": null
+      },
+      {
+        "data": "2026-09-04",
+        "faturamento_centavos": 180946,
+        "cupons": 78,
+        "ticket_medio_centavos": 2320,
+        "gastos_total_centavos": 50487,
+        "gastos_operacionais_centavos": 7947,
+        "base": null
+      },
+      {
+        "data": "2026-09-05",
+        "faturamento_centavos": 175932,
+        "cupons": 73,
+        "ticket_medio_centavos": 2410,
+        "gastos_total_centavos": 663962,
+        "gastos_operacionais_centavos": 3962,
+        "base": null
+      },
+      {
+        "data": "2026-09-06",
+        "faturamento_centavos": 180417,
+        "cupons": 58,
+        "ticket_medio_centavos": 3111,
+        "gastos_total_centavos": 7992,
+        "gastos_operacionais_centavos": 7992,
+        "base": null
+      },
+      {
+        "data": "2026-09-07",
+        "faturamento_centavos": 98675,
+        "cupons": 37,
+        "ticket_medio_centavos": 2667,
+        "gastos_total_centavos": 4066,
+        "gastos_operacionais_centavos": 4066,
+        "base": null
+      },
+      {
+        "data": "2026-09-08",
+        "faturamento_centavos": 135355,
+        "cupons": 55,
+        "ticket_medio_centavos": 2461,
+        "gastos_total_centavos": 15709,
+        "gastos_operacionais_centavos": 5719,
+        "base": null
+      },
+      {
+        "data": "2026-09-09",
+        "faturamento_centavos": 129837,
+        "cupons": 55,
+        "ticket_medio_centavos": 2361,
+        "gastos_total_centavos": 4597,
+        "gastos_operacionais_centavos": 4597,
+        "base": null
+      },
+      {
+        "data": "2026-09-10",
+        "faturamento_centavos": 167951,
+        "cupons": 62,
+        "ticket_medio_centavos": 2709,
+        "gastos_total_centavos": 69554,
+        "gastos_operacionais_centavos": 8324,
+        "base": null
+      },
+      {
+        "data": "2026-09-11",
+        "faturamento_centavos": 220096,
+        "cupons": 72,
+        "ticket_medio_centavos": 3057,
+        "gastos_total_centavos": 4572,
+        "gastos_operacionais_centavos": 4572,
+        "base": null
+      },
+      {
+        "data": "2026-09-12",
+        "faturamento_centavos": 185630,
+        "cupons": 70,
+        "ticket_medio_centavos": 2652,
+        "gastos_total_centavos": 21902,
+        "gastos_operacionais_centavos": 3162,
+        "base": null
+      },
+      {
+        "data": "2026-09-13",
+        "faturamento_centavos": 144804,
+        "cupons": 54,
+        "ticket_medio_centavos": 2682,
+        "gastos_total_centavos": 4032,
+        "gastos_operacionais_centavos": 4032,
+        "base": null
+      },
+      {
+        "data": "2026-09-14",
+        "faturamento_centavos": 145413,
+        "cupons": 54,
+        "ticket_medio_centavos": 2693,
+        "gastos_total_centavos": 93522,
+        "gastos_operacionais_centavos": 7002,
+        "base": null
+      },
+      {
+        "data": "2026-09-15",
+        "faturamento_centavos": 144805,
+        "cupons": 51,
+        "ticket_medio_centavos": 2839,
+        "gastos_total_centavos": 8676,
+        "gastos_operacionais_centavos": 8676,
+        "base": null
+      },
+      {
+        "data": "2026-09-16",
+        "faturamento_centavos": 140212,
+        "cupons": 48,
+        "ticket_medio_centavos": 2921,
+        "gastos_total_centavos": 55408,
+        "gastos_operacionais_centavos": 6448,
+        "base": null
+      },
+      {
+        "data": "2026-09-17",
+        "faturamento_centavos": 134497,
+        "cupons": 53,
+        "ticket_medio_centavos": 2538,
+        "gastos_total_centavos": 10100,
+        "gastos_operacionais_centavos": 10100,
+        "base": {
+          "media_28_dias_centavos": 2774,
+          "queda_bps": 851,
+          "queda_percentual": 8.51
+        }
+      },
+      {
+        "data": "2026-09-18",
+        "faturamento_centavos": 198356,
+        "cupons": 72,
+        "ticket_medio_centavos": 2755,
+        "gastos_total_centavos": 42009,
+        "gastos_operacionais_centavos": 7229,
+        "base": {
+          "media_28_dias_centavos": 2766,
+          "queda_bps": 40,
+          "queda_percentual": 0.4
+        }
+      },
+      {
+        "data": "2026-09-19",
+        "faturamento_centavos": 206113,
+        "cupons": 77,
+        "ticket_medio_centavos": 2677,
+        "gastos_total_centavos": 3136,
+        "gastos_operacionais_centavos": 3136,
+        "base": {
+          "media_28_dias_centavos": 2766,
+          "queda_bps": 322,
+          "queda_percentual": 3.22
+        }
+      },
+      {
+        "data": "2026-09-20",
+        "faturamento_centavos": 141981,
+        "cupons": 48,
+        "ticket_medio_centavos": 2958,
+        "gastos_total_centavos": 54780,
+        "gastos_operacionais_centavos": 3750,
+        "base": {
+          "media_28_dias_centavos": 2775,
+          "queda_bps": -659,
+          "queda_percentual": -6.59
+        }
+      },
+      {
+        "data": "2026-09-21",
+        "faturamento_centavos": 148787,
+        "cupons": 56,
+        "ticket_medio_centavos": 2657,
+        "gastos_total_centavos": 6895,
+        "gastos_operacionais_centavos": 6895,
+        "base": {
+          "media_28_dias_centavos": 2779,
+          "queda_bps": 439,
+          "queda_percentual": 4.39
+        }
+      },
+      {
+        "data": "2026-09-22",
+        "faturamento_centavos": 101410,
+        "cupons": 38,
+        "ticket_medio_centavos": 2669,
+        "gastos_total_centavos": 8466,
+        "gastos_operacionais_centavos": 8466,
+        "base": {
+          "media_28_dias_centavos": 2755,
+          "queda_bps": 312,
+          "queda_percentual": 3.12
+        }
+      },
+      {
+        "data": "2026-09-23",
+        "faturamento_centavos": 129369,
+        "cupons": 52,
+        "ticket_medio_centavos": 2488,
+        "gastos_total_centavos": 4308,
+        "gastos_operacionais_centavos": 4308,
+        "base": {
+          "media_28_dias_centavos": 2764,
+          "queda_bps": 999,
+          "queda_percentual": 9.99
+        }
+      },
+      {
+        "data": "2026-09-24",
+        "faturamento_centavos": 117630,
+        "cupons": 45,
+        "ticket_medio_centavos": 2614,
+        "gastos_total_centavos": 7860,
+        "gastos_operacionais_centavos": 7860,
+        "base": {
+          "media_28_dias_centavos": 2747,
+          "queda_bps": 484,
+          "queda_percentual": 4.84
+        }
+      },
+      {
+        "data": "2026-09-25",
+        "faturamento_centavos": 185138,
+        "cupons": 69,
+        "ticket_medio_centavos": 2683,
+        "gastos_total_centavos": 75240,
+        "gastos_operacionais_centavos": 4360,
+        "base": {
+          "media_28_dias_centavos": 2727,
+          "queda_bps": 161,
+          "queda_percentual": 1.61
+        }
+      },
+      {
+        "data": "2026-09-26",
+        "faturamento_centavos": 215178,
+        "cupons": 73,
+        "ticket_medio_centavos": 2948,
+        "gastos_total_centavos": 4491,
+        "gastos_operacionais_centavos": 4491,
+        "base": {
+          "media_28_dias_centavos": 2722,
+          "queda_bps": -830,
+          "queda_percentual": -8.3
+        }
+      },
+      {
+        "data": "2026-09-27",
+        "faturamento_centavos": 124080,
+        "cupons": 41,
+        "ticket_medio_centavos": 3026,
+        "gastos_total_centavos": 7274,
+        "gastos_operacionais_centavos": 7274,
+        "base": {
+          "media_28_dias_centavos": 2724,
+          "queda_bps": -1109,
+          "queda_percentual": -11.09
+        }
+      },
+      {
+        "data": "2026-09-28",
+        "faturamento_centavos": 88362,
+        "cupons": 43,
+        "ticket_medio_centavos": 2055,
+        "gastos_total_centavos": 3817,
+        "gastos_operacionais_centavos": 3817,
+        "base": {
+          "media_28_dias_centavos": 2708,
+          "queda_bps": 2411,
+          "queda_percentual": 24.11
+        }
+      },
+      {
+        "data": "2026-09-29",
+        "faturamento_centavos": 126477,
+        "cupons": 47,
+        "ticket_medio_centavos": 2691,
+        "gastos_total_centavos": 6554,
+        "gastos_operacionais_centavos": 6554,
+        "base": {
+          "media_28_dias_centavos": 2688,
+          "queda_bps": -11,
+          "queda_percentual": -0.11
+        }
+      },
+      {
+        "data": "2026-09-30",
+        "faturamento_centavos": 117545,
+        "cupons": 52,
+        "ticket_medio_centavos": 2260,
+        "gastos_total_centavos": 39137,
+        "gastos_operacionais_centavos": 3017,
+        "base": {
+          "media_28_dias_centavos": 2678,
+          "queda_bps": 1561,
+          "queda_percentual": 15.61
+        }
+      },
+      {
+        "data": "2026-10-01",
+        "faturamento_centavos": 127981,
+        "cupons": 49,
+        "ticket_medio_centavos": 2612,
+        "gastos_total_centavos": 5198,
+        "gastos_operacionais_centavos": 5198,
+        "base": {
+          "media_28_dias_centavos": 2657,
+          "queda_bps": 169,
+          "queda_percentual": 1.69
+        }
+      },
+      {
+        "data": "2026-10-02",
+        "faturamento_centavos": 201277,
+        "cupons": 72,
+        "ticket_medio_centavos": 2796,
+        "gastos_total_centavos": 25391,
+        "gastos_operacionais_centavos": 8171,
+        "base": {
+          "media_28_dias_centavos": 2663,
+          "queda_bps": -499,
+          "queda_percentual": -4.99
+        }
+      },
+      {
+        "data": "2026-10-03",
+        "faturamento_centavos": 223771,
+        "cupons": 82,
+        "ticket_medio_centavos": 2729,
+        "gastos_total_centavos": 6450,
+        "gastos_operacionais_centavos": 6450,
+        "base": {
+          "media_28_dias_centavos": 2686,
+          "queda_bps": -160,
+          "queda_percentual": -1.6
+        }
+      },
+      {
+        "data": "2026-10-04",
+        "faturamento_centavos": 126390,
+        "cupons": 46,
+        "ticket_medio_centavos": 2748,
+        "gastos_total_centavos": 6114,
+        "gastos_operacionais_centavos": 6114,
+        "base": {
+          "media_28_dias_centavos": 2701,
+          "queda_bps": -174,
+          "queda_percentual": -1.74
+        }
+      },
+      {
+        "data": "2026-10-05",
+        "faturamento_centavos": 120999,
+        "cupons": 48,
+        "ticket_medio_centavos": 2521,
+        "gastos_total_centavos": 665283,
+        "gastos_operacionais_centavos": 5283,
+        "base": {
+          "media_28_dias_centavos": 2687,
+          "queda_bps": 618,
+          "queda_percentual": 6.18
+        }
+      },
+      {
+        "data": "2026-10-06",
+        "faturamento_centavos": 134917,
+        "cupons": 42,
+        "ticket_medio_centavos": 3212,
+        "gastos_total_centavos": 57428,
+        "gastos_operacionais_centavos": 3884,
+        "base": {
+          "media_28_dias_centavos": 2683,
+          "queda_bps": -1972,
+          "queda_percentual": -19.72
+        }
+      },
+      {
+        "data": "2026-10-07",
+        "faturamento_centavos": 130144,
+        "cupons": 49,
+        "ticket_medio_centavos": 2656,
+        "gastos_total_centavos": 6095,
+        "gastos_operacionais_centavos": 6095,
+        "base": {
+          "media_28_dias_centavos": 2705,
+          "queda_bps": 181,
+          "queda_percentual": 1.81
+        }
+      },
+      {
+        "data": "2026-10-08",
+        "faturamento_centavos": 168225,
+        "cupons": 67,
+        "ticket_medio_centavos": 2511,
+        "gastos_total_centavos": 16164,
+        "gastos_operacionais_centavos": 6174,
+        "base": {
+          "media_28_dias_centavos": 2715,
+          "queda_bps": 751,
+          "queda_percentual": 7.51
+        }
+      },
+      {
+        "data": "2026-10-09",
+        "faturamento_centavos": 254447,
+        "cupons": 85,
+        "ticket_medio_centavos": 2993,
+        "gastos_total_centavos": 56242,
+        "gastos_operacionais_centavos": 8522,
+        "base": {
+          "media_28_dias_centavos": 2707,
+          "queda_bps": -1057,
+          "queda_percentual": -10.57
+        }
+      },
+      {
+        "data": "2026-10-10",
+        "faturamento_centavos": 200702,
+        "cupons": 69,
+        "ticket_medio_centavos": 2909,
+        "gastos_total_centavos": 74522,
+        "gastos_operacionais_centavos": 8042,
+        "base": {
+          "media_28_dias_centavos": 2706,
+          "queda_bps": -750,
+          "queda_percentual": -7.5
+        }
+      },
+      {
+        "data": "2026-10-11",
+        "faturamento_centavos": 128799,
+        "cupons": 45,
+        "ticket_medio_centavos": 2862,
+        "gastos_total_centavos": 6811,
+        "gastos_operacionais_centavos": 6811,
+        "base": {
+          "media_28_dias_centavos": 2717,
+          "queda_bps": -534,
+          "queda_percentual": -5.34
+        }
+      },
+      {
+        "data": "2026-10-12",
+        "faturamento_centavos": 176711,
+        "cupons": 58,
+        "ticket_medio_centavos": 3047,
+        "gastos_total_centavos": 27864,
+        "gastos_operacionais_centavos": 8504,
+        "base": {
+          "media_28_dias_centavos": 2723,
+          "queda_bps": -1190,
+          "queda_percentual": -11.9
+        }
+      },
+      {
+        "data": "2026-10-13",
+        "faturamento_centavos": 103286,
+        "cupons": 37,
+        "ticket_medio_centavos": 2792,
+        "gastos_total_centavos": 71659,
+        "gastos_operacionais_centavos": 5611,
+        "base": {
+          "media_28_dias_centavos": 2736,
+          "queda_bps": -205,
+          "queda_percentual": -2.05
+        }
+      },
+      {
+        "data": "2026-10-14",
+        "faturamento_centavos": 176432,
+        "cupons": 59,
+        "ticket_medio_centavos": 2990,
+        "gastos_total_centavos": 4480,
+        "gastos_operacionais_centavos": 4480,
+        "base": {
+          "media_28_dias_centavos": 2734,
+          "queda_bps": -936,
+          "queda_percentual": -9.36
+        }
+      },
+      {
+        "data": "2026-10-15",
+        "faturamento_centavos": 183166,
+        "cupons": 55,
+        "ticket_medio_centavos": 3330,
+        "gastos_total_centavos": 6914,
+        "gastos_operacionais_centavos": 6914,
+        "base": {
+          "media_28_dias_centavos": 2738,
+          "queda_bps": -2162,
+          "queda_percentual": -21.62
+        }
+      },
+      {
+        "data": "2026-10-16",
+        "faturamento_centavos": 207850,
+        "cupons": 75,
+        "ticket_medio_centavos": 2771,
+        "gastos_total_centavos": 54906,
+        "gastos_operacionais_centavos": 7536,
+        "base": {
+          "media_28_dias_centavos": 2765,
+          "queda_bps": -22,
+          "queda_percentual": -0.22
+        }
+      },
+      {
+        "data": "2026-10-17",
+        "faturamento_centavos": 246296,
+        "cupons": 89,
+        "ticket_medio_centavos": 2767,
+        "gastos_total_centavos": 41643,
+        "gastos_operacionais_centavos": 8223,
+        "base": {
+          "media_28_dias_centavos": 2766,
+          "queda_bps": -4,
+          "queda_percentual": -0.04
+        }
+      },
+      {
+        "data": "2026-10-18",
+        "faturamento_centavos": 131761,
+        "cupons": 54,
+        "ticket_medio_centavos": 2440,
+        "gastos_total_centavos": 8923,
+        "gastos_operacionais_centavos": 8923,
+        "base": {
+          "media_28_dias_centavos": 2770,
+          "queda_bps": 1191,
+          "queda_percentual": 11.91
+        }
+      },
+      {
+        "data": "2026-10-19",
+        "faturamento_centavos": 122151,
+        "cupons": 78,
+        "ticket_medio_centavos": 1566,
+        "gastos_total_centavos": 101534,
+        "gastos_operacionais_centavos": 101534,
+        "base": {
+          "media_28_dias_centavos": 2753,
+          "queda_bps": 4312,
+          "queda_percentual": 43.12
+        }
+      }
+    ]
+  },
+  "gasto_fora_do_padrao": {
+    "dias_que_disparam": [
+      "2026-10-19"
+    ],
+    "por_dia": [
+      {
+        "data": "2026-09-19",
+        "valor_centavos": 3136,
+        "mediana_centavos": 5411.5,
+        "desvio_absoluto_mediano_centavos": 1414.5,
+        "desvio": -1.61,
+        "n_registros": 30,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-20",
+        "valor_centavos": 3750,
+        "mediana_centavos": 5104,
+        "desvio_absoluto_mediano_centavos": 1199,
+        "desvio": -1.13,
+        "n_registros": 31,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-21",
+        "valor_centavos": 6895,
+        "mediana_centavos": 4946.5,
+        "desvio_absoluto_mediano_centavos": 1170.5,
+        "desvio": 1.66,
+        "n_registros": 32,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-22",
+        "valor_centavos": 8466,
+        "mediana_centavos": 5104,
+        "desvio_absoluto_mediano_centavos": 1344,
+        "desvio": 2.5,
+        "n_registros": 33,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-23",
+        "valor_centavos": 4308,
+        "mediana_centavos": 5411.5,
+        "desvio_absoluto_mediano_centavos": 1495,
+        "desvio": -0.74,
+        "n_registros": 34,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-24",
+        "valor_centavos": 7860,
+        "mediana_centavos": 5104,
+        "desvio_absoluto_mediano_centavos": 1344,
+        "desvio": 2.05,
+        "n_registros": 35,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-25",
+        "valor_centavos": 4360,
+        "mediana_centavos": 5411.5,
+        "desvio_absoluto_mediano_centavos": 1495,
+        "desvio": -0.7,
+        "n_registros": 36,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-26",
+        "valor_centavos": 4491,
+        "mediana_centavos": 5104,
+        "desvio_absoluto_mediano_centavos": 1344,
+        "desvio": -0.46,
+        "n_registros": 37,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-27",
+        "valor_centavos": 7274,
+        "mediana_centavos": 4946.5,
+        "desvio_absoluto_mediano_centavos": 1170.5,
+        "desvio": 1.99,
+        "n_registros": 38,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-28",
+        "valor_centavos": 3817,
+        "mediana_centavos": 5104,
+        "desvio_absoluto_mediano_centavos": 1344,
+        "desvio": -0.96,
+        "n_registros": 39,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-29",
+        "valor_centavos": 6554,
+        "mediana_centavos": 4946.5,
+        "desvio_absoluto_mediano_centavos": 1170.5,
+        "desvio": 1.37,
+        "n_registros": 40,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-09-30",
+        "valor_centavos": 3017,
+        "mediana_centavos": 5104,
+        "desvio_absoluto_mediano_centavos": 1344,
+        "desvio": -1.55,
+        "n_registros": 41,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-01",
+        "valor_centavos": 5198,
+        "mediana_centavos": 4946.5,
+        "desvio_absoluto_mediano_centavos": 1222,
+        "desvio": 0.21,
+        "n_registros": 42,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-02",
+        "valor_centavos": 8171,
+        "mediana_centavos": 5104,
+        "desvio_absoluto_mediano_centavos": 1344,
+        "desvio": 2.28,
+        "n_registros": 43,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-03",
+        "valor_centavos": 6450,
+        "mediana_centavos": 5151,
+        "desvio_absoluto_mediano_centavos": 1367.5,
+        "desvio": 0.95,
+        "n_registros": 44,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-04",
+        "valor_centavos": 6114,
+        "mediana_centavos": 5198,
+        "desvio_absoluto_mediano_centavos": 1356,
+        "desvio": 0.68,
+        "n_registros": 45,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-05",
+        "valor_centavos": 5283,
+        "mediana_centavos": 5458.5,
+        "desvio_absoluto_mediano_centavos": 1466.5,
+        "desvio": -0.12,
+        "n_registros": 46,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-06",
+        "valor_centavos": 3884,
+        "mediana_centavos": 5283,
+        "desvio_absoluto_mediano_centavos": 1321,
+        "desvio": -1.06,
+        "n_registros": 47,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-07",
+        "valor_centavos": 6095,
+        "mediana_centavos": 5240.5,
+        "desvio_absoluto_mediano_centavos": 1324.5,
+        "desvio": 0.65,
+        "n_registros": 48,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-08",
+        "valor_centavos": 6174,
+        "mediana_centavos": 5283,
+        "desvio_absoluto_mediano_centavos": 1321,
+        "desvio": 0.67,
+        "n_registros": 49,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-09",
+        "valor_centavos": 8522,
+        "mediana_centavos": 5501,
+        "desvio_absoluto_mediano_centavos": 1452,
+        "desvio": 2.08,
+        "n_registros": 50,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-10",
+        "valor_centavos": 8042,
+        "mediana_centavos": 5719,
+        "desvio_absoluto_mediano_centavos": 1510,
+        "desvio": 1.54,
+        "n_registros": 51,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-11",
+        "valor_centavos": 6811,
+        "mediana_centavos": 5842.5,
+        "desvio_absoluto_mediano_centavos": 1544.5,
+        "desvio": 0.63,
+        "n_registros": 52,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-12",
+        "valor_centavos": 8504,
+        "mediana_centavos": 5966,
+        "desvio_absoluto_mediano_centavos": 1658,
+        "desvio": 1.53,
+        "n_registros": 53,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-13",
+        "valor_centavos": 5611,
+        "mediana_centavos": 6028.5,
+        "desvio_absoluto_mediano_centavos": 1722.5,
+        "desvio": -0.24,
+        "n_registros": 54,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-14",
+        "valor_centavos": 4480,
+        "mediana_centavos": 5966,
+        "desvio_absoluto_mediano_centavos": 1658,
+        "desvio": -0.9,
+        "n_registros": 55,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-15",
+        "valor_centavos": 6914,
+        "mediana_centavos": 5842.5,
+        "desvio_absoluto_mediano_centavos": 1536.5,
+        "desvio": 0.7,
+        "n_registros": 56,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-16",
+        "valor_centavos": 7536,
+        "mediana_centavos": 5966,
+        "desvio_absoluto_mediano_centavos": 1606,
+        "desvio": 0.98,
+        "n_registros": 57,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-17",
+        "valor_centavos": 8223,
+        "mediana_centavos": 6028.5,
+        "desvio_absoluto_mediano_centavos": 1621.5,
+        "desvio": 1.35,
+        "n_registros": 58,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-18",
+        "valor_centavos": 8923,
+        "mediana_centavos": 6091,
+        "desvio_absoluto_mediano_centavos": 1731,
+        "desvio": 1.64,
+        "n_registros": 59,
+        "dispara_alerta": false
+      },
+      {
+        "data": "2026-10-19",
+        "valor_centavos": 101534,
+        "mediana_centavos": 6093,
+        "desvio_absoluto_mediano_centavos": 1747.5,
+        "desvio": 54.62,
+        "n_registros": 60,
+        "dispara_alerta": true
+      }
+    ]
+  },
+  "alertas_esperados": [
+    {
+      "tipo": "reajuste_de_custo",
+      "produto_id": "P01",
+      "fornecedor_id": "AUR",
+      "gatilho": "nota nota-16 de 2026-10-16",
+      "metricas": {
+        "variacao_bps": 1205,
+        "custo_anterior_centavos": 2490,
+        "custo_atual_centavos": 2790
+      }
+    },
+    {
+      "tipo": "reajuste_de_custo",
+      "produto_id": "P03",
+      "fornecedor_id": "AUR",
+      "gatilho": "nota nota-15 de 2026-10-13",
+      "metricas": {
+        "variacao_bps": 769,
+        "custo_anterior_centavos": 520,
+        "custo_atual_centavos": 560
+      }
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P01",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "margem_bps": 2026,
+        "meta_bps": 2500
+      }
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P03",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "margem_bps": 2318,
+        "meta_bps": 2500
+      }
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P17",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "margem_bps": 2128,
+        "meta_bps": 2500
+      }
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P23",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "margem_bps": 2067,
+        "meta_bps": 2500
+      }
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "produto_id": "P17",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "margem_bps": 2128,
+        "meta_bps": 2500
+      }
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "produto_id": "P23",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "margem_bps": 2067,
+        "meta_bps": 2500
+      }
+    },
+    {
+      "tipo": "giro_em_alta",
+      "produto_id": "P47",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "alta_bps": 17500,
+        "unidades_7_dias": 55
+      }
+    },
+    {
+      "tipo": "giro_em_alta",
+      "produto_id": "P17",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "alta_bps": 7917,
+        "unidades_7_dias": 172
+      }
+    },
+    {
+      "tipo": "giro_em_alta",
+      "produto_id": "P43",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "alta_bps": 6986,
+        "unidades_7_dias": 31
+      }
+    },
+    {
+      "tipo": "giro_em_alta",
+      "produto_id": "P25",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "alta_bps": 3714,
+        "unidades_7_dias": 24
+      }
+    },
+    {
+      "tipo": "giro_em_alta",
+      "produto_id": "P41",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "alta_bps": 3525,
+        "unidades_7_dias": 47
+      }
+    },
+    {
+      "tipo": "estoque_parado",
+      "produto_id": "P12",
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "dias_sem_venda": 41,
+        "ultima_venda": "2026-09-08"
+      }
+    },
+    {
+      "tipo": "ticket_medio_em_queda",
+      "produto_id": null,
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "ticket_medio_centavos": 1566,
+        "media_28_dias_centavos": 2753,
+        "queda_bps": 4312
+      }
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "produto_id": null,
+      "gatilho": "data 2026-10-19",
+      "metricas": {
+        "valor_centavos": 101534,
+        "mediana_centavos": 6093,
+        "desvio": 54.62
+      }
+    }
+  ],
+  "alertas_que_nao_devem_disparar": [
+    {
+      "tipo": "reajuste_de_custo",
+      "produto_id": "P04",
+      "fornecedor_id": "AUR",
+      "motivo": "variação de 3.87% não passa do limite de 5%"
+    },
+    {
+      "tipo": "reajuste_de_custo",
+      "produto_id": "P17",
+      "fornecedor_id": "BEB",
+      "motivo": "variação de 1.57% não passa do limite de 5%"
+    },
+    {
+      "tipo": "reajuste_de_custo",
+      "produto_id": "P05",
+      "fornecedor_id": "AUR",
+      "motivo": "o custo caiu"
+    },
+    {
+      "tipo": "reajuste_de_custo",
+      "produto_id": "P01",
+      "fornecedor_id": "MIX",
+      "motivo": "arroz comprado do Atacado Mix a custo maior que o da Aurora; é outro fornecedor e há uma só compra, não é reajuste"
+    },
+    {
+      "tipo": "estoque_parado",
+      "produto_id": "P13",
+      "motivo": "25 dias sem venda, abaixo do limite de 30"
+    },
+    {
+      "tipo": "ticket_medio_em_queda",
+      "data": "2026-09-28",
+      "motivo": "queda de 24.11% não passa do limite de 30%"
+    },
+    {
+      "tipo": "ticket_medio_em_queda",
+      "data": "2026-09-30",
+      "motivo": "queda de 15.61% não passa do limite de 30%"
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "data": "2026-09-22",
+      "motivo": "desvio robusto de 2.5, abaixo do limite de 3"
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "data": "2026-09-24",
+      "motivo": "desvio robusto de 2.05, abaixo do limite de 3"
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "data": "2026-10-02",
+      "motivo": "desvio robusto de 2.28, abaixo do limite de 3"
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "data": "2026-10-09",
+      "motivo": "desvio robusto de 2.08, abaixo do limite de 3"
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "produto_id": "P14",
+      "motivo": "giro alto, mas margem de 35.48% já está acima da meta"
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "produto_id": "P19",
+      "motivo": "giro alto, mas margem de 51.81% já está acima da meta"
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "produto_id": "P25",
+      "motivo": "giro alto, mas margem de 28.12% já está acima da meta"
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "produto_id": "P41",
+      "motivo": "giro alto, mas margem de 39.89% já está acima da meta"
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "produto_id": "P47",
+      "motivo": "giro alto, mas margem de 31.83% já está acima da meta"
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "produto_id": "P48",
+      "motivo": "giro alto, mas margem de 26.62% já está acima da meta"
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P12",
+      "motivo": "sem venda nos últimos 30 dias: preço médio indisponível"
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P20",
+      "motivo": "sem nota de compra: margem não calculável, o agente deve perguntar o custo"
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P36",
+      "motivo": "sem nota de compra: margem não calculável, o agente deve perguntar o custo"
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P37",
+      "motivo": "sem nota de compra: margem não calculável, o agente deve perguntar o custo"
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P43",
+      "motivo": "sem nota de compra: margem não calculável, o agente deve perguntar o custo"
+    },
+    {
+      "tipo": "margem_abaixo_da_meta",
+      "produto_id": "P50",
+      "motivo": "sem nota de compra: margem não calculável, o agente deve perguntar o custo"
+    }
+  ],
+  "serie_diaria": [
+    {
+      "data": "2026-08-20",
+      "faturamento_centavos": 195408,
+      "cupons": 70,
+      "ticket_medio_centavos": 2792,
+      "gastos_total_centavos": 52795,
+      "gastos_operacionais_centavos": 4585
+    },
+    {
+      "data": "2026-08-21",
+      "faturamento_centavos": 242115,
+      "cupons": 88,
+      "ticket_medio_centavos": 2751,
+      "gastos_total_centavos": 6091,
+      "gastos_operacionais_centavos": 6091
+    },
+    {
+      "data": "2026-08-22",
+      "faturamento_centavos": 230943,
+      "cupons": 91,
+      "ticket_medio_centavos": 2538,
+      "gastos_total_centavos": 4545,
+      "gastos_operacionais_centavos": 4545
+    },
+    {
+      "data": "2026-08-23",
+      "faturamento_centavos": 132953,
+      "cupons": 47,
+      "ticket_medio_centavos": 2829,
+      "gastos_total_centavos": 7855,
+      "gastos_operacionais_centavos": 7855
+    },
+    {
+      "data": "2026-08-24",
+      "faturamento_centavos": 192778,
+      "cupons": 58,
+      "ticket_medio_centavos": 3324,
+      "gastos_total_centavos": 164404,
+      "gastos_operacionais_centavos": 5104
+    },
+    {
+      "data": "2026-08-25",
+      "faturamento_centavos": 104374,
+      "cupons": 44,
+      "ticket_medio_centavos": 2372,
+      "gastos_total_centavos": 7508,
+      "gastos_operacionais_centavos": 7508
+    },
+    {
+      "data": "2026-08-26",
+      "faturamento_centavos": 150336,
+      "cupons": 50,
+      "ticket_medio_centavos": 3007,
+      "gastos_total_centavos": 83912,
+      "gastos_operacionais_centavos": 4292
+    },
+    {
+      "data": "2026-08-27",
+      "faturamento_centavos": 157061,
+      "cupons": 47,
+      "ticket_medio_centavos": 3342,
+      "gastos_total_centavos": 8772,
+      "gastos_operacionais_centavos": 8772
+    },
+    {
+      "data": "2026-08-28",
+      "faturamento_centavos": 209594,
+      "cupons": 75,
+      "ticket_medio_centavos": 2795,
+      "gastos_total_centavos": 67726,
+      "gastos_operacionais_centavos": 8126
+    },
+    {
+      "data": "2026-08-29",
+      "faturamento_centavos": 255601,
+      "cupons": 89,
+      "ticket_medio_centavos": 2872,
+      "gastos_total_centavos": 4789,
+      "gastos_operacionais_centavos": 4789
+    },
+    {
+      "data": "2026-08-30",
+      "faturamento_centavos": 197828,
+      "cupons": 59,
+      "ticket_medio_centavos": 3353,
+      "gastos_total_centavos": 3905,
+      "gastos_operacionais_centavos": 3905
+    },
+    {
+      "data": "2026-08-31",
+      "faturamento_centavos": 151119,
+      "cupons": 54,
+      "ticket_medio_centavos": 2799,
+      "gastos_total_centavos": 32594,
+      "gastos_operacionais_centavos": 4454
+    },
+    {
+      "data": "2026-09-01",
+      "faturamento_centavos": 128049,
+      "cupons": 42,
+      "ticket_medio_centavos": 3049,
+      "gastos_total_centavos": 5966,
+      "gastos_operacionais_centavos": 5966
+    },
+    {
+      "data": "2026-09-02",
+      "faturamento_centavos": 147035,
+      "cupons": 50,
+      "ticket_medio_centavos": 2941,
+      "gastos_total_centavos": 41499,
+      "gastos_operacionais_centavos": 3699
+    },
+    {
+      "data": "2026-09-03",
+      "faturamento_centavos": 165465,
+      "cupons": 67,
+      "ticket_medio_centavos": 2470,
+      "gastos_total_centavos": 4304,
+      "gastos_operacionais_centavos": 4304
+    },
+    {
+      "data": "2026-09-04",
+      "faturamento_centavos": 180946,
+      "cupons": 78,
+      "ticket_medio_centavos": 2320,
+      "gastos_total_centavos": 50487,
+      "gastos_operacionais_centavos": 7947
+    },
+    {
+      "data": "2026-09-05",
+      "faturamento_centavos": 175932,
+      "cupons": 73,
+      "ticket_medio_centavos": 2410,
+      "gastos_total_centavos": 663962,
+      "gastos_operacionais_centavos": 3962
+    },
+    {
+      "data": "2026-09-06",
+      "faturamento_centavos": 180417,
+      "cupons": 58,
+      "ticket_medio_centavos": 3111,
+      "gastos_total_centavos": 7992,
+      "gastos_operacionais_centavos": 7992
+    },
+    {
+      "data": "2026-09-07",
+      "faturamento_centavos": 98675,
+      "cupons": 37,
+      "ticket_medio_centavos": 2667,
+      "gastos_total_centavos": 4066,
+      "gastos_operacionais_centavos": 4066
+    },
+    {
+      "data": "2026-09-08",
+      "faturamento_centavos": 135355,
+      "cupons": 55,
+      "ticket_medio_centavos": 2461,
+      "gastos_total_centavos": 15709,
+      "gastos_operacionais_centavos": 5719
+    },
+    {
+      "data": "2026-09-09",
+      "faturamento_centavos": 129837,
+      "cupons": 55,
+      "ticket_medio_centavos": 2361,
+      "gastos_total_centavos": 4597,
+      "gastos_operacionais_centavos": 4597
+    },
+    {
+      "data": "2026-09-10",
+      "faturamento_centavos": 167951,
+      "cupons": 62,
+      "ticket_medio_centavos": 2709,
+      "gastos_total_centavos": 69554,
+      "gastos_operacionais_centavos": 8324
+    },
+    {
+      "data": "2026-09-11",
+      "faturamento_centavos": 220096,
+      "cupons": 72,
+      "ticket_medio_centavos": 3057,
+      "gastos_total_centavos": 4572,
+      "gastos_operacionais_centavos": 4572
+    },
+    {
+      "data": "2026-09-12",
+      "faturamento_centavos": 185630,
+      "cupons": 70,
+      "ticket_medio_centavos": 2652,
+      "gastos_total_centavos": 21902,
+      "gastos_operacionais_centavos": 3162
+    },
+    {
+      "data": "2026-09-13",
+      "faturamento_centavos": 144804,
+      "cupons": 54,
+      "ticket_medio_centavos": 2682,
+      "gastos_total_centavos": 4032,
+      "gastos_operacionais_centavos": 4032
+    },
+    {
+      "data": "2026-09-14",
+      "faturamento_centavos": 145413,
+      "cupons": 54,
+      "ticket_medio_centavos": 2693,
+      "gastos_total_centavos": 93522,
+      "gastos_operacionais_centavos": 7002
+    },
+    {
+      "data": "2026-09-15",
+      "faturamento_centavos": 144805,
+      "cupons": 51,
+      "ticket_medio_centavos": 2839,
+      "gastos_total_centavos": 8676,
+      "gastos_operacionais_centavos": 8676
+    },
+    {
+      "data": "2026-09-16",
+      "faturamento_centavos": 140212,
+      "cupons": 48,
+      "ticket_medio_centavos": 2921,
+      "gastos_total_centavos": 55408,
+      "gastos_operacionais_centavos": 6448
+    },
+    {
+      "data": "2026-09-17",
+      "faturamento_centavos": 134497,
+      "cupons": 53,
+      "ticket_medio_centavos": 2538,
+      "gastos_total_centavos": 10100,
+      "gastos_operacionais_centavos": 10100
+    },
+    {
+      "data": "2026-09-18",
+      "faturamento_centavos": 198356,
+      "cupons": 72,
+      "ticket_medio_centavos": 2755,
+      "gastos_total_centavos": 42009,
+      "gastos_operacionais_centavos": 7229
+    },
+    {
+      "data": "2026-09-19",
+      "faturamento_centavos": 206113,
+      "cupons": 77,
+      "ticket_medio_centavos": 2677,
+      "gastos_total_centavos": 3136,
+      "gastos_operacionais_centavos": 3136
+    },
+    {
+      "data": "2026-09-20",
+      "faturamento_centavos": 141981,
+      "cupons": 48,
+      "ticket_medio_centavos": 2958,
+      "gastos_total_centavos": 54780,
+      "gastos_operacionais_centavos": 3750
+    },
+    {
+      "data": "2026-09-21",
+      "faturamento_centavos": 148787,
+      "cupons": 56,
+      "ticket_medio_centavos": 2657,
+      "gastos_total_centavos": 6895,
+      "gastos_operacionais_centavos": 6895
+    },
+    {
+      "data": "2026-09-22",
+      "faturamento_centavos": 101410,
+      "cupons": 38,
+      "ticket_medio_centavos": 2669,
+      "gastos_total_centavos": 8466,
+      "gastos_operacionais_centavos": 8466
+    },
+    {
+      "data": "2026-09-23",
+      "faturamento_centavos": 129369,
+      "cupons": 52,
+      "ticket_medio_centavos": 2488,
+      "gastos_total_centavos": 4308,
+      "gastos_operacionais_centavos": 4308
+    },
+    {
+      "data": "2026-09-24",
+      "faturamento_centavos": 117630,
+      "cupons": 45,
+      "ticket_medio_centavos": 2614,
+      "gastos_total_centavos": 7860,
+      "gastos_operacionais_centavos": 7860
+    },
+    {
+      "data": "2026-09-25",
+      "faturamento_centavos": 185138,
+      "cupons": 69,
+      "ticket_medio_centavos": 2683,
+      "gastos_total_centavos": 75240,
+      "gastos_operacionais_centavos": 4360
+    },
+    {
+      "data": "2026-09-26",
+      "faturamento_centavos": 215178,
+      "cupons": 73,
+      "ticket_medio_centavos": 2948,
+      "gastos_total_centavos": 4491,
+      "gastos_operacionais_centavos": 4491
+    },
+    {
+      "data": "2026-09-27",
+      "faturamento_centavos": 124080,
+      "cupons": 41,
+      "ticket_medio_centavos": 3026,
+      "gastos_total_centavos": 7274,
+      "gastos_operacionais_centavos": 7274
+    },
+    {
+      "data": "2026-09-28",
+      "faturamento_centavos": 88362,
+      "cupons": 43,
+      "ticket_medio_centavos": 2055,
+      "gastos_total_centavos": 3817,
+      "gastos_operacionais_centavos": 3817
+    },
+    {
+      "data": "2026-09-29",
+      "faturamento_centavos": 126477,
+      "cupons": 47,
+      "ticket_medio_centavos": 2691,
+      "gastos_total_centavos": 6554,
+      "gastos_operacionais_centavos": 6554
+    },
+    {
+      "data": "2026-09-30",
+      "faturamento_centavos": 117545,
+      "cupons": 52,
+      "ticket_medio_centavos": 2260,
+      "gastos_total_centavos": 39137,
+      "gastos_operacionais_centavos": 3017
+    },
+    {
+      "data": "2026-10-01",
+      "faturamento_centavos": 127981,
+      "cupons": 49,
+      "ticket_medio_centavos": 2612,
+      "gastos_total_centavos": 5198,
+      "gastos_operacionais_centavos": 5198
+    },
+    {
+      "data": "2026-10-02",
+      "faturamento_centavos": 201277,
+      "cupons": 72,
+      "ticket_medio_centavos": 2796,
+      "gastos_total_centavos": 25391,
+      "gastos_operacionais_centavos": 8171
+    },
+    {
+      "data": "2026-10-03",
+      "faturamento_centavos": 223771,
+      "cupons": 82,
+      "ticket_medio_centavos": 2729,
+      "gastos_total_centavos": 6450,
+      "gastos_operacionais_centavos": 6450
+    },
+    {
+      "data": "2026-10-04",
+      "faturamento_centavos": 126390,
+      "cupons": 46,
+      "ticket_medio_centavos": 2748,
+      "gastos_total_centavos": 6114,
+      "gastos_operacionais_centavos": 6114
+    },
+    {
+      "data": "2026-10-05",
+      "faturamento_centavos": 120999,
+      "cupons": 48,
+      "ticket_medio_centavos": 2521,
+      "gastos_total_centavos": 665283,
+      "gastos_operacionais_centavos": 5283
+    },
+    {
+      "data": "2026-10-06",
+      "faturamento_centavos": 134917,
+      "cupons": 42,
+      "ticket_medio_centavos": 3212,
+      "gastos_total_centavos": 57428,
+      "gastos_operacionais_centavos": 3884
+    },
+    {
+      "data": "2026-10-07",
+      "faturamento_centavos": 130144,
+      "cupons": 49,
+      "ticket_medio_centavos": 2656,
+      "gastos_total_centavos": 6095,
+      "gastos_operacionais_centavos": 6095
+    },
+    {
+      "data": "2026-10-08",
+      "faturamento_centavos": 168225,
+      "cupons": 67,
+      "ticket_medio_centavos": 2511,
+      "gastos_total_centavos": 16164,
+      "gastos_operacionais_centavos": 6174
+    },
+    {
+      "data": "2026-10-09",
+      "faturamento_centavos": 254447,
+      "cupons": 85,
+      "ticket_medio_centavos": 2993,
+      "gastos_total_centavos": 56242,
+      "gastos_operacionais_centavos": 8522
+    },
+    {
+      "data": "2026-10-10",
+      "faturamento_centavos": 200702,
+      "cupons": 69,
+      "ticket_medio_centavos": 2909,
+      "gastos_total_centavos": 74522,
+      "gastos_operacionais_centavos": 8042
+    },
+    {
+      "data": "2026-10-11",
+      "faturamento_centavos": 128799,
+      "cupons": 45,
+      "ticket_medio_centavos": 2862,
+      "gastos_total_centavos": 6811,
+      "gastos_operacionais_centavos": 6811
+    },
+    {
+      "data": "2026-10-12",
+      "faturamento_centavos": 176711,
+      "cupons": 58,
+      "ticket_medio_centavos": 3047,
+      "gastos_total_centavos": 27864,
+      "gastos_operacionais_centavos": 8504
+    },
+    {
+      "data": "2026-10-13",
+      "faturamento_centavos": 103286,
+      "cupons": 37,
+      "ticket_medio_centavos": 2792,
+      "gastos_total_centavos": 71659,
+      "gastos_operacionais_centavos": 5611
+    },
+    {
+      "data": "2026-10-14",
+      "faturamento_centavos": 176432,
+      "cupons": 59,
+      "ticket_medio_centavos": 2990,
+      "gastos_total_centavos": 4480,
+      "gastos_operacionais_centavos": 4480
+    },
+    {
+      "data": "2026-10-15",
+      "faturamento_centavos": 183166,
+      "cupons": 55,
+      "ticket_medio_centavos": 3330,
+      "gastos_total_centavos": 6914,
+      "gastos_operacionais_centavos": 6914
+    },
+    {
+      "data": "2026-10-16",
+      "faturamento_centavos": 207850,
+      "cupons": 75,
+      "ticket_medio_centavos": 2771,
+      "gastos_total_centavos": 54906,
+      "gastos_operacionais_centavos": 7536
+    },
+    {
+      "data": "2026-10-17",
+      "faturamento_centavos": 246296,
+      "cupons": 89,
+      "ticket_medio_centavos": 2767,
+      "gastos_total_centavos": 41643,
+      "gastos_operacionais_centavos": 8223
+    },
+    {
+      "data": "2026-10-18",
+      "faturamento_centavos": 131761,
+      "cupons": 54,
+      "ticket_medio_centavos": 2440,
+      "gastos_total_centavos": 8923,
+      "gastos_operacionais_centavos": 8923
+    },
+    {
+      "data": "2026-10-19",
+      "faturamento_centavos": 122151,
+      "cupons": 78,
+      "ticket_medio_centavos": 1566,
+      "gastos_total_centavos": 101534,
+      "gastos_operacionais_centavos": 101534
+    }
+  ]
+}

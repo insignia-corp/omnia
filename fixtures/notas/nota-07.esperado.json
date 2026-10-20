@@ -1,0 +1,59 @@
+{
+  "fornecedor": {
+    "nome": "Distribuidora Aurora Alimentos Ltda",
+    "cnpj": "31482907000168"
+  },
+  "data_emissao": "2026-09-14",
+  "itens": [
+    {
+      "descricao": "ARROZ BCO T1 5KG",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 2490,
+      "valor_total_centavos": 29880,
+      "confianca": 1
+    },
+    {
+      "descricao": "FEIJAO CARIOCA T1 1KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 640,
+      "valor_total_centavos": 15360,
+      "confianca": 1
+    },
+    {
+      "descricao": "OLEO SOJA 900ML",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 520,
+      "valor_total_centavos": 12480,
+      "confianca": 1
+    },
+    {
+      "descricao": "ACUCAR REFINADO 1KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 310,
+      "valor_total_centavos": 7440,
+      "confianca": 1
+    },
+    {
+      "descricao": "CAFE TORR MOIDO 500G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1290,
+      "valor_total_centavos": 15480,
+      "confianca": 1
+    },
+    {
+      "descricao": "MACARRAO ESPAG 500G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 245,
+      "valor_total_centavos": 5880,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 86520,
+  "confianca_documento": 1
+}

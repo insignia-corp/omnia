@@ -1,0 +1,44 @@
+[
+  {
+    "id": "AUR",
+    "nome": "Distribuidora Aurora Alimentos Ltda",
+    "cnpj": "31482907000168",
+    "categoria": "mercearia"
+  },
+  {
+    "id": "BEB",
+    "nome": "Bebidas Centro-Oeste Distribuidora Ltda",
+    "cnpj": "27650318000174",
+    "categoria": "bebidas"
+  },
+  {
+    "id": "LAT",
+    "nome": "Laticínios Vale Verde S.A.",
+    "cnpj": "18204965000161",
+    "categoria": "laticínios"
+  },
+  {
+    "id": "HIG",
+    "nome": "Brilho Higiene e Limpeza Ltda",
+    "cnpj": "40913276000185",
+    "categoria": "higiene e limpeza"
+  },
+  {
+    "id": "PAD",
+    "nome": "Pão Quente Biscoitos e Snacks Ltda",
+    "cnpj": "22786541000120",
+    "categoria": "padaria e snacks"
+  },
+  {
+    "id": "FRI",
+    "nome": "Frigorífico Boa Carne Ltda",
+    "cnpj": "35071829000160",
+    "categoria": "frios e carnes"
+  },
+  {
+    "id": "MIX",
+    "nome": "Atacado Mix Goiás Ltda",
+    "cnpj": "29348650000104",
+    "categoria": "atacado variado"
+  }
+]

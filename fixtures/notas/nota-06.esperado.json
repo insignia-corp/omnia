@@ -1,0 +1,43 @@
+{
+  "fornecedor": {
+    "nome": "Frigorífico Boa Carne Ltda",
+    "cnpj": "35071829000160"
+  },
+  "data_emissao": "2026-09-04",
+  "itens": [
+    {
+      "descricao": "LING TOSCANA 500G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1190,
+      "valor_total_centavos": 14280,
+      "confianca": 1
+    },
+    {
+      "descricao": "PRESUNTO FAT 200G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 690,
+      "valor_total_centavos": 8280,
+      "confianca": 1
+    },
+    {
+      "descricao": "SALSICHA HOT DOG 500G",
+      "quantidade": 10,
+      "unidade": "UN",
+      "valor_unitario_centavos": 690,
+      "valor_total_centavos": 6900,
+      "confianca": 1
+    },
+    {
+      "descricao": "CARVAO VEG 3KG",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1090,
+      "valor_total_centavos": 13080,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 42540,
+  "confianca_documento": 1
+}

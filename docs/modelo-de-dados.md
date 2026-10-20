@@ -80,7 +80,7 @@ Isso protege o ativo próprio do projeto (edital, seção 9.4): custo por produt
 
 ## Seed
 
-`npm run seed:demo` zera o banco, aplica as migrações e carrega os `fixtures/`. `npm run db:seed` só recarrega. Detalhes em [fixtures/README.md](../fixtures/README.md).
+`npm run seed:demo` zera o banco, aplica as migrações e carrega os `fixtures/`. `npm run db:seed` só recarrega. `npm run demo:reset` leva a demo ao estado inicial sem zerar o banco: aplica as migrações, recria só os comerciantes do seed, limpa os jobs e os arquivos deles, e imprime os links do chat e dos bastidores (roda no host, não na imagem de produção). Detalhes em [fixtures/README.md](../fixtures/README.md).
 
 O seed cria dois comerciantes, para testar o isolamento:
 

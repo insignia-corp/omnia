@@ -1,0 +1,8 @@
+{
+  "nome": "Mercadinho Bom Preço",
+  "tipo_comercio": "mercadinho",
+  "cidade": "Goiânia",
+  "horario": "Seg a Sáb 7h às 21h, Dom 8h às 13h",
+  "meta_margem_bps": 2500,
+  "data_referencia": "2026-10-19"
+}

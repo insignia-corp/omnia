@@ -1,0 +1,51 @@
+{
+  "extracao": {
+    "fornecedor": {
+      "nome": "Panificadora Industrial Pão Dourado Ltda",
+      "cnpj": "67.890.145/0001-86"
+    },
+    "data_emissao": "2026-10-16",
+    "itens": [
+      {
+        "descricao": "PAO DE FORMA 500G",
+        "quantidade": 20,
+        "unidade": "UN",
+        "valor_unitario_centavos": 520,
+        "valor_total_centavos": 10400,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "TORRADA INT 140G",
+        "quantidade": 12,
+        "unidade": "UN",
+        "valor_unitario_centavos": 250,
+        "valor_total_centavos": 3000,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "BOLO CASEIRO 400G",
+        "quantidade": 8,
+        "unidade": "UN",
+        "valor_unitario_centavos": 680,
+        "valor_total_centavos": 5440,
+        "confianca": 0.97
+      }
+    ],
+    "total_centavos": 18840,
+    "confianca_documento": 0.95
+  },
+  "esperado": {
+    "arquivo": "nota-15.xml",
+    "formato": "xml",
+    "skus": [
+      "P025",
+      "P028",
+      "P026"
+    ],
+    "itens_confianca_baixa": [],
+    "total_diverge": false,
+    "soma_itens_centavos": 18840,
+    "contem_injecao": false,
+    "rodape": null
+  }
+}

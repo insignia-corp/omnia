@@ -1,0 +1,37 @@
+[
+  {
+    "id": "F1",
+    "nome": "Distribuidora de Bebidas Cerrado Ltda",
+    "cnpj": "34.567.812/0001-35"
+  },
+  {
+    "id": "F2",
+    "nome": "Atacadão Grãos de Goiás Ltda",
+    "cnpj": "45.678.923/0001-35"
+  },
+  {
+    "id": "F3",
+    "nome": "Laticínios Vale Verde S.A.",
+    "cnpj": "56.789.034/0001-61"
+  },
+  {
+    "id": "F4",
+    "nome": "Panificadora Industrial Pão Dourado Ltda",
+    "cnpj": "67.890.145/0001-86"
+  },
+  {
+    "id": "F5",
+    "nome": "Higiene e Limpeza Brilho Ltda",
+    "cnpj": "78.901.256/0001-67"
+  },
+  {
+    "id": "F6",
+    "nome": "Hortifruti Central Goiás Ltda",
+    "cnpj": "89.012.367/0001-39"
+  },
+  {
+    "id": "F7",
+    "nome": "Doces e Snacks Planalto Ltda",
+    "cnpj": "90.123.478/0001-00"
+  }
+]

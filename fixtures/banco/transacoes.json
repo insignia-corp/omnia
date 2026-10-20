@@ -1,0 +1,2130 @@
+[
+  {
+    "id": "T0001",
+    "data": "2026-08-21",
+    "valor_centavos": 84573,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0002",
+    "data": "2026-08-21",
+    "valor_centavos": 41655,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0003",
+    "data": "2026-08-21",
+    "valor_centavos": 2970,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0004",
+    "data": "2026-08-21",
+    "valor_centavos": 3330,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0005",
+    "data": "2026-08-21",
+    "valor_centavos": 3290,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0006",
+    "data": "2026-08-22",
+    "valor_centavos": 79271,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0007",
+    "data": "2026-08-22",
+    "valor_centavos": 57403,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0008",
+    "data": "2026-08-22",
+    "valor_centavos": 2720,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0009",
+    "data": "2026-08-22",
+    "valor_centavos": 1510,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0010",
+    "data": "2026-08-22",
+    "valor_centavos": 4780,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0011",
+    "data": "2026-08-23",
+    "valor_centavos": 52484,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0012",
+    "data": "2026-08-23",
+    "valor_centavos": 38004,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0013",
+    "data": "2026-08-23",
+    "valor_centavos": 3920,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0014",
+    "data": "2026-08-23",
+    "valor_centavos": 7730,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0015",
+    "data": "2026-08-23",
+    "valor_centavos": 3900,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0016",
+    "data": "2026-08-24",
+    "valor_centavos": 55444,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0017",
+    "data": "2026-08-24",
+    "valor_centavos": 45363,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0018",
+    "data": "2026-08-24",
+    "valor_centavos": 11780,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0019",
+    "data": "2026-08-24",
+    "valor_centavos": 6060,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0020",
+    "data": "2026-08-24",
+    "valor_centavos": 5280,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0021",
+    "data": "2026-08-25",
+    "valor_centavos": 61106,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0022",
+    "data": "2026-08-25",
+    "valor_centavos": 31478,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0023",
+    "data": "2026-08-25",
+    "valor_centavos": 3750,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0024",
+    "data": "2026-08-25",
+    "valor_centavos": 3160,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0025",
+    "data": "2026-08-26",
+    "valor_centavos": 59655,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0026",
+    "data": "2026-08-26",
+    "valor_centavos": 29382,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0027",
+    "data": "2026-08-26",
+    "valor_centavos": 3750,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0028",
+    "data": "2026-08-26",
+    "valor_centavos": 5460,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0029",
+    "data": "2026-08-26",
+    "valor_centavos": 5710,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0030",
+    "data": "2026-08-27",
+    "valor_centavos": 55097,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0031",
+    "data": "2026-08-27",
+    "valor_centavos": 33768,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0032",
+    "data": "2026-08-27",
+    "valor_centavos": 3870,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0033",
+    "data": "2026-08-27",
+    "valor_centavos": 3300,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0034",
+    "data": "2026-08-27",
+    "valor_centavos": 6270,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0035",
+    "data": "2026-08-28",
+    "valor_centavos": 93817,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0036",
+    "data": "2026-08-28",
+    "valor_centavos": 42149,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0037",
+    "data": "2026-08-28",
+    "valor_centavos": 10830,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0038",
+    "data": "2026-08-28",
+    "valor_centavos": 5950,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0039",
+    "data": "2026-08-28",
+    "valor_centavos": 6810,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0040",
+    "data": "2026-08-29",
+    "valor_centavos": 72381,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0041",
+    "data": "2026-08-29",
+    "valor_centavos": 52413,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0042",
+    "data": "2026-08-29",
+    "valor_centavos": 5090,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0043",
+    "data": "2026-08-30",
+    "valor_centavos": 48902,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0044",
+    "data": "2026-08-30",
+    "valor_centavos": 38422,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0045",
+    "data": "2026-08-30",
+    "valor_centavos": 7120,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0046",
+    "data": "2026-08-30",
+    "valor_centavos": 8020,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0047",
+    "data": "2026-08-31",
+    "valor_centavos": 57399,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0048",
+    "data": "2026-08-31",
+    "valor_centavos": 43301,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0049",
+    "data": "2026-08-31",
+    "valor_centavos": 11430,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0050",
+    "data": "2026-08-31",
+    "valor_centavos": 2460,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0051",
+    "data": "2026-08-31",
+    "valor_centavos": 5030,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0052",
+    "data": "2026-09-01",
+    "valor_centavos": 59025,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0053",
+    "data": "2026-09-01",
+    "valor_centavos": 29071,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0054",
+    "data": "2026-09-01",
+    "valor_centavos": 4050,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0055",
+    "data": "2026-09-02",
+    "valor_centavos": 68978,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0056",
+    "data": "2026-09-02",
+    "valor_centavos": 29562,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0057",
+    "data": "2026-09-02",
+    "valor_centavos": 7380,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0058",
+    "data": "2026-09-03",
+    "valor_centavos": 61534,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0059",
+    "data": "2026-09-03",
+    "valor_centavos": 36139,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0060",
+    "data": "2026-09-03",
+    "valor_centavos": 2950,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0061",
+    "data": "2026-09-03",
+    "valor_centavos": 7260,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0062",
+    "data": "2026-09-03",
+    "valor_centavos": 7540,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0063",
+    "data": "2026-09-04",
+    "valor_centavos": 78959,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0064",
+    "data": "2026-09-04",
+    "valor_centavos": 48394,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0065",
+    "data": "2026-09-04",
+    "valor_centavos": 2450,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0066",
+    "data": "2026-09-04",
+    "valor_centavos": 3780,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0067",
+    "data": "2026-09-05",
+    "valor_centavos": 85639,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0068",
+    "data": "2026-09-05",
+    "valor_centavos": 36702,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0069",
+    "data": "2026-09-05",
+    "valor_centavos": 180000,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ALUGUEL DO PONTO",
+    "categoria": "contas_fixas"
+  },
+  {
+    "id": "T0070",
+    "data": "2026-09-05",
+    "valor_centavos": 2520,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0071",
+    "data": "2026-09-05",
+    "valor_centavos": 8510,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0072",
+    "data": "2026-09-06",
+    "valor_centavos": 64004,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0073",
+    "data": "2026-09-06",
+    "valor_centavos": 28755,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0074",
+    "data": "2026-09-06",
+    "valor_centavos": 5330,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0075",
+    "data": "2026-09-06",
+    "valor_centavos": 4170,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0076",
+    "data": "2026-09-06",
+    "valor_centavos": 5540,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0077",
+    "data": "2026-09-07",
+    "valor_centavos": 67189,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0078",
+    "data": "2026-09-07",
+    "valor_centavos": 33092,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0079",
+    "data": "2026-09-07",
+    "valor_centavos": 5810,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0080",
+    "data": "2026-09-07",
+    "valor_centavos": 6220,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0081",
+    "data": "2026-09-08",
+    "valor_centavos": 64761,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0082",
+    "data": "2026-09-08",
+    "valor_centavos": 34871,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0083",
+    "data": "2026-09-08",
+    "valor_centavos": 5990,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0084",
+    "data": "2026-09-08",
+    "valor_centavos": 2850,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0085",
+    "data": "2026-09-08",
+    "valor_centavos": 7480,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0086",
+    "data": "2026-09-09",
+    "valor_centavos": 59467,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0087",
+    "data": "2026-09-09",
+    "valor_centavos": 41323,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0088",
+    "data": "2026-09-09",
+    "valor_centavos": 5700,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0089",
+    "data": "2026-09-09",
+    "valor_centavos": 3610,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0090",
+    "data": "2026-09-09",
+    "valor_centavos": 3640,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0091",
+    "data": "2026-09-10",
+    "valor_centavos": 60316,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0092",
+    "data": "2026-09-10",
+    "valor_centavos": 33927,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0093",
+    "data": "2026-09-10",
+    "valor_centavos": 68910,
+    "tipo": "saida",
+    "descricao": "BOLETO ENERGIA ELETRICA",
+    "categoria": "contas_fixas"
+  },
+  {
+    "id": "T0094",
+    "data": "2026-09-10",
+    "valor_centavos": 3270,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0095",
+    "data": "2026-09-10",
+    "valor_centavos": 3050,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0096",
+    "data": "2026-09-11",
+    "valor_centavos": 72008,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0097",
+    "data": "2026-09-11",
+    "valor_centavos": 50038,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0098",
+    "data": "2026-09-11",
+    "valor_centavos": 3260,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0099",
+    "data": "2026-09-11",
+    "valor_centavos": 8870,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0100",
+    "data": "2026-09-12",
+    "valor_centavos": 83377,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0101",
+    "data": "2026-09-12",
+    "valor_centavos": 46899,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0102",
+    "data": "2026-09-12",
+    "valor_centavos": 19230,
+    "tipo": "saida",
+    "descricao": "BOLETO AGUA E ESGOTO",
+    "categoria": "contas_fixas"
+  },
+  {
+    "id": "T0103",
+    "data": "2026-09-12",
+    "valor_centavos": 3960,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0104",
+    "data": "2026-09-12",
+    "valor_centavos": 4460,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0105",
+    "data": "2026-09-12",
+    "valor_centavos": 3620,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0106",
+    "data": "2026-09-13",
+    "valor_centavos": 63854,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0107",
+    "data": "2026-09-13",
+    "valor_centavos": 31450,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0108",
+    "data": "2026-09-13",
+    "valor_centavos": 3500,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0109",
+    "data": "2026-09-14",
+    "valor_centavos": 54769,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0110",
+    "data": "2026-09-14",
+    "valor_centavos": 35015,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0111",
+    "data": "2026-09-14",
+    "valor_centavos": 2180,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0112",
+    "data": "2026-09-14",
+    "valor_centavos": 3320,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0113",
+    "data": "2026-09-14",
+    "valor_centavos": 5160,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0114",
+    "data": "2026-09-15",
+    "valor_centavos": 95562,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0115",
+    "data": "2026-09-15",
+    "valor_centavos": 44969,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0116",
+    "data": "2026-09-15",
+    "valor_centavos": 6710,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0117",
+    "data": "2026-09-15",
+    "valor_centavos": 3670,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0118",
+    "data": "2026-09-15",
+    "valor_centavos": 11990,
+    "tipo": "saida",
+    "descricao": "DEBITO AUTOMATICO INTERNET",
+    "categoria": "contas_fixas"
+  },
+  {
+    "id": "T0119",
+    "data": "2026-09-16",
+    "valor_centavos": 79864,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0120",
+    "data": "2026-09-16",
+    "valor_centavos": 57832,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0121",
+    "data": "2026-09-16",
+    "valor_centavos": 8330,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0122",
+    "data": "2026-09-16",
+    "valor_centavos": 45780,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F1 NOTA-01",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0123",
+    "data": "2026-09-17",
+    "valor_centavos": 77804,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0124",
+    "data": "2026-09-17",
+    "valor_centavos": 58694,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0125",
+    "data": "2026-09-17",
+    "valor_centavos": 5430,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0126",
+    "data": "2026-09-17",
+    "valor_centavos": 106980,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F2 NOTA-02",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0127",
+    "data": "2026-09-18",
+    "valor_centavos": 92314,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0128",
+    "data": "2026-09-18",
+    "valor_centavos": 61542,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0129",
+    "data": "2026-09-18",
+    "valor_centavos": 5610,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0130",
+    "data": "2026-09-18",
+    "valor_centavos": 4280,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0131",
+    "data": "2026-09-18",
+    "valor_centavos": 53060,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F3 NOTA-03",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0132",
+    "data": "2026-09-19",
+    "valor_centavos": 123087,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0133",
+    "data": "2026-09-19",
+    "valor_centavos": 69235,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0134",
+    "data": "2026-09-19",
+    "valor_centavos": 4730,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0135",
+    "data": "2026-09-19",
+    "valor_centavos": 3480,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0136",
+    "data": "2026-09-19",
+    "valor_centavos": 25380,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F4 NOTA-04",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0137",
+    "data": "2026-09-19",
+    "valor_centavos": 8900,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0138",
+    "data": "2026-09-20",
+    "valor_centavos": 49383,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0139",
+    "data": "2026-09-20",
+    "valor_centavos": 32922,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0140",
+    "data": "2026-09-20",
+    "valor_centavos": 10050,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0141",
+    "data": "2026-09-20",
+    "valor_centavos": 1340,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0142",
+    "data": "2026-09-20",
+    "valor_centavos": 3870,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0143",
+    "data": "2026-09-21",
+    "valor_centavos": 66093,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0144",
+    "data": "2026-09-21",
+    "valor_centavos": 49859,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0145",
+    "data": "2026-09-21",
+    "valor_centavos": 5940,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0146",
+    "data": "2026-09-21",
+    "valor_centavos": 38940,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F5 NOTA-05",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0147",
+    "data": "2026-09-22",
+    "valor_centavos": 76281,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0148",
+    "data": "2026-09-22",
+    "valor_centavos": 42908,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0149",
+    "data": "2026-09-22",
+    "valor_centavos": 1760,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0150",
+    "data": "2026-09-23",
+    "valor_centavos": 55836,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0151",
+    "data": "2026-09-23",
+    "valor_centavos": 34221,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0152",
+    "data": "2026-09-23",
+    "valor_centavos": 6910,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0153",
+    "data": "2026-09-23",
+    "valor_centavos": 37920,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F6 NOTA-06",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0154",
+    "data": "2026-09-24",
+    "valor_centavos": 74338,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0155",
+    "data": "2026-09-24",
+    "valor_centavos": 38294,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0156",
+    "data": "2026-09-24",
+    "valor_centavos": 7390,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0157",
+    "data": "2026-09-25",
+    "valor_centavos": 98084,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0158",
+    "data": "2026-09-25",
+    "valor_centavos": 80249,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0159",
+    "data": "2026-09-25",
+    "valor_centavos": 3170,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0160",
+    "data": "2026-09-25",
+    "valor_centavos": 30900,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F7 NOTA-07",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0161",
+    "data": "2026-09-26",
+    "valor_centavos": 121048,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0162",
+    "data": "2026-09-26",
+    "valor_centavos": 56963,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0163",
+    "data": "2026-09-26",
+    "valor_centavos": 6510,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0164",
+    "data": "2026-09-26",
+    "valor_centavos": 3200,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0165",
+    "data": "2026-09-27",
+    "valor_centavos": 64474,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0166",
+    "data": "2026-09-27",
+    "valor_centavos": 37865,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0167",
+    "data": "2026-09-27",
+    "valor_centavos": 8280,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0168",
+    "data": "2026-09-27",
+    "valor_centavos": 3700,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0169",
+    "data": "2026-09-27",
+    "valor_centavos": 1520,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0170",
+    "data": "2026-09-28",
+    "valor_centavos": 60381,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0171",
+    "data": "2026-09-28",
+    "valor_centavos": 40254,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0172",
+    "data": "2026-09-28",
+    "valor_centavos": 6770,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0173",
+    "data": "2026-09-28",
+    "valor_centavos": 35580,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F2 NOTA-08",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0174",
+    "data": "2026-09-29",
+    "valor_centavos": 76061,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0175",
+    "data": "2026-09-29",
+    "valor_centavos": 35792,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0176",
+    "data": "2026-09-29",
+    "valor_centavos": 4590,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0177",
+    "data": "2026-09-30",
+    "valor_centavos": 77057,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0178",
+    "data": "2026-09-30",
+    "valor_centavos": 49265,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0179",
+    "data": "2026-09-30",
+    "valor_centavos": 2760,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0180",
+    "data": "2026-10-01",
+    "valor_centavos": 77464,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0181",
+    "data": "2026-10-01",
+    "valor_centavos": 56093,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0182",
+    "data": "2026-10-01",
+    "valor_centavos": 4770,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0183",
+    "data": "2026-10-01",
+    "valor_centavos": 5770,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0184",
+    "data": "2026-10-01",
+    "valor_centavos": 6870,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0185",
+    "data": "2026-10-02",
+    "valor_centavos": 132814,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0186",
+    "data": "2026-10-02",
+    "valor_centavos": 56920,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0187",
+    "data": "2026-10-02",
+    "valor_centavos": 3340,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0188",
+    "data": "2026-10-02",
+    "valor_centavos": 32760,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F1 NOTA-09",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0189",
+    "data": "2026-10-02",
+    "valor_centavos": 4130,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0190",
+    "data": "2026-10-03",
+    "valor_centavos": 129855,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0191",
+    "data": "2026-10-03",
+    "valor_centavos": 58340,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0192",
+    "data": "2026-10-03",
+    "valor_centavos": 5400,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0193",
+    "data": "2026-10-03",
+    "valor_centavos": 4180,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0194",
+    "data": "2026-10-04",
+    "valor_centavos": 65276,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0195",
+    "data": "2026-10-04",
+    "valor_centavos": 40007,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0196",
+    "data": "2026-10-04",
+    "valor_centavos": 4520,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0197",
+    "data": "2026-10-05",
+    "valor_centavos": 59078,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0198",
+    "data": "2026-10-05",
+    "valor_centavos": 44567,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0199",
+    "data": "2026-10-05",
+    "valor_centavos": 3950,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0200",
+    "data": "2026-10-05",
+    "valor_centavos": 180000,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ALUGUEL DO PONTO",
+    "categoria": "contas_fixas"
+  },
+  {
+    "id": "T0201",
+    "data": "2026-10-05",
+    "valor_centavos": 40080,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F3 NOTA-10",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0202",
+    "data": "2026-10-06",
+    "valor_centavos": 75527,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0203",
+    "data": "2026-10-06",
+    "valor_centavos": 38907,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0204",
+    "data": "2026-10-06",
+    "valor_centavos": 5360,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0205",
+    "data": "2026-10-07",
+    "valor_centavos": 69563,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0206",
+    "data": "2026-10-07",
+    "valor_centavos": 40853,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0207",
+    "data": "2026-10-07",
+    "valor_centavos": 2090,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0208",
+    "data": "2026-10-08",
+    "valor_centavos": 71749,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0209",
+    "data": "2026-10-08",
+    "valor_centavos": 54126,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0210",
+    "data": "2026-10-08",
+    "valor_centavos": 11730,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0211",
+    "data": "2026-10-08",
+    "valor_centavos": 22440,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F5 NOTA-11",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0212",
+    "data": "2026-10-08",
+    "valor_centavos": 2890,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0213",
+    "data": "2026-10-09",
+    "valor_centavos": 106866,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0214",
+    "data": "2026-10-09",
+    "valor_centavos": 57543,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0215",
+    "data": "2026-10-09",
+    "valor_centavos": 4900,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0216",
+    "data": "2026-10-09",
+    "valor_centavos": 5520,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0217",
+    "data": "2026-10-10",
+    "valor_centavos": 112657,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0218",
+    "data": "2026-10-10",
+    "valor_centavos": 78286,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0219",
+    "data": "2026-10-10",
+    "valor_centavos": 61240,
+    "tipo": "saida",
+    "descricao": "BOLETO ENERGIA ELETRICA",
+    "categoria": "contas_fixas"
+  },
+  {
+    "id": "T0220",
+    "data": "2026-10-10",
+    "valor_centavos": 7360,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0221",
+    "data": "2026-10-10",
+    "valor_centavos": 1540,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0222",
+    "data": "2026-10-11",
+    "valor_centavos": 34220,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0223",
+    "data": "2026-10-11",
+    "valor_centavos": 25815,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0224",
+    "data": "2026-10-11",
+    "valor_centavos": 7540,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO ENTREGADOR",
+    "categoria": "frete"
+  },
+  {
+    "id": "T0225",
+    "data": "2026-10-12",
+    "valor_centavos": 63540,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0226",
+    "data": "2026-10-12",
+    "valor_centavos": 49924,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0227",
+    "data": "2026-10-12",
+    "valor_centavos": 18450,
+    "tipo": "saida",
+    "descricao": "BOLETO AGUA E ESGOTO",
+    "categoria": "contas_fixas"
+  },
+  {
+    "id": "T0228",
+    "data": "2026-10-12",
+    "valor_centavos": 9300,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0229",
+    "data": "2026-10-13",
+    "valor_centavos": 65011,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0230",
+    "data": "2026-10-13",
+    "valor_centavos": 30593,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0231",
+    "data": "2026-10-13",
+    "valor_centavos": 10690,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0232",
+    "data": "2026-10-13",
+    "valor_centavos": 7300,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0233",
+    "data": "2026-10-13",
+    "valor_centavos": 29808,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F1 NOTA-12",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0234",
+    "data": "2026-10-13",
+    "valor_centavos": 5830,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0235",
+    "data": "2026-10-14",
+    "valor_centavos": 78643,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0236",
+    "data": "2026-10-14",
+    "valor_centavos": 46187,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0237",
+    "data": "2026-10-14",
+    "valor_centavos": 5010,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0238",
+    "data": "2026-10-14",
+    "valor_centavos": 49680,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F2 NOTA-13",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0239",
+    "data": "2026-10-14",
+    "valor_centavos": 2540,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0240",
+    "data": "2026-10-14",
+    "valor_centavos": 3120,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0241",
+    "data": "2026-10-15",
+    "valor_centavos": 73840,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0242",
+    "data": "2026-10-15",
+    "valor_centavos": 49226,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0243",
+    "data": "2026-10-15",
+    "valor_centavos": 3880,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0244",
+    "data": "2026-10-15",
+    "valor_centavos": 11990,
+    "tipo": "saida",
+    "descricao": "DEBITO AUTOMATICO INTERNET",
+    "categoria": "contas_fixas"
+  },
+  {
+    "id": "T0245",
+    "data": "2026-10-15",
+    "valor_centavos": 3020,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0246",
+    "data": "2026-10-15",
+    "valor_centavos": 4460,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0247",
+    "data": "2026-10-16",
+    "valor_centavos": 85692,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0248",
+    "data": "2026-10-16",
+    "valor_centavos": 67329,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0249",
+    "data": "2026-10-16",
+    "valor_centavos": 4350,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0250",
+    "data": "2026-10-16",
+    "valor_centavos": 8210,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0251",
+    "data": "2026-10-16",
+    "valor_centavos": 4080,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO PAPELARIA",
+    "categoria": "escritorio"
+  },
+  {
+    "id": "T0252",
+    "data": "2026-10-16",
+    "valor_centavos": 18840,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F4 NOTA-15",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0253",
+    "data": "2026-10-16",
+    "valor_centavos": 17640,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO FORNECEDOR F6 NOTA-14",
+    "categoria": "fornecedores"
+  },
+  {
+    "id": "T0254",
+    "data": "2026-10-17",
+    "valor_centavos": 111980,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0255",
+    "data": "2026-10-17",
+    "valor_centavos": 65765,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0256",
+    "data": "2026-10-17",
+    "valor_centavos": 4000,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0257",
+    "data": "2026-10-17",
+    "valor_centavos": 6590,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO SACOLAS PLASTICAS",
+    "categoria": "embalagens"
+  },
+  {
+    "id": "T0258",
+    "data": "2026-10-17",
+    "valor_centavos": 2880,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO GELO",
+    "categoria": "insumos"
+  },
+  {
+    "id": "T0259",
+    "data": "2026-10-18",
+    "valor_centavos": 51835,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0260",
+    "data": "2026-10-18",
+    "valor_centavos": 29157,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0261",
+    "data": "2026-10-18",
+    "valor_centavos": 4870,
+    "tipo": "saida",
+    "descricao": "COMPRA DEBITO COMBUSTIVEL",
+    "categoria": "transporte"
+  },
+  {
+    "id": "T0262",
+    "data": "2026-10-19",
+    "valor_centavos": 56792,
+    "tipo": "entrada",
+    "descricao": "CREDITO ADQUIRENTE CARTOES",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0263",
+    "data": "2026-10-19",
+    "valor_centavos": 24339,
+    "tipo": "entrada",
+    "descricao": "PIX RECEBIDO VENDAS",
+    "categoria": "vendas"
+  },
+  {
+    "id": "T0264",
+    "data": "2026-10-19",
+    "valor_centavos": 235000,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO CONSERTO CAMARA FRIA",
+    "categoria": "manutencao"
+  },
+  {
+    "id": "T0265",
+    "data": "2026-10-19",
+    "valor_centavos": 7450,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  },
+  {
+    "id": "T0266",
+    "data": "2026-10-19",
+    "valor_centavos": 8330,
+    "tipo": "saida",
+    "descricao": "PIX ENVIADO MATERIAL DE LIMPEZA",
+    "categoria": "limpeza"
+  }
+]

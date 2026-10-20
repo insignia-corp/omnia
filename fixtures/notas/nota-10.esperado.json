@@ -1,0 +1,60 @@
+{
+  "extracao": {
+    "fornecedor": {
+      "nome": "Laticínios Vale Verde S.A.",
+      "cnpj": "56.789.034/0001-61"
+    },
+    "data_emissao": "2026-10-05",
+    "itens": [
+      {
+        "descricao": "LEITE INT 1L",
+        "quantidade": 48,
+        "unidade": "UN",
+        "valor_unitario_centavos": 410,
+        "valor_total_centavos": 19680,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "IOGURTE NATURAL 170G",
+        "quantidade": 24,
+        "unidade": "UN",
+        "valor_unitario_centavos": 190,
+        "valor_total_centavos": 4560,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "QUEIJO MUSS FAT 150G",
+        "quantidade": 6,
+        "unidade": "UN",
+        "valor_unitario_centavos": 840,
+        "valor_total_centavos": 5040,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "OVOS CARTELA 12UN",
+        "quantidade": 12,
+        "unidade": "UN",
+        "valor_unitario_centavos": 900,
+        "valor_total_centavos": 10800,
+        "confianca": 0.97
+      }
+    ],
+    "total_centavos": 40080,
+    "confianca_documento": 0.95
+  },
+  "esperado": {
+    "arquivo": "nota-10.png",
+    "formato": "foto",
+    "skus": [
+      "P019",
+      "P022",
+      "P020",
+      "P041"
+    ],
+    "itens_confianca_baixa": [],
+    "total_diverge": false,
+    "soma_itens_centavos": 40080,
+    "contem_injecao": false,
+    "rodape": null
+  }
+}

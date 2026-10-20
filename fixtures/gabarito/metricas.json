@@ -1,0 +1,1924 @@
+{
+  "parametros": {
+    "data_referencia": "2026-10-19",
+    "meta_margem_bps": 2500,
+    "limite_variacao_custo_bps": 500,
+    "giro_dias_recentes": 7,
+    "giro_dias_base": 28,
+    "giro_volume_minimo_base": 40,
+    "giro_alto_bps": 5000,
+    "estoque_parado_dias": 30,
+    "ticket_queda_relevante_bps": 1500,
+    "gasto_janela_dias": 60,
+    "gasto_desvio_limite_milli": 3000,
+    "gasto_categorias_excluidas": [
+      "fornecedores",
+      "contas_fixas"
+    ],
+    "gasto_datas_avaliadas": [
+      "2026-10-12",
+      "2026-10-14",
+      "2026-10-16",
+      "2026-10-19"
+    ]
+  },
+  "janelas": {
+    "giro_recente": {
+      "inicio": "2026-10-13",
+      "fim": "2026-10-19"
+    },
+    "giro_base": {
+      "inicio": "2026-09-15",
+      "fim": "2026-10-12"
+    }
+  },
+  "margem_por_produto": [
+    {
+      "sku": "P001",
+      "codigo_barras": "7891000100004",
+      "nome": "Refrigerante Cola 2L",
+      "ausente": false,
+      "preco_medio_venda_centavos": 749,
+      "custo_mais_recente_centavos": 567,
+      "custo_fornecedor_id": "F1",
+      "custo_data": "2026-10-13",
+      "margem_bps": 2430,
+      "margem_percentual": 24.3,
+      "abaixo_da_meta": true,
+      "n_registros": 433
+    },
+    {
+      "sku": "P002",
+      "codigo_barras": "7891001100072",
+      "nome": "Refrigerante Guaraná 2L",
+      "ausente": false,
+      "preco_medio_venda_centavos": 699,
+      "custo_mais_recente_centavos": 490,
+      "custo_fornecedor_id": "F1",
+      "custo_data": "2026-10-13",
+      "margem_bps": 2990,
+      "margem_percentual": 29.9,
+      "abaixo_da_meta": false,
+      "n_registros": 202
+    },
+    {
+      "sku": "P003",
+      "codigo_barras": "7891002100149",
+      "nome": "Água Mineral 500ml",
+      "ausente": false,
+      "preco_medio_venda_centavos": 200,
+      "custo_mais_recente_centavos": 85,
+      "custo_fornecedor_id": "F1",
+      "custo_data": "2026-10-02",
+      "margem_bps": 5750,
+      "margem_percentual": 57.5,
+      "abaixo_da_meta": false,
+      "n_registros": 276
+    },
+    {
+      "sku": "P004",
+      "codigo_barras": "7891003100216",
+      "nome": "Suco de Laranja 1L",
+      "ausente": false,
+      "preco_medio_venda_centavos": 599,
+      "custo_mais_recente_centavos": 410,
+      "custo_fornecedor_id": "F1",
+      "custo_data": "2026-09-16",
+      "margem_bps": 3155,
+      "margem_percentual": 31.6,
+      "abaixo_da_meta": false,
+      "n_registros": 105
+    },
+    {
+      "sku": "P005",
+      "codigo_barras": "7891004100284",
+      "nome": "Cerveja Lata 350ml",
+      "ausente": false,
+      "preco_medio_venda_centavos": 349,
+      "custo_mais_recente_centavos": 215,
+      "custo_fornecedor_id": "F1",
+      "custo_data": "2026-10-13",
+      "margem_bps": 3840,
+      "margem_percentual": 38.4,
+      "abaixo_da_meta": false,
+      "n_registros": 328
+    },
+    {
+      "sku": "P006",
+      "codigo_barras": "7891005100351",
+      "nome": "Energético 269ml",
+      "ausente": true,
+      "motivo": "sem compra registrada, custo desconhecido"
+    },
+    {
+      "sku": "P007",
+      "codigo_barras": "7891006100428",
+      "nome": "Arroz Tipo 1 5kg",
+      "ausente": false,
+      "preco_medio_venda_centavos": 3190,
+      "custo_mais_recente_centavos": 2360,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-10-14",
+      "margem_bps": 2602,
+      "margem_percentual": 26,
+      "abaixo_da_meta": false,
+      "n_registros": 108
+    },
+    {
+      "sku": "P008",
+      "codigo_barras": "7891007100496",
+      "nome": "Feijão Carioca 1kg",
+      "ausente": false,
+      "preco_medio_venda_centavos": 899,
+      "custo_mais_recente_centavos": 640,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-28",
+      "margem_bps": 2881,
+      "margem_percentual": 28.8,
+      "abaixo_da_meta": false,
+      "n_registros": 161
+    },
+    {
+      "sku": "P009",
+      "codigo_barras": "7891008100563",
+      "nome": "Açúcar Refinado 1kg",
+      "ausente": false,
+      "preco_medio_venda_centavos": 429,
+      "custo_mais_recente_centavos": 310,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-10-14",
+      "margem_bps": 2774,
+      "margem_percentual": 27.7,
+      "abaixo_da_meta": false,
+      "n_registros": 130
+    },
+    {
+      "sku": "P010",
+      "codigo_barras": "7891009100630",
+      "nome": "Óleo de Soja 900ml",
+      "ausente": false,
+      "preco_medio_venda_centavos": 799,
+      "custo_mais_recente_centavos": 580,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-10-14",
+      "margem_bps": 2741,
+      "margem_percentual": 27.4,
+      "abaixo_da_meta": false,
+      "n_registros": 145
+    },
+    {
+      "sku": "P011",
+      "codigo_barras": "7891010100704",
+      "nome": "Macarrão Espaguete 500g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 349,
+      "custo_mais_recente_centavos": 270,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-17",
+      "margem_bps": 2264,
+      "margem_percentual": 22.6,
+      "abaixo_da_meta": true,
+      "n_registros": 123
+    },
+    {
+      "sku": "P012",
+      "codigo_barras": "7891011100772",
+      "nome": "Farinha de Trigo 1kg",
+      "ausente": false,
+      "preco_medio_venda_centavos": 479,
+      "custo_mais_recente_centavos": 340,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-17",
+      "margem_bps": 2902,
+      "margem_percentual": 29,
+      "abaixo_da_meta": false,
+      "n_registros": 101
+    },
+    {
+      "sku": "P013",
+      "codigo_barras": "7891012100849",
+      "nome": "Café Torrado 500g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 1790,
+      "custo_mais_recente_centavos": 1290,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-28",
+      "margem_bps": 2793,
+      "margem_percentual": 27.9,
+      "abaixo_da_meta": false,
+      "n_registros": 170
+    },
+    {
+      "sku": "P014",
+      "codigo_barras": "7891013100916",
+      "nome": "Sal Refinado 1kg",
+      "ausente": false,
+      "preco_medio_venda_centavos": 249,
+      "custo_mais_recente_centavos": 150,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-17",
+      "margem_bps": 3976,
+      "margem_percentual": 39.8,
+      "abaixo_da_meta": false,
+      "n_registros": 71
+    },
+    {
+      "sku": "P015",
+      "codigo_barras": "7891014100984",
+      "nome": "Molho de Tomate 340g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 299,
+      "custo_mais_recente_centavos": 190,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-17",
+      "margem_bps": 3645,
+      "margem_percentual": 36.5,
+      "abaixo_da_meta": false,
+      "n_registros": 99
+    },
+    {
+      "sku": "P016",
+      "codigo_barras": "7891015101058",
+      "nome": "Biscoito Recheado 130g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 279,
+      "custo_mais_recente_centavos": 180,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-28",
+      "margem_bps": 3548,
+      "margem_percentual": 35.5,
+      "abaixo_da_meta": false,
+      "n_registros": 192
+    },
+    {
+      "sku": "P017",
+      "codigo_barras": "7891016101125",
+      "nome": "Biscoito Cream Cracker 400g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 499,
+      "custo_mais_recente_centavos": 330,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-28",
+      "margem_bps": 3387,
+      "margem_percentual": 33.9,
+      "abaixo_da_meta": false,
+      "n_registros": 95
+    },
+    {
+      "sku": "P018",
+      "codigo_barras": "7891017101193",
+      "nome": "Leite em Pó 400g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 2290,
+      "custo_mais_recente_centavos": 1650,
+      "custo_fornecedor_id": "F2",
+      "custo_data": "2026-09-17",
+      "margem_bps": 2795,
+      "margem_percentual": 28,
+      "abaixo_da_meta": false,
+      "n_registros": 40
+    },
+    {
+      "sku": "P019",
+      "codigo_barras": "7891018101260",
+      "nome": "Leite Integral 1L",
+      "ausente": false,
+      "preco_medio_venda_centavos": 549,
+      "custo_mais_recente_centavos": 410,
+      "custo_fornecedor_id": "F3",
+      "custo_data": "2026-10-05",
+      "margem_bps": 2532,
+      "margem_percentual": 25.3,
+      "abaixo_da_meta": false,
+      "n_registros": 351
+    },
+    {
+      "sku": "P020",
+      "codigo_barras": "7891019101337",
+      "nome": "Queijo Mussarela Fatiado 150g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 1190,
+      "custo_mais_recente_centavos": 840,
+      "custo_fornecedor_id": "F3",
+      "custo_data": "2026-10-05",
+      "margem_bps": 2941,
+      "margem_percentual": 29.4,
+      "abaixo_da_meta": false,
+      "n_registros": 135
+    },
+    {
+      "sku": "P021",
+      "codigo_barras": "7891020101401",
+      "nome": "Presunto Fatiado 150g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 999,
+      "custo_mais_recente_centavos": 690,
+      "custo_fornecedor_id": "F3",
+      "custo_data": "2026-09-18",
+      "margem_bps": 3093,
+      "margem_percentual": 30.9,
+      "abaixo_da_meta": false,
+      "n_registros": 99
+    },
+    {
+      "sku": "P022",
+      "codigo_barras": "7891021101479",
+      "nome": "Iogurte Natural 170g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 299,
+      "custo_mais_recente_centavos": 190,
+      "custo_fornecedor_id": "F3",
+      "custo_data": "2026-10-05",
+      "margem_bps": 3645,
+      "margem_percentual": 36.5,
+      "abaixo_da_meta": false,
+      "n_registros": 147
+    },
+    {
+      "sku": "P023",
+      "codigo_barras": "7891022101546",
+      "nome": "Manteiga 200g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 1290,
+      "custo_mais_recente_centavos": 910,
+      "custo_fornecedor_id": "F3",
+      "custo_data": "2026-09-18",
+      "margem_bps": 2946,
+      "margem_percentual": 29.5,
+      "abaixo_da_meta": false,
+      "n_registros": 62
+    },
+    {
+      "sku": "P024",
+      "codigo_barras": "7891023101613",
+      "nome": "Requeijão Cremoso 200g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 759,
+      "custo_mais_recente_centavos": 520,
+      "custo_fornecedor_id": "F3",
+      "custo_data": "2026-09-18",
+      "margem_bps": 3149,
+      "margem_percentual": 31.5,
+      "abaixo_da_meta": false,
+      "n_registros": 81
+    },
+    {
+      "sku": "P025",
+      "codigo_barras": "7891024101681",
+      "nome": "Pão de Forma 500g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 749,
+      "custo_mais_recente_centavos": 520,
+      "custo_fornecedor_id": "F4",
+      "custo_data": "2026-10-16",
+      "margem_bps": 3057,
+      "margem_percentual": 30.6,
+      "abaixo_da_meta": false,
+      "n_registros": 208
+    },
+    {
+      "sku": "P026",
+      "codigo_barras": "7891025101758",
+      "nome": "Bolo Caseiro 400g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 990,
+      "custo_mais_recente_centavos": 680,
+      "custo_fornecedor_id": "F4",
+      "custo_data": "2026-10-16",
+      "margem_bps": 3131,
+      "margem_percentual": 31.3,
+      "abaixo_da_meta": false,
+      "n_registros": 69
+    },
+    {
+      "sku": "P027",
+      "codigo_barras": "7891026101825",
+      "nome": "Pão de Queijo Congelado 400g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 1590,
+      "custo_mais_recente_centavos": 1090,
+      "custo_fornecedor_id": "F4",
+      "custo_data": "2026-09-19",
+      "margem_bps": 3145,
+      "margem_percentual": 31.5,
+      "abaixo_da_meta": false,
+      "n_registros": 65
+    },
+    {
+      "sku": "P028",
+      "codigo_barras": "7891027101893",
+      "nome": "Torrada Integral 140g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 399,
+      "custo_mais_recente_centavos": 250,
+      "custo_fornecedor_id": "F4",
+      "custo_data": "2026-10-16",
+      "margem_bps": 3734,
+      "margem_percentual": 37.3,
+      "abaixo_da_meta": false,
+      "n_registros": 69
+    },
+    {
+      "sku": "P029",
+      "codigo_barras": "7891028101960",
+      "nome": "Detergente Líquido 500ml",
+      "ausente": false,
+      "preco_medio_venda_centavos": 299,
+      "custo_mais_recente_centavos": 180,
+      "custo_fornecedor_id": "F5",
+      "custo_data": "2026-10-08",
+      "margem_bps": 3980,
+      "margem_percentual": 39.8,
+      "abaixo_da_meta": false,
+      "n_registros": 149
+    },
+    {
+      "sku": "P030",
+      "codigo_barras": "7891029102034",
+      "nome": "Sabão em Pó 1kg",
+      "ausente": false,
+      "preco_medio_venda_centavos": 1590,
+      "custo_mais_recente_centavos": 1090,
+      "custo_fornecedor_id": "F5",
+      "custo_data": "2026-09-21",
+      "margem_bps": 3145,
+      "margem_percentual": 31.5,
+      "abaixo_da_meta": false,
+      "n_registros": 80
+    },
+    {
+      "sku": "P031",
+      "codigo_barras": "7891030102108",
+      "nome": "Água Sanitária 1L",
+      "ausente": false,
+      "preco_medio_venda_centavos": 399,
+      "custo_mais_recente_centavos": 260,
+      "custo_fornecedor_id": "F5",
+      "custo_data": "2026-09-21",
+      "margem_bps": 3484,
+      "margem_percentual": 34.8,
+      "abaixo_da_meta": false,
+      "n_registros": 73
+    },
+    {
+      "sku": "P032",
+      "codigo_barras": "7891031102176",
+      "nome": "Papel Higiênico 4un",
+      "ausente": false,
+      "preco_medio_venda_centavos": 899,
+      "custo_mais_recente_centavos": 590,
+      "custo_fornecedor_id": "F5",
+      "custo_data": "2026-10-08",
+      "margem_bps": 3437,
+      "margem_percentual": 34.4,
+      "abaixo_da_meta": false,
+      "n_registros": 134
+    },
+    {
+      "sku": "P033",
+      "codigo_barras": "7891032102243",
+      "nome": "Esponja de Cozinha 3un",
+      "ausente": false,
+      "preco_medio_venda_centavos": 349,
+      "custo_mais_recente_centavos": 210,
+      "custo_fornecedor_id": "F5",
+      "custo_data": "2026-09-21",
+      "margem_bps": 3983,
+      "margem_percentual": 39.8,
+      "abaixo_da_meta": false,
+      "n_registros": 74
+    },
+    {
+      "sku": "P034",
+      "codigo_barras": "7891033102310",
+      "nome": "Sabonete 85g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 199,
+      "custo_mais_recente_centavos": 110,
+      "custo_fornecedor_id": "F5",
+      "custo_data": "2026-10-08",
+      "margem_bps": 4472,
+      "margem_percentual": 44.7,
+      "abaixo_da_meta": false,
+      "n_registros": 157
+    },
+    {
+      "sku": "P035",
+      "codigo_barras": "7891034102388",
+      "nome": "Creme Dental 90g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 399,
+      "custo_mais_recente_centavos": 240,
+      "custo_fornecedor_id": "F5",
+      "custo_data": "2026-09-21",
+      "margem_bps": 3985,
+      "margem_percentual": 39.9,
+      "abaixo_da_meta": false,
+      "n_registros": 117
+    },
+    {
+      "sku": "P036",
+      "codigo_barras": "7891035102455",
+      "nome": "Shampoo 350ml",
+      "ausente": true,
+      "motivo": "sem compra registrada, custo desconhecido"
+    },
+    {
+      "sku": "P037",
+      "codigo_barras": "7891036102522",
+      "nome": "Banana Prata (dúzia)",
+      "ausente": false,
+      "preco_medio_venda_centavos": 690,
+      "custo_mais_recente_centavos": 480,
+      "custo_fornecedor_id": "F6",
+      "custo_data": "2026-10-16",
+      "margem_bps": 3043,
+      "margem_percentual": 30.4,
+      "abaixo_da_meta": false,
+      "n_registros": 139
+    },
+    {
+      "sku": "P038",
+      "codigo_barras": "7891037102590",
+      "nome": "Tomate Bandeja 500g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 690,
+      "custo_mais_recente_centavos": 450,
+      "custo_fornecedor_id": "F6",
+      "custo_data": "2026-10-16",
+      "margem_bps": 3478,
+      "margem_percentual": 34.8,
+      "abaixo_da_meta": false,
+      "n_registros": 106
+    },
+    {
+      "sku": "P039",
+      "codigo_barras": "7891038102667",
+      "nome": "Cebola Saco 1kg",
+      "ausente": false,
+      "preco_medio_venda_centavos": 590,
+      "custo_mais_recente_centavos": 390,
+      "custo_fornecedor_id": "F6",
+      "custo_data": "2026-09-23",
+      "margem_bps": 3390,
+      "margem_percentual": 33.9,
+      "abaixo_da_meta": false,
+      "n_registros": 115
+    },
+    {
+      "sku": "P040",
+      "codigo_barras": "7891039102734",
+      "nome": "Batata Saco 1kg",
+      "ausente": false,
+      "preco_medio_venda_centavos": 649,
+      "custo_mais_recente_centavos": 420,
+      "custo_fornecedor_id": "F6",
+      "custo_data": "2026-10-16",
+      "margem_bps": 3529,
+      "margem_percentual": 35.3,
+      "abaixo_da_meta": false,
+      "n_registros": 114
+    },
+    {
+      "sku": "P041",
+      "codigo_barras": "7891040102808",
+      "nome": "Ovos Cartela 12un",
+      "ausente": false,
+      "preco_medio_venda_centavos": 1090,
+      "custo_mais_recente_centavos": 900,
+      "custo_fornecedor_id": "F3",
+      "custo_data": "2026-10-05",
+      "margem_bps": 1743,
+      "margem_percentual": 17.4,
+      "abaixo_da_meta": true,
+      "n_registros": 217
+    },
+    {
+      "sku": "P042",
+      "codigo_barras": "7891041102876",
+      "nome": "Limão Bandeja 500g",
+      "ausente": true,
+      "motivo": "sem compra registrada, custo desconhecido"
+    },
+    {
+      "sku": "P043",
+      "codigo_barras": "7891042102943",
+      "nome": "Salgadinho de Milho 100g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 649,
+      "custo_mais_recente_centavos": 420,
+      "custo_fornecedor_id": "F7",
+      "custo_data": "2026-09-25",
+      "margem_bps": 3529,
+      "margem_percentual": 35.3,
+      "abaixo_da_meta": false,
+      "n_registros": 190
+    },
+    {
+      "sku": "P044",
+      "codigo_barras": "7891043103017",
+      "nome": "Chocolate em Barra 80g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 599,
+      "custo_mais_recente_centavos": 380,
+      "custo_fornecedor_id": "F7",
+      "custo_data": "2026-09-25",
+      "margem_bps": 3656,
+      "margem_percentual": 36.6,
+      "abaixo_da_meta": false,
+      "n_registros": 199
+    },
+    {
+      "sku": "P045",
+      "codigo_barras": "7891044103085",
+      "nome": "Bala de Goma 100g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 349,
+      "custo_mais_recente_centavos": 200,
+      "custo_fornecedor_id": "F7",
+      "custo_data": "2026-09-25",
+      "margem_bps": 4269,
+      "margem_percentual": 42.7,
+      "abaixo_da_meta": false,
+      "n_registros": 153
+    },
+    {
+      "sku": "P046",
+      "codigo_barras": "7891045103152",
+      "nome": "Chiclete 8un",
+      "ausente": true,
+      "motivo": "sem compra registrada, custo desconhecido"
+    },
+    {
+      "sku": "P047",
+      "codigo_barras": "7891046103229",
+      "nome": "Amendoim Salgado 150g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 449,
+      "custo_mais_recente_centavos": 290,
+      "custo_fornecedor_id": "F7",
+      "custo_data": "2026-09-25",
+      "margem_bps": 3541,
+      "margem_percentual": 35.4,
+      "abaixo_da_meta": false,
+      "n_registros": 72
+    },
+    {
+      "sku": "P048",
+      "codigo_barras": "7891047103297",
+      "nome": "Pipoca de Micro-ondas 100g",
+      "ausente": false,
+      "preco_medio_venda_centavos": 299,
+      "custo_mais_recente_centavos": 190,
+      "custo_fornecedor_id": "F7",
+      "custo_data": "2026-09-25",
+      "margem_bps": 3645,
+      "margem_percentual": 36.5,
+      "abaixo_da_meta": false,
+      "n_registros": 92
+    },
+    {
+      "sku": "P049",
+      "codigo_barras": "7891048103364",
+      "nome": "Pirulito",
+      "ausente": true,
+      "motivo": "sem compra registrada, custo desconhecido"
+    },
+    {
+      "sku": "P050",
+      "codigo_barras": "7891049103431",
+      "nome": "Pilha AA 2un",
+      "ausente": true,
+      "motivo": "sem compra registrada, custo desconhecido"
+    }
+  ],
+  "giro": {
+    "por_produto": [
+      {
+        "sku": "P001",
+        "nome": "Refrigerante Cola 2L",
+        "unidades_7_dias": 147,
+        "unidades_28_dias_anteriores": 286,
+        "variacao_bps": 10559,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P002",
+        "nome": "Refrigerante Guaraná 2L",
+        "unidades_7_dias": 36,
+        "unidades_28_dias_anteriores": 166,
+        "variacao_bps": -1325,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P003",
+        "nome": "Água Mineral 500ml",
+        "unidades_7_dias": 45,
+        "unidades_28_dias_anteriores": 231,
+        "variacao_bps": -2208,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P004",
+        "nome": "Suco de Laranja 1L",
+        "unidades_7_dias": 14,
+        "unidades_28_dias_anteriores": 91,
+        "variacao_bps": -3846,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P005",
+        "nome": "Cerveja Lata 350ml",
+        "unidades_7_dias": 73,
+        "unidades_28_dias_anteriores": 255,
+        "variacao_bps": 1451,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P006",
+        "nome": "Energético 269ml",
+        "unidades_7_dias": 14,
+        "unidades_28_dias_anteriores": 66,
+        "variacao_bps": -1515,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P007",
+        "nome": "Arroz Tipo 1 5kg",
+        "unidades_7_dias": 19,
+        "unidades_28_dias_anteriores": 89,
+        "variacao_bps": -1461,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P008",
+        "nome": "Feijão Carioca 1kg",
+        "unidades_7_dias": 32,
+        "unidades_28_dias_anteriores": 129,
+        "variacao_bps": -78,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P009",
+        "nome": "Açúcar Refinado 1kg",
+        "unidades_7_dias": 18,
+        "unidades_28_dias_anteriores": 112,
+        "variacao_bps": -3571,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P010",
+        "nome": "Óleo de Soja 900ml",
+        "unidades_7_dias": 25,
+        "unidades_28_dias_anteriores": 120,
+        "variacao_bps": -1667,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P011",
+        "nome": "Macarrão Espaguete 500g",
+        "unidades_7_dias": 29,
+        "unidades_28_dias_anteriores": 94,
+        "variacao_bps": 2340,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P012",
+        "nome": "Farinha de Trigo 1kg",
+        "unidades_7_dias": 26,
+        "unidades_28_dias_anteriores": 75,
+        "variacao_bps": 3867,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P013",
+        "nome": "Café Torrado 500g",
+        "unidades_7_dias": 38,
+        "unidades_28_dias_anteriores": 132,
+        "variacao_bps": 1515,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P014",
+        "nome": "Sal Refinado 1kg",
+        "unidades_7_dias": 11,
+        "unidades_28_dias_anteriores": 60,
+        "variacao_bps": -2667,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P015",
+        "nome": "Molho de Tomate 340g",
+        "unidades_7_dias": 16,
+        "unidades_28_dias_anteriores": 83,
+        "variacao_bps": -2289,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P016",
+        "nome": "Biscoito Recheado 130g",
+        "unidades_7_dias": 38,
+        "unidades_28_dias_anteriores": 154,
+        "variacao_bps": -130,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P017",
+        "nome": "Biscoito Cream Cracker 400g",
+        "unidades_7_dias": 13,
+        "unidades_28_dias_anteriores": 82,
+        "variacao_bps": -3659,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P018",
+        "nome": "Leite em Pó 400g",
+        "unidades_7_dias": 0,
+        "unidades_28_dias_anteriores": 40,
+        "variacao_bps": -10000,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P019",
+        "nome": "Leite Integral 1L",
+        "unidades_7_dias": 67,
+        "unidades_28_dias_anteriores": 284,
+        "variacao_bps": -563,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P020",
+        "nome": "Queijo Mussarela Fatiado 150g",
+        "unidades_7_dias": 19,
+        "unidades_28_dias_anteriores": 116,
+        "variacao_bps": -3448,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P021",
+        "nome": "Presunto Fatiado 150g",
+        "unidades_7_dias": 14,
+        "unidades_28_dias_anteriores": 85,
+        "variacao_bps": -3412,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P022",
+        "nome": "Iogurte Natural 170g",
+        "unidades_7_dias": 27,
+        "unidades_28_dias_anteriores": 120,
+        "variacao_bps": -1000,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P023",
+        "nome": "Manteiga 200g",
+        "unidades_7_dias": 15,
+        "unidades_28_dias_anteriores": 47,
+        "variacao_bps": 2766,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P024",
+        "nome": "Requeijão Cremoso 200g",
+        "unidades_7_dias": 13,
+        "unidades_28_dias_anteriores": 68,
+        "variacao_bps": -2353,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P025",
+        "nome": "Pão de Forma 500g",
+        "unidades_7_dias": 30,
+        "unidades_28_dias_anteriores": 178,
+        "variacao_bps": -3258,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P026",
+        "nome": "Bolo Caseiro 400g",
+        "unidades_7_dias": 12,
+        "unidades_28_dias_anteriores": 57,
+        "variacao_bps": -1579,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P027",
+        "nome": "Pão de Queijo Congelado 400g",
+        "unidades_7_dias": 7,
+        "unidades_28_dias_anteriores": 58,
+        "variacao_bps": -5172,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P028",
+        "nome": "Torrada Integral 140g",
+        "unidades_7_dias": 10,
+        "unidades_28_dias_anteriores": 59,
+        "variacao_bps": -3220,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P029",
+        "nome": "Detergente Líquido 500ml",
+        "unidades_7_dias": 15,
+        "unidades_28_dias_anteriores": 134,
+        "variacao_bps": -5522,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P030",
+        "nome": "Sabão em Pó 1kg",
+        "unidades_7_dias": 18,
+        "unidades_28_dias_anteriores": 62,
+        "variacao_bps": 1613,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P031",
+        "nome": "Água Sanitária 1L",
+        "unidades_7_dias": 5,
+        "unidades_28_dias_anteriores": 68,
+        "variacao_bps": -7059,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P032",
+        "nome": "Papel Higiênico 4un",
+        "unidades_7_dias": 17,
+        "unidades_28_dias_anteriores": 117,
+        "variacao_bps": -4188,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P033",
+        "nome": "Esponja de Cozinha 3un",
+        "unidades_7_dias": 10,
+        "unidades_28_dias_anteriores": 64,
+        "variacao_bps": -3750,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P034",
+        "nome": "Sabonete 85g",
+        "unidades_7_dias": 24,
+        "unidades_28_dias_anteriores": 133,
+        "variacao_bps": -2782,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P035",
+        "nome": "Creme Dental 90g",
+        "unidades_7_dias": 24,
+        "unidades_28_dias_anteriores": 93,
+        "variacao_bps": 323,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P036",
+        "nome": "Shampoo 350ml",
+        "unidades_7_dias": 14,
+        "unidades_28_dias_anteriores": 36,
+        "variacao_bps": 5556,
+        "elegivel_ranking_alta": false
+      },
+      {
+        "sku": "P037",
+        "nome": "Banana Prata (dúzia)",
+        "unidades_7_dias": 21,
+        "unidades_28_dias_anteriores": 118,
+        "variacao_bps": -2881,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P038",
+        "nome": "Tomate Bandeja 500g",
+        "unidades_7_dias": 18,
+        "unidades_28_dias_anteriores": 88,
+        "variacao_bps": -1818,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P039",
+        "nome": "Cebola Saco 1kg",
+        "unidades_7_dias": 25,
+        "unidades_28_dias_anteriores": 90,
+        "variacao_bps": 1111,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P040",
+        "nome": "Batata Saco 1kg",
+        "unidades_7_dias": 25,
+        "unidades_28_dias_anteriores": 89,
+        "variacao_bps": 1236,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P041",
+        "nome": "Ovos Cartela 12un",
+        "unidades_7_dias": 45,
+        "unidades_28_dias_anteriores": 172,
+        "variacao_bps": 465,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P042",
+        "nome": "Limão Bandeja 500g",
+        "unidades_7_dias": 6,
+        "unidades_28_dias_anteriores": 45,
+        "variacao_bps": -4667,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P043",
+        "nome": "Salgadinho de Milho 100g",
+        "unidades_7_dias": 25,
+        "unidades_28_dias_anteriores": 165,
+        "variacao_bps": -3939,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P044",
+        "nome": "Chocolate em Barra 80g",
+        "unidades_7_dias": 26,
+        "unidades_28_dias_anteriores": 173,
+        "variacao_bps": -3988,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P045",
+        "nome": "Bala de Goma 100g",
+        "unidades_7_dias": 28,
+        "unidades_28_dias_anteriores": 125,
+        "variacao_bps": -1040,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P046",
+        "nome": "Chiclete 8un",
+        "unidades_7_dias": 22,
+        "unidades_28_dias_anteriores": 80,
+        "variacao_bps": 1000,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P047",
+        "nome": "Amendoim Salgado 150g",
+        "unidades_7_dias": 12,
+        "unidades_28_dias_anteriores": 60,
+        "variacao_bps": -2000,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P048",
+        "nome": "Pipoca de Micro-ondas 100g",
+        "unidades_7_dias": 16,
+        "unidades_28_dias_anteriores": 76,
+        "variacao_bps": -1579,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P049",
+        "nome": "Pirulito",
+        "unidades_7_dias": 10,
+        "unidades_28_dias_anteriores": 88,
+        "variacao_bps": -5455,
+        "elegivel_ranking_alta": true
+      },
+      {
+        "sku": "P050",
+        "nome": "Pilha AA 2un",
+        "unidades_7_dias": 5,
+        "unidades_28_dias_anteriores": 30,
+        "variacao_bps": -3333,
+        "elegivel_ranking_alta": false
+      }
+    ],
+    "top_alta": [
+      "P001",
+      "P012",
+      "P023",
+      "P011",
+      "P030"
+    ],
+    "top_volume": [
+      "P001",
+      "P005",
+      "P019",
+      "P003",
+      "P041"
+    ]
+  },
+  "variacao_de_custo": [
+    {
+      "sku": "P001",
+      "nome": "Refrigerante Cola 2L",
+      "fornecedor_id": "F1",
+      "compra_anterior": {
+        "data": "2026-10-02",
+        "nota_id": "nota-09",
+        "custo_centavos": 520
+      },
+      "compra_atual": {
+        "data": "2026-10-13",
+        "nota_id": "nota-12",
+        "custo_centavos": 567
+      },
+      "variacao_bps": 904,
+      "variacao_percentual": 9,
+      "acima_do_limite": true
+    },
+    {
+      "sku": "P002",
+      "nome": "Refrigerante Guaraná 2L",
+      "fornecedor_id": "F1",
+      "compra_anterior": {
+        "data": "2026-10-02",
+        "nota_id": "nota-09",
+        "custo_centavos": 490
+      },
+      "compra_atual": {
+        "data": "2026-10-13",
+        "nota_id": "nota-12",
+        "custo_centavos": 490
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P003",
+      "nome": "Água Mineral 500ml",
+      "fornecedor_id": "F1",
+      "compra_anterior": {
+        "data": "2026-09-16",
+        "nota_id": "nota-01",
+        "custo_centavos": 85
+      },
+      "compra_atual": {
+        "data": "2026-10-02",
+        "nota_id": "nota-09",
+        "custo_centavos": 85
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P005",
+      "nome": "Cerveja Lata 350ml",
+      "fornecedor_id": "F1",
+      "compra_anterior": {
+        "data": "2026-10-02",
+        "nota_id": "nota-09",
+        "custo_centavos": 215
+      },
+      "compra_atual": {
+        "data": "2026-10-13",
+        "nota_id": "nota-12",
+        "custo_centavos": 215
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P007",
+      "nome": "Arroz Tipo 1 5kg",
+      "fornecedor_id": "F2",
+      "compra_anterior": {
+        "data": "2026-09-17",
+        "nota_id": "nota-02",
+        "custo_centavos": 2290
+      },
+      "compra_atual": {
+        "data": "2026-10-14",
+        "nota_id": "nota-13",
+        "custo_centavos": 2360
+      },
+      "variacao_bps": 306,
+      "variacao_percentual": 3.1,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P008",
+      "nome": "Feijão Carioca 1kg",
+      "fornecedor_id": "F2",
+      "compra_anterior": {
+        "data": "2026-09-17",
+        "nota_id": "nota-02",
+        "custo_centavos": 640
+      },
+      "compra_atual": {
+        "data": "2026-09-28",
+        "nota_id": "nota-08",
+        "custo_centavos": 640
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P009",
+      "nome": "Açúcar Refinado 1kg",
+      "fornecedor_id": "F2",
+      "compra_anterior": {
+        "data": "2026-09-17",
+        "nota_id": "nota-02",
+        "custo_centavos": 310
+      },
+      "compra_atual": {
+        "data": "2026-10-14",
+        "nota_id": "nota-13",
+        "custo_centavos": 310
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P010",
+      "nome": "Óleo de Soja 900ml",
+      "fornecedor_id": "F2",
+      "compra_anterior": {
+        "data": "2026-09-17",
+        "nota_id": "nota-02",
+        "custo_centavos": 580
+      },
+      "compra_atual": {
+        "data": "2026-10-14",
+        "nota_id": "nota-13",
+        "custo_centavos": 580
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P013",
+      "nome": "Café Torrado 500g",
+      "fornecedor_id": "F2",
+      "compra_anterior": {
+        "data": "2026-09-17",
+        "nota_id": "nota-02",
+        "custo_centavos": 1290
+      },
+      "compra_atual": {
+        "data": "2026-09-28",
+        "nota_id": "nota-08",
+        "custo_centavos": 1290
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P019",
+      "nome": "Leite Integral 1L",
+      "fornecedor_id": "F3",
+      "compra_anterior": {
+        "data": "2026-09-18",
+        "nota_id": "nota-03",
+        "custo_centavos": 410
+      },
+      "compra_atual": {
+        "data": "2026-10-05",
+        "nota_id": "nota-10",
+        "custo_centavos": 410
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P020",
+      "nome": "Queijo Mussarela Fatiado 150g",
+      "fornecedor_id": "F3",
+      "compra_anterior": {
+        "data": "2026-09-18",
+        "nota_id": "nota-03",
+        "custo_centavos": 840
+      },
+      "compra_atual": {
+        "data": "2026-10-05",
+        "nota_id": "nota-10",
+        "custo_centavos": 840
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P022",
+      "nome": "Iogurte Natural 170g",
+      "fornecedor_id": "F3",
+      "compra_anterior": {
+        "data": "2026-09-18",
+        "nota_id": "nota-03",
+        "custo_centavos": 190
+      },
+      "compra_atual": {
+        "data": "2026-10-05",
+        "nota_id": "nota-10",
+        "custo_centavos": 190
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P025",
+      "nome": "Pão de Forma 500g",
+      "fornecedor_id": "F4",
+      "compra_anterior": {
+        "data": "2026-09-19",
+        "nota_id": "nota-04",
+        "custo_centavos": 520
+      },
+      "compra_atual": {
+        "data": "2026-10-16",
+        "nota_id": "nota-15",
+        "custo_centavos": 520
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P026",
+      "nome": "Bolo Caseiro 400g",
+      "fornecedor_id": "F4",
+      "compra_anterior": {
+        "data": "2026-09-19",
+        "nota_id": "nota-04",
+        "custo_centavos": 680
+      },
+      "compra_atual": {
+        "data": "2026-10-16",
+        "nota_id": "nota-15",
+        "custo_centavos": 680
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P028",
+      "nome": "Torrada Integral 140g",
+      "fornecedor_id": "F4",
+      "compra_anterior": {
+        "data": "2026-09-19",
+        "nota_id": "nota-04",
+        "custo_centavos": 250
+      },
+      "compra_atual": {
+        "data": "2026-10-16",
+        "nota_id": "nota-15",
+        "custo_centavos": 250
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P029",
+      "nome": "Detergente Líquido 500ml",
+      "fornecedor_id": "F5",
+      "compra_anterior": {
+        "data": "2026-09-21",
+        "nota_id": "nota-05",
+        "custo_centavos": 180
+      },
+      "compra_atual": {
+        "data": "2026-10-08",
+        "nota_id": "nota-11",
+        "custo_centavos": 180
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P032",
+      "nome": "Papel Higiênico 4un",
+      "fornecedor_id": "F5",
+      "compra_anterior": {
+        "data": "2026-09-21",
+        "nota_id": "nota-05",
+        "custo_centavos": 590
+      },
+      "compra_atual": {
+        "data": "2026-10-08",
+        "nota_id": "nota-11",
+        "custo_centavos": 590
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P034",
+      "nome": "Sabonete 85g",
+      "fornecedor_id": "F5",
+      "compra_anterior": {
+        "data": "2026-09-21",
+        "nota_id": "nota-05",
+        "custo_centavos": 110
+      },
+      "compra_atual": {
+        "data": "2026-10-08",
+        "nota_id": "nota-11",
+        "custo_centavos": 110
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P037",
+      "nome": "Banana Prata (dúzia)",
+      "fornecedor_id": "F6",
+      "compra_anterior": {
+        "data": "2026-09-23",
+        "nota_id": "nota-06",
+        "custo_centavos": 480
+      },
+      "compra_atual": {
+        "data": "2026-10-16",
+        "nota_id": "nota-14",
+        "custo_centavos": 480
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P038",
+      "nome": "Tomate Bandeja 500g",
+      "fornecedor_id": "F6",
+      "compra_anterior": {
+        "data": "2026-09-23",
+        "nota_id": "nota-06",
+        "custo_centavos": 450
+      },
+      "compra_atual": {
+        "data": "2026-10-16",
+        "nota_id": "nota-14",
+        "custo_centavos": 450
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P040",
+      "nome": "Batata Saco 1kg",
+      "fornecedor_id": "F6",
+      "compra_anterior": {
+        "data": "2026-09-23",
+        "nota_id": "nota-06",
+        "custo_centavos": 420
+      },
+      "compra_atual": {
+        "data": "2026-10-16",
+        "nota_id": "nota-14",
+        "custo_centavos": 420
+      },
+      "variacao_bps": 0,
+      "variacao_percentual": 0,
+      "acima_do_limite": false
+    }
+  ],
+  "espaco_para_subir_preco": [
+    "P001"
+  ],
+  "estoque_parado": [
+    {
+      "sku": "P001",
+      "nome": "Refrigerante Cola 2L",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P002",
+      "nome": "Refrigerante Guaraná 2L",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P003",
+      "nome": "Água Mineral 500ml",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P004",
+      "nome": "Suco de Laranja 1L",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P005",
+      "nome": "Cerveja Lata 350ml",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P007",
+      "nome": "Arroz Tipo 1 5kg",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P008",
+      "nome": "Feijão Carioca 1kg",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P009",
+      "nome": "Açúcar Refinado 1kg",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P010",
+      "nome": "Óleo de Soja 900ml",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P011",
+      "nome": "Macarrão Espaguete 500g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P012",
+      "nome": "Farinha de Trigo 1kg",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P013",
+      "nome": "Café Torrado 500g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P014",
+      "nome": "Sal Refinado 1kg",
+      "ultima_venda": "2026-10-18",
+      "dias_sem_venda": 1,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P015",
+      "nome": "Molho de Tomate 340g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P016",
+      "nome": "Biscoito Recheado 130g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P017",
+      "nome": "Biscoito Cream Cracker 400g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P018",
+      "nome": "Leite em Pó 400g",
+      "ultima_venda": "2026-09-18",
+      "dias_sem_venda": 31,
+      "acima_do_limite": true
+    },
+    {
+      "sku": "P019",
+      "nome": "Leite Integral 1L",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P020",
+      "nome": "Queijo Mussarela Fatiado 150g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P021",
+      "nome": "Presunto Fatiado 150g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P022",
+      "nome": "Iogurte Natural 170g",
+      "ultima_venda": "2026-10-18",
+      "dias_sem_venda": 1,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P023",
+      "nome": "Manteiga 200g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P024",
+      "nome": "Requeijão Cremoso 200g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P025",
+      "nome": "Pão de Forma 500g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P026",
+      "nome": "Bolo Caseiro 400g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P027",
+      "nome": "Pão de Queijo Congelado 400g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P028",
+      "nome": "Torrada Integral 140g",
+      "ultima_venda": "2026-10-18",
+      "dias_sem_venda": 1,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P029",
+      "nome": "Detergente Líquido 500ml",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P030",
+      "nome": "Sabão em Pó 1kg",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P031",
+      "nome": "Água Sanitária 1L",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P032",
+      "nome": "Papel Higiênico 4un",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P033",
+      "nome": "Esponja de Cozinha 3un",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P034",
+      "nome": "Sabonete 85g",
+      "ultima_venda": "2026-10-18",
+      "dias_sem_venda": 1,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P035",
+      "nome": "Creme Dental 90g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P037",
+      "nome": "Banana Prata (dúzia)",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P038",
+      "nome": "Tomate Bandeja 500g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P039",
+      "nome": "Cebola Saco 1kg",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P040",
+      "nome": "Batata Saco 1kg",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P041",
+      "nome": "Ovos Cartela 12un",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P043",
+      "nome": "Salgadinho de Milho 100g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P044",
+      "nome": "Chocolate em Barra 80g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P045",
+      "nome": "Bala de Goma 100g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P047",
+      "nome": "Amendoim Salgado 150g",
+      "ultima_venda": "2026-10-19",
+      "dias_sem_venda": 0,
+      "acima_do_limite": false
+    },
+    {
+      "sku": "P048",
+      "nome": "Pipoca de Micro-ondas 100g",
+      "ultima_venda": "2026-10-18",
+      "dias_sem_venda": 1,
+      "acima_do_limite": false
+    }
+  ],
+  "ticket_medio": {
+    "data": "2026-10-19",
+    "dia": {
+      "faturamento_centavos": 81131,
+      "n_vendas": 74,
+      "ticket_medio_centavos": 1096
+    },
+    "base_28_dias": {
+      "faturamento_centavos": 3590571,
+      "n_vendas": 1484,
+      "ticket_medio_centavos": 2420
+    },
+    "queda_bps": 5471,
+    "queda_percentual": 54.7,
+    "alerta": true
+  },
+  "gasto_fora_do_padrao": [
+    {
+      "data": "2026-10-12",
+      "valor_centavos": 9300,
+      "mediana_centavos": 7935,
+      "desvio_absoluto_mediano_centavos": 4150,
+      "desvio_milli": 329,
+      "alerta": false
+    },
+    {
+      "data": "2026-10-14",
+      "valor_centavos": 10670,
+      "mediana_centavos": 8955,
+      "desvio_absoluto_mediano_centavos": 4400,
+      "desvio_milli": 390,
+      "alerta": false
+    },
+    {
+      "data": "2026-10-16",
+      "valor_centavos": 16640,
+      "mediana_centavos": 9440,
+      "desvio_absoluto_mediano_centavos": 4035,
+      "desvio_milli": 1784,
+      "alerta": false
+    },
+    {
+      "data": "2026-10-19",
+      "valor_centavos": 250780,
+      "mediana_centavos": 9650,
+      "desvio_absoluto_mediano_centavos": 3835,
+      "desvio_milli": 62876,
+      "alerta": true
+    }
+  ],
+  "alertas_esperados": [
+    {
+      "tipo": "variacao_custo",
+      "chave": "P001:F1",
+      "motivo": "Refrigerante Cola 2L subiu 9% entre 2026-10-02 e 2026-10-13"
+    },
+    {
+      "tipo": "espaco_para_subir_preco",
+      "chave": "P001",
+      "motivo": "giro alto e margem abaixo da meta"
+    },
+    {
+      "tipo": "estoque_parado",
+      "chave": "P018",
+      "motivo": "31 dias sem venda"
+    },
+    {
+      "tipo": "ticket_medio",
+      "chave": "2026-10-19",
+      "motivo": "ticket 54.7% abaixo da base"
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "chave": "2026-10-19",
+      "motivo": "gasto do dia muito acima da mediana"
+    }
+  ],
+  "alertas_que_nao_devem_disparar": [
+    {
+      "tipo": "variacao_custo",
+      "chave": "P007:F2",
+      "motivo": "variação de 3.1% está dentro do limite"
+    },
+    {
+      "tipo": "variacao_custo",
+      "chave": "ovos-troca-de-fornecedor",
+      "motivo": "Ovos subiram de R$ 7,80 (F6) para R$ 9,00 (F3), mas são fornecedores diferentes"
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "chave": "2026-10-12",
+      "motivo": "gasto do dia dentro do padrão"
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "chave": "2026-10-14",
+      "motivo": "gasto do dia dentro do padrão"
+    },
+    {
+      "tipo": "gasto_fora_do_padrao",
+      "chave": "2026-10-16",
+      "motivo": "gasto do dia dentro do padrão"
+    }
+  ],
+  "plantados": {
+    "reajuste": {
+      "sku": "P001",
+      "nota_anterior": "nota-01",
+      "nota_atual": "nota-12"
+    },
+    "gasto_anomalo": {
+      "data": "2026-10-19",
+      "descricao": "PIX ENVIADO CONSERTO CAMARA FRIA",
+      "categoria": "manutencao",
+      "valor_centavos": 235000
+    },
+    "dia_ticket_baixo": "2026-10-19"
+  }
+}

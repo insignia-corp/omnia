@@ -1,0 +1,53 @@
+{
+  "extracao": {
+    "fornecedor": {
+      "nome": "Higiene e Limpeza Brilho Ltda",
+      "cnpj": "78.901.256/0001-67"
+    },
+    "data_emissao": "2026-10-08",
+    "itens": [
+      {
+        "descricao": "PAPEL HIGIENICO 4UN",
+        "quantidade": 24,
+        "unidade": "UN",
+        "valor_unitario_centavos": 590,
+        "valor_total_centavos": 14160,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "DETERG LIQUIDO 500ML",
+        "quantidade": 24,
+        "unidade": "UN",
+        "valor_unitario_centavos": 180,
+        "valor_total_centavos": 4320,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "SAB 85G",
+        "quantidade": 36,
+        "unidade": "UN",
+        "valor_unitario_centavos": 110,
+        "valor_total_centavos": 3960,
+        "confianca": 0.45
+      }
+    ],
+    "total_centavos": 22440,
+    "confianca_documento": 0.6
+  },
+  "esperado": {
+    "arquivo": "nota-11.png",
+    "formato": "foto",
+    "skus": [
+      "P032",
+      "P029",
+      "P034"
+    ],
+    "itens_confianca_baixa": [
+      2
+    ],
+    "total_diverge": false,
+    "soma_itens_centavos": 22440,
+    "contem_injecao": false,
+    "rodape": null
+  }
+}

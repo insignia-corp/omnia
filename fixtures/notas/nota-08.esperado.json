@@ -1,0 +1,60 @@
+{
+  "extracao": {
+    "fornecedor": {
+      "nome": "Atacadão Grãos de Goiás Ltda",
+      "cnpj": "45.678.923/0001-35"
+    },
+    "data_emissao": "2026-09-28",
+    "itens": [
+      {
+        "descricao": "BISC RECHEADO 130G",
+        "quantidade": 36,
+        "unidade": "UN",
+        "valor_unitario_centavos": 180,
+        "valor_total_centavos": 6480,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "BISC CREAM CRACKER 400G",
+        "quantidade": 18,
+        "unidade": "UN",
+        "valor_unitario_centavos": 330,
+        "valor_total_centavos": 5940,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "CAFE TORRADO 500G",
+        "quantidade": 12,
+        "unidade": "UN",
+        "valor_unitario_centavos": 1290,
+        "valor_total_centavos": 15480,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "FEIJAO CARIOCA 1KG",
+        "quantidade": 12,
+        "unidade": "UN",
+        "valor_unitario_centavos": 640,
+        "valor_total_centavos": 7680,
+        "confianca": 0.97
+      }
+    ],
+    "total_centavos": 36580,
+    "confianca_documento": 0.6
+  },
+  "esperado": {
+    "arquivo": "nota-08.png",
+    "formato": "foto",
+    "skus": [
+      "P016",
+      "P017",
+      "P013",
+      "P008"
+    ],
+    "itens_confianca_baixa": [],
+    "total_diverge": true,
+    "soma_itens_centavos": 35580,
+    "contem_injecao": false,
+    "rodape": null
+  }
+}

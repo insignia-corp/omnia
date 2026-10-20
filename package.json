@@ -53,6 +53,7 @@
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:cov": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
     "test:e2e": "node --env-file-if-exists=.env --experimental-vm-modules ./node_modules/jest/bin/jest.js -c jest.e2e.config.js --runInBand",
+    "fixtures:gerar": "tsx src/dados-teste/gerar.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/infra/database/migrar.ts",
     "db:reset": "tsx src/infra/database/resetar.ts && tsx src/infra/database/migrar.ts"

@@ -1,0 +1,51 @@
+{
+  "extracao": {
+    "fornecedor": {
+      "nome": "Hortifruti Central Goiás Ltda",
+      "cnpj": "89.012.367/0001-39"
+    },
+    "data_emissao": "2026-10-16",
+    "itens": [
+      {
+        "descricao": "BANANA PRATA (DUZIA)",
+        "quantidade": 15,
+        "unidade": "DZ",
+        "valor_unitario_centavos": 480,
+        "valor_total_centavos": 7200,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "TOMATE BANDEJA 500G",
+        "quantidade": 12,
+        "unidade": "UN",
+        "valor_unitario_centavos": 450,
+        "valor_total_centavos": 5400,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "BATATA SACO 1KG",
+        "quantidade": 12,
+        "unidade": "UN",
+        "valor_unitario_centavos": 420,
+        "valor_total_centavos": 5040,
+        "confianca": 0.97
+      }
+    ],
+    "total_centavos": 17640,
+    "confianca_documento": 0.95
+  },
+  "esperado": {
+    "arquivo": "nota-14.png",
+    "formato": "foto",
+    "skus": [
+      "P037",
+      "P038",
+      "P040"
+    ],
+    "itens_confianca_baixa": [],
+    "total_diverge": false,
+    "soma_itens_centavos": 17640,
+    "contem_injecao": false,
+    "rodape": null
+  }
+}

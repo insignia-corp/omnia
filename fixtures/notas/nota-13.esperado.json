@@ -1,0 +1,51 @@
+{
+  "extracao": {
+    "fornecedor": {
+      "nome": "Atacadão Grãos de Goiás Ltda",
+      "cnpj": "45.678.923/0001-35"
+    },
+    "data_emissao": "2026-10-14",
+    "itens": [
+      {
+        "descricao": "ARROZ TIPO 1 5KG",
+        "quantidade": 12,
+        "unidade": "UN",
+        "valor_unitario_centavos": 2360,
+        "valor_total_centavos": 28320,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "OLEO DE SOJA 900ML",
+        "quantidade": 24,
+        "unidade": "UN",
+        "valor_unitario_centavos": 580,
+        "valor_total_centavos": 13920,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "ACUCAR REFINADO 1KG",
+        "quantidade": 24,
+        "unidade": "UN",
+        "valor_unitario_centavos": 310,
+        "valor_total_centavos": 7440,
+        "confianca": 0.97
+      }
+    ],
+    "total_centavos": 49680,
+    "confianca_documento": 0.95
+  },
+  "esperado": {
+    "arquivo": "nota-13.png",
+    "formato": "foto",
+    "skus": [
+      "P007",
+      "P010",
+      "P009"
+    ],
+    "itens_confianca_baixa": [],
+    "total_diverge": false,
+    "soma_itens_centavos": 49680,
+    "contem_injecao": false,
+    "rodape": null
+  }
+}

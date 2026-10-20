@@ -1,0 +1,51 @@
+{
+  "extracao": {
+    "fornecedor": {
+      "nome": "Distribuidora de Bebidas Cerrado Ltda",
+      "cnpj": "34.567.812/0001-35"
+    },
+    "data_emissao": "2026-10-13",
+    "itens": [
+      {
+        "descricao": "REFRIG COLA 2L",
+        "quantidade": 24,
+        "unidade": "UN",
+        "valor_unitario_centavos": 567,
+        "valor_total_centavos": 13608,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "REFRIG GUARANA 2L",
+        "quantidade": 12,
+        "unidade": "UN",
+        "valor_unitario_centavos": 490,
+        "valor_total_centavos": 5880,
+        "confianca": 0.97
+      },
+      {
+        "descricao": "CERVEJA LATA 350ML",
+        "quantidade": 48,
+        "unidade": "UN",
+        "valor_unitario_centavos": 215,
+        "valor_total_centavos": 10320,
+        "confianca": 0.97
+      }
+    ],
+    "total_centavos": 29808,
+    "confianca_documento": 0.95
+  },
+  "esperado": {
+    "arquivo": "nota-12.png",
+    "formato": "foto",
+    "skus": [
+      "P001",
+      "P002",
+      "P005"
+    ],
+    "itens_confianca_baixa": [],
+    "total_diverge": false,
+    "soma_itens_centavos": 29808,
+    "contem_injecao": false,
+    "rodape": null
+  }
+}

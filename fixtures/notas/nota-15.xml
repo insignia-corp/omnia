@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe versao="4.00" Id="NFe35261000000000000000550010000000151000000150">
+      <ide>
+        <nNF>15</nNF>
+        <dhEmi>2026-10-16T10:30:00-03:00</dhEmi>
+      </ide>
+      <emit>
+        <CNPJ>67890145000186</CNPJ>
+        <xNome>Panificadora Industrial Pão Dourado Ltda</xNome>
+      </emit>
+    <det nItem="1">
+      <prod>
+        <cProd>P025</cProd>
+        <cEAN>7891024101681</cEAN>
+        <xProd>PAO DE FORMA 500G</xProd>
+        <uCom>UN</uCom>
+        <qCom>20.0000</qCom>
+        <vUnCom>5.200000</vUnCom>
+        <vProd>104.00</vProd>
+      </prod>
+    </det>
+    <det nItem="2">
+      <prod>
+        <cProd>P028</cProd>
+        <cEAN>7891027101893</cEAN>
+        <xProd>TORRADA INT 140G</xProd>
+        <uCom>UN</uCom>
+        <qCom>12.0000</qCom>
+        <vUnCom>2.500000</vUnCom>
+        <vProd>30.00</vProd>
+      </prod>
+    </det>
+    <det nItem="3">
+      <prod>
+        <cProd>P026</cProd>
+        <cEAN>7891025101758</cEAN>
+        <xProd>BOLO CASEIRO 400G</xProd>
+        <uCom>UN</uCom>
+        <qCom>8.0000</qCom>
+        <vUnCom>6.800000</vUnCom>
+        <vProd>54.40</vProd>
+      </prod>
+    </det>
+      <total>
+        <ICMSTot>
+          <vProd>188.40</vProd>
+          <vNF>188.40</vNF>
+        </ICMSTot>
+      </total>
+    </infNFe>
+  </NFe>
+</nfeProc>

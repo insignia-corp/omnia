@@ -1,18 +1,16 @@
 import { readFileSync } from "node:fs";
-import { interpretarData, interpretarLinhas, type CatalogoProdutos } from "./interpretar-linhas";
+import { interpretarData, interpretarLinhas, montarCatalogo } from "./interpretar-linhas";
 import { lerCsv, lerXlsx } from "./leitor-planilha";
 import { sugerirMapeamento } from "./mapeamento";
-import { normalizarDescricao } from "../normalizar-descricao";
 
 const catalogoFixture = JSON.parse(readFileSync("fixtures/mercadinho/catalogo.json", "utf8")) as Array<{
   id: string;
   nome: string;
   codigo_barras: string;
 }>;
-const catalogo: CatalogoProdutos = {
-  porCodigoBarras: new Map(catalogoFixture.map((p) => [p.codigo_barras, p.id])),
-  porNome: new Map(catalogoFixture.map((p) => [normalizarDescricao(p.nome), p.id])),
-};
+const catalogo = montarCatalogo(
+  catalogoFixture.map((p) => ({ id: p.id, nome: p.nome, codigoBarras: p.codigo_barras })),
+);
 const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf8")) as {
   resumo_diario: { referencia: { data: string; faturamento_centavos: number; cupons: number } };
 };
@@ -69,6 +67,39 @@ describe("interpretarLinhas", () => {
     });
   });
 
+  it("rejeita quantidade com mais casas do que o banco guarda (numeric 14,3)", () => {
+    const r = interpretar([
+      ["20/08/2026", "1", "x", BARRAS, "1,2345", "1,00", ""],
+      ["20/08/2026", "2", "x", BARRAS, "0,0004", "1,00", ""],
+      ["20/08/2026", "3", "x", BARRAS, "100000000000", "1,00", ""],
+      ["20/08/2026", "4", "x", BARRAS, "1,234", "1,00", ""],
+    ]);
+    expect(r.itens.map((i) => i.quantidade)).toEqual([1.234]);
+    expect(r.rejeitadas.map((x) => x.motivo.split(":")[0])).toEqual(Array(3).fill("Quantidade inválida"));
+  });
+
+  it("nome que dois produtos compartilham não escolhe um: rejeita e pede o código de barras", () => {
+    const duplicado = montarCatalogo([
+      { id: "a", nome: "Água Mineral 500 ml", codigoBarras: "111" },
+      { id: "b", nome: "AGUA MINERAL 500 ML", codigoBarras: "222" },
+      { id: "c", nome: "Água Mineral 500 ml", codigoBarras: null },
+    ]);
+    const r = interpretarLinhas(
+      {
+        cabecalhos: CAB,
+        linhas: [
+          ["20/08/2026", "1", "agua mineral 500 ml", "", "1", "2,00", ""],
+          ["20/08/2026", "2", "agua mineral 500 ml", "222", "1", "2,00", ""],
+        ],
+        mapeamento: mapa,
+      },
+      duplicado,
+    );
+    expect(r.itens.map((i) => i.produtoId)).toEqual(["b"]);
+    expect(r.rejeitadas).toHaveLength(1);
+    expect(r.rejeitadas[0]?.motivo).toContain("Mais de um produto");
+  });
+
   it("rejeita cada linha ruim com o motivo e segue com as boas", () => {
     const r = interpretar([
       boa,
@@ -104,6 +135,20 @@ describe("interpretarLinhas", () => {
       catalogo,
     );
     expect(r.itens[0]?.cupom).toBe("L2");
+  });
+
+  it("cupom sintético leva a origem: planilhas diferentes não colidem, o mesmo arquivo repete", () => {
+    const sem = ["Data", "Produto", "Qtd", "Preço unit."];
+    const entrada = (origem: string) => ({
+      cabecalhos: sem,
+      linhas: [["20/08/2026", catalogoFixture[0]!.nome, "1", "2,79"]],
+      mapeamento: sugerirMapeamento(sem).mapeamento,
+      origem,
+    });
+    const cupom = (origem: string) => interpretarLinhas(entrada(origem), catalogo).itens[0]?.cupom;
+    expect(cupom("aaa")).toBe("aaa-L2");
+    expect(cupom("aaa")).toBe(cupom("aaa"));
+    expect(cupom("bbb")).not.toBe(cupom("aaa"));
   });
 });
 

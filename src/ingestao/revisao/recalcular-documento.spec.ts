@@ -77,4 +77,24 @@ describe("recalcularDocumento", () => {
   it("aceita diferença de poucos centavos na soma", () => {
     expect(recalcularDocumento({ ...base, somaItensCentavos: 36125 }).motivos).toEqual([]);
   });
+
+  it("nota confirmada pelo dono: os motivos ficam na lista, mas a confiança deixa de ser reduzida", () => {
+    const motivos = [
+      { codigo: "cnpj_invalido" as const, mensagem: "x" },
+      { codigo: "documento_confirmado" as const, mensagem: "y" },
+    ];
+    const r = recalcularDocumento({ ...base, motivos, ordemCorrigida: 0 });
+    expect(r.motivos).toEqual(motivos);
+    expect(r).toMatchObject({ confiancaDocumento: 0.95, status: "extraido" });
+  });
+
+  it("nota confirmada com item ainda em revisão continua em revisão, pelo item", () => {
+    const r = recalcularDocumento({
+      ...base,
+      motivos: [{ codigo: "documento_confirmado", mensagem: "y" }],
+      ordemCorrigida: 0,
+      itensAindaEmRevisao: 1,
+    });
+    expect(r.status).toBe("revisao");
+  });
 });

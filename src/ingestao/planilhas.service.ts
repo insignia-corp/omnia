@@ -15,7 +15,12 @@ import { detectarTipo } from "../infra/armazenamento/tipo-arquivo";
 import { DB, type Db } from "../infra/database/database.module";
 import { documento, mapeamentoPlanilha, produto } from "../infra/database/schema";
 import { gravarVendas } from "./planilha/importar-vendas";
-import { interpretarLinhas, type CatalogoProdutos, type LinhaRejeitada } from "./planilha/interpretar-linhas";
+import {
+  interpretarLinhas,
+  montarCatalogo,
+  type CatalogoProdutos,
+  type LinhaRejeitada,
+} from "./planilha/interpretar-linhas";
 import { ErroPlanilha, lerPlanilha, type PlanilhaLida } from "./planilha/leitor-planilha";
 import {
   assinaturaDosCabecalhos,
@@ -25,10 +30,11 @@ import {
   type Campo,
   type Mapeamento,
 } from "./planilha/mapeamento";
-import { normalizarDescricao } from "./normalizar-descricao";
 
 /** Quantas linhas rejeitadas vão na resposta e no documento; o total real vem à parte. */
 const MAXIMO_REJEITADAS_LISTADAS = 200;
+/** Parte do hash do arquivo que identifica a planilha nos cupons sintéticos. */
+const ORIGEM_DO_CUPOM_CARACTERES = 12;
 
 export const corpoConfirmacaoSchema = z.object({
   mapeamento: z
@@ -84,6 +90,8 @@ export class PlanilhasService {
     if (tipo !== "csv" && tipo !== "xlsx") {
       throw new UnsupportedMediaTypeException("Envie a planilha de vendas em CSV ou XLSX");
     }
+    // Lê antes de guardar: planilha ilegível devolve 422 sem deixar arquivo órfão no armazenamento.
+    const planilha = await this.ler(conteudo, tipo);
     let salvo;
     try {
       salvo = await this.armazenamento.salvar(comercianteId, conteudo);
@@ -95,7 +103,6 @@ export class PlanilhasService {
       throw e;
     }
 
-    const planilha = await this.ler(conteudo, tipo);
     const [criado] = await this.db
       .insert(documento)
       .values({ comercianteId, tipo: "planilha", arquivoCaminho: salvo.caminho, arquivoHash: salvo.hash })
@@ -125,7 +132,7 @@ export class PlanilhasService {
       .limit(1);
     const reaproveitavel = salvoMapeamento?.mapeamento as Mapeamento | undefined;
     if (reaproveitavel && validarMapeamento(reaproveitavel, planilha.cabecalhos).length === 0) {
-      return this.importar(comercianteId, criado.id, planilha, reaproveitavel, false);
+      return this.importar(comercianteId, criado.id, salvo.hash, planilha, reaproveitavel, false);
     }
 
     const { mapeamento, faltando } = sugerirMapeamento(planilha.cabecalhos);
@@ -177,7 +184,7 @@ export class PlanilhasService {
         target: [mapeamentoPlanilha.comercianteId, mapeamentoPlanilha.assinatura],
         set: { mapeamento, confirmadoPeloDono: true },
       });
-    return this.importar(comercianteId, doc.id, planilha, mapeamento, false);
+    return this.importar(comercianteId, doc.id, doc.arquivoHash, planilha, mapeamento, false);
   }
 
   private async ler(conteudo: Buffer, tipo: "csv" | "xlsx"): Promise<PlanilhaLida> {
@@ -189,19 +196,66 @@ export class PlanilhasService {
     }
   }
 
+  /**
+   * Importa e fecha o documento. Se algo falhar no meio (banco fora do ar, por exemplo), o documento
+   * volta a `pendente` com o mapeamento usado de volta na tela de confirmação: sem isso ficaria em
+   * `processando` e o dono não conseguiria tentar de novo (reenviar devolve o estado, e confirmar
+   * só aceita `pendente`).
+   */
   private async importar(
     comercianteId: string,
     documentoId: string,
+    arquivoHash: string,
     planilha: PlanilhaLida,
     mapeamento: Mapeamento,
     duplicado: boolean,
   ): Promise<EstadoPlanilha> {
     const dono = and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId));
     await this.db.update(documento).set({ statusExtracao: "processando" }).where(dono);
+    try {
+      return await this.importarLinhas(
+        comercianteId,
+        documentoId,
+        arquivoHash,
+        planilha,
+        mapeamento,
+        duplicado,
+      );
+    } catch (e) {
+      const reaberto: PendenteDeMapeamento = {
+        etapa: "aguardando_mapeamento",
+        cabecalhos: planilha.cabecalhos,
+        mapeamento_sugerido: mapeamento,
+        campos_faltando: [],
+      };
+      // Melhor esforço: se nem isto gravar, o erro original é o que importa.
+      await this.db
+        .update(documento)
+        .set({ statusExtracao: "pendente", extracaoJson: reaberto })
+        .where(dono)
+        .catch(() => undefined);
+      throw e;
+    }
+  }
 
+  private async importarLinhas(
+    comercianteId: string,
+    documentoId: string,
+    arquivoHash: string,
+    planilha: PlanilhaLida,
+    mapeamento: Mapeamento,
+    duplicado: boolean,
+  ): Promise<EstadoPlanilha> {
+    const dono = and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId));
     const catalogo = await this.carregarCatalogo(comercianteId);
     const { itens, rejeitadas } = interpretarLinhas(
-      { cabecalhos: planilha.cabecalhos, linhas: planilha.linhas, mapeamento },
+      {
+        cabecalhos: planilha.cabecalhos,
+        linhas: planilha.linhas,
+        mapeamento,
+        // Cupom sintético por planilha: o mesmo arquivo repete os cupons, outro arquivo não colide.
+        origem: arquivoHash.slice(0, ORIGEM_DO_CUPOM_CARACTERES),
+      },
       catalogo,
     );
     const gravadas = await gravarVendas(this.db, { comercianteId, documentoId, itens });
@@ -234,13 +288,7 @@ export class PlanilhasService {
       .select({ id: produto.id, nome: produto.nome, codigoBarras: produto.codigoBarras })
       .from(produto)
       .where(eq(produto.comercianteId, comercianteId));
-    const porCodigoBarras = new Map<string, string>();
-    const porNome = new Map<string, string>();
-    for (const p of produtos) {
-      if (p.codigoBarras) porCodigoBarras.set(p.codigoBarras.replace(/\D/g, ""), p.id);
-      porNome.set(normalizarDescricao(p.nome), p.id);
-    }
-    return { porCodigoBarras, porNome };
+    return montarCatalogo(produtos);
   }
 }
 

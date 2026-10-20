@@ -24,3 +24,12 @@ export function montarPerguntaVinculo(c: ContextoNota & { sugestoes: string[] })
   const base = `Na nota de ${c.data} (${c.fornecedor}), o item "${c.descricao}" é qual produto do seu cadastro?`;
   return c.sugestoes.length > 0 ? `${base} Pode ser: ${c.sugestoes.join("; ")}.` : base;
 }
+
+/**
+ * Texto da pergunta quando a dúvida é da nota inteira (CNPJ, data, soma ou leitura geral ruim) e não
+ * de um item. Os motivos vêm das conferências em código, nunca do texto da nota.
+ */
+export function montarPerguntaDocumento(c: Omit<ContextoNota, "descricao"> & { motivos: string[] }): string {
+  const motivo = c.motivos.length > 0 ? ` ${c.motivos.join("; ")}.` : " A leitura da foto ficou ruim.";
+  return `A nota de ${c.data} (${c.fornecedor}) ficou com dúvida:${motivo} Os dados da nota estão certos?`;
+}

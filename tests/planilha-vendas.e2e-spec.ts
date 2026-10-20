@@ -1,14 +1,15 @@
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Pool } from "pg";
 import request from "supertest";
 import { AppModule } from "../src/app.module";
 import { carregarEnv } from "../src/config/env";
+import { PlanilhasService } from "../src/ingestao/planilhas.service";
 import { migrar } from "../src/infra/database/migrar";
 import * as schema from "../src/infra/database/schema";
 
@@ -247,5 +248,104 @@ describe("importação da planilha de vendas (e2e)", () => {
       // As vendas de A não mudaram por causa da importação de B.
       expect(await contar("venda", a)).toBe(3624);
     }, 60_000);
+  });
+
+  describe("revisão do Codex (PR 124)", () => {
+    let c = "";
+    const cabecalho = "Data;Produto;Qtd;Preço unit.";
+    const linha = (i: number, qtd = "1") => `20/10/2026;${catalogo[i]!.nome};${qtd};2,00`;
+    const planilha = (...linhas: string[]) => Buffer.from([cabecalho, ...linhas].join("\n"));
+
+    beforeAll(async () => {
+      const [criado] = await db
+        .insert(schema.comerciante)
+        .values({ nome: "E2E Planilha C" })
+        .returning({ id: schema.comerciante.id });
+      c = criado!.id;
+      await db.insert(schema.produto).values(
+        catalogo.slice(0, 3).map((p) => ({
+          comercianteId: c,
+          nome: p.nome,
+          codigoBarras: p.codigo_barras,
+          unidade: p.unidade,
+          categoria: p.categoria,
+          origem: "planilha" as const,
+        })),
+      );
+    });
+
+    afterAll(async () => {
+      await db.delete(schema.comerciante).where(inArray(schema.comerciante.id, [c]));
+    });
+
+    it("duas planilhas sem coluna de cupom no mesmo dia: nenhuma descarta as vendas da outra", async () => {
+      const primeira = await enviarOk(c, planilha(linha(0), linha(1)), "sem-cupom-1.csv");
+      const importada = (await confirmar(c, primeira.documento_id, primeira.mapeamento_sugerido!).expect(200))
+        .body as EstadoApi;
+      expect(importada.importacao).toMatchObject({ vendas_importadas: 2, vendas_ja_existentes: 0 });
+
+      const segunda = await enviarOk(c, planilha(linha(1, "3"), linha(2)), "sem-cupom-2.csv");
+      expect(segunda.importacao).toMatchObject({ vendas_importadas: 2, vendas_ja_existentes: 0 });
+      expect(await contar("venda", c)).toBe(4);
+      expect(await contar("item_de_venda", c)).toBe(4);
+    });
+
+    it("planilha ilegível devolve 422 sem deixar arquivo no armazenamento", async () => {
+      await enviar(c, Buffer.from('Data;Produto\n"aberta;1\n'), "quebrada.csv").expect(422);
+      // Só as duas planilhas boas: documento e arquivo.
+      expect(await contar("documento", c)).toBe(2);
+      expect(readdirSync(join(dirArquivos, c.toLowerCase()))).toHaveLength(2);
+    });
+
+    it("falha no meio da importação devolve o documento a um estado em que o dono pode tentar de novo", async () => {
+      const servico = app.get<{ carregarCatalogo: () => Promise<unknown> }>(PlanilhasService);
+      const falha = jest
+        .spyOn(servico, "carregarCatalogo")
+        .mockRejectedValueOnce(new Error("banco fora do ar"));
+      const arquivo = planilha(linha(0, "5"));
+      await enviar(c, arquivo, "retentativa.csv").expect(500);
+      falha.mockRestore();
+
+      const [doc] = await db
+        .select()
+        .from(schema.documento)
+        .where(and(eq(schema.documento.comercianteId, c), eq(schema.documento.tipo, "planilha")))
+        .orderBy(desc(schema.documento.criadoEm))
+        .limit(1);
+      expect(doc?.statusExtracao).toBe("pendente");
+
+      const de_novo = await enviarOk(c, arquivo, "retentativa.csv");
+      expect(de_novo).toMatchObject({ documento_id: doc!.id, duplicado: true, precisa_confirmar: true });
+      const refeito = (await confirmar(c, doc!.id, de_novo.mapeamento_sugerido!).expect(200))
+        .body as EstadoApi;
+      expect(refeito).toMatchObject({ status: "extraido" });
+      expect(refeito.importacao).toMatchObject({ vendas_importadas: 1 });
+    });
+
+    it("nome que dois produtos compartilham: a linha é rejeitada, não atribuída a um deles", async () => {
+      await db.insert(schema.produto).values([
+        {
+          comercianteId: c,
+          nome: "Biscoito Recheado 130g",
+          unidade: "un",
+          categoria: "x",
+          origem: "planilha",
+        },
+        {
+          comercianteId: c,
+          nome: "BISCOITO RECHEADO 130G",
+          unidade: "un",
+          categoria: "x",
+          origem: "planilha",
+        },
+      ]);
+      const r = await enviarOk(
+        c,
+        Buffer.from([cabecalho, "20/10/2026;biscoito recheado 130g;1;2,00"].join("\n")),
+        "ambiguo.csv",
+      );
+      expect(r.importacao).toMatchObject({ vendas_importadas: 0, total_rejeitadas: 1 });
+      expect(r.importacao?.linhas_rejeitadas[0]?.motivo).toContain("Mais de um produto");
+    });
   });
 });

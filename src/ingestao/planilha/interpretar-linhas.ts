@@ -6,8 +6,32 @@ import type { Campo, Mapeamento } from "./mapeamento";
 export interface CatalogoProdutos {
   /** Só dígitos do código de barras -> id do produto. */
   porCodigoBarras: ReadonlyMap<string, string>;
-  /** Nome normalizado (`normalizarDescricao`) -> id do produto. */
+  /** Nome normalizado (`normalizarDescricao`) -> id do produto, só para nomes que não se repetem. */
   porNome: ReadonlyMap<string, string>;
+  /** Nomes normalizados que dois ou mais produtos têm: sem código de barras, a linha é rejeitada. */
+  nomesAmbiguos: ReadonlySet<string>;
+}
+
+/** Indexa o cadastro do comerciante para a importação. Nome repetido nunca escolhe um produto. */
+export function montarCatalogo(
+  produtos: ReadonlyArray<{ id: string; nome: string; codigoBarras: string | null }>,
+): CatalogoProdutos {
+  const porCodigoBarras = new Map<string, string>();
+  const porNome = new Map<string, string>();
+  const nomesAmbiguos = new Set<string>();
+  for (const p of produtos) {
+    const codigo = p.codigoBarras?.replace(/\D/g, "");
+    if (codigo) porCodigoBarras.set(codigo, p.id);
+    const nome = normalizarDescricao(p.nome);
+    if (nomesAmbiguos.has(nome)) continue;
+    if (porNome.has(nome)) {
+      porNome.delete(nome);
+      nomesAmbiguos.add(nome);
+    } else {
+      porNome.set(nome, p.id);
+    }
+  }
+  return { porCodigoBarras, porNome, nomesAmbiguos };
 }
 
 export interface ItemInterpretado {
@@ -32,6 +56,12 @@ export interface EntradaInterpretacao {
   cabecalhos: readonly string[];
   linhas: readonly string[][];
   mapeamento: Mapeamento;
+  /**
+   * Identifica a planilha de origem. Sem coluna de cupom, o cupom sintético leva este prefixo, para
+   * duas planilhas diferentes no mesmo dia não gerarem os mesmos cupons (`L2`, `L3`...) e uma
+   * descartar as vendas da outra. O mesmo arquivo gera sempre os mesmos cupons.
+   */
+  origem?: string;
 }
 
 /** Diferença de arredondamento aceita entre o total da planilha e quantidade x preço. */
@@ -58,11 +88,18 @@ function interpretarHora(texto: string): string | null {
     : null;
 }
 
-/** Quantidade com vírgula ou ponto decimal ("1,5", "0.250"). Não usa parseFloat (regra do lint). */
+/** `item_de_venda.quantidade` é numeric(14,3): até 3 casas decimais e 11 dígitos inteiros. */
+const QUANTIDADE_MAXIMA = 1e11;
+
+/**
+ * Quantidade com vírgula ou ponto decimal ("1,5", "0.250"). Mais casas que o banco guarda é
+ * rejeitado, em vez de arredondar na gravação e deixar quantidade, preço e total divergentes. Não
+ * usa parseFloat (regra do lint).
+ */
 function interpretarQuantidade(texto: string): number | null {
-  if (!/^\d+([.,]\d+)?$/.test(texto.trim())) return null;
+  if (!/^\d+([.,]\d{1,3})?$/.test(texto.trim())) return null;
   const n = Number(texto.trim().replace(",", "."));
-  return Number.isFinite(n) && n > 0 ? n : null;
+  return Number.isFinite(n) && n > 0 && n < QUANTIDADE_MAXIMA ? n : null;
 }
 
 /**
@@ -72,7 +109,7 @@ function interpretarQuantidade(texto: string): number | null {
  * planilha, quando existe, é conferido contra quantidade x preço (regra 5, em código).
  */
 export function interpretarLinhas(
-  { cabecalhos, linhas, mapeamento }: EntradaInterpretacao,
+  { cabecalhos, linhas, mapeamento, origem }: EntradaInterpretacao,
   catalogo: CatalogoProdutos,
 ): { itens: ItemInterpretado[]; rejeitadas: LinhaRejeitada[] } {
   const indice = (campo: Campo): number => {
@@ -115,8 +152,13 @@ export function interpretarLinhas(
 
     const codigo = celula(linha, col.codigo).replace(/\D/g, "");
     const nome = normalizarDescricao(celula(linha, col.produto));
-    const produtoId =
-      (codigo ? catalogo.porCodigoBarras.get(codigo) : undefined) ?? catalogo.porNome.get(nome);
+    const porCodigo = codigo ? catalogo.porCodigoBarras.get(codigo) : undefined;
+    if (!porCodigo && catalogo.nomesAmbiguos.has(nome)) {
+      return rejeitar(
+        `Mais de um produto com o nome "${celula(linha, col.produto)}": informe o código de barras`,
+      );
+    }
+    const produtoId = porCodigo ?? catalogo.porNome.get(nome);
     if (!produtoId) {
       return rejeitar(
         `Produto não encontrado no cadastro: "${celula(linha, col.produto)}"${codigo ? ` (código ${codigo})` : ""}`,
@@ -143,8 +185,8 @@ export function interpretarLinhas(
       linha: numero,
       data,
       hora: interpretarHora(celula(linha, col.hora)),
-      // Sem coluna de cupom, cada linha é uma venda de um item só.
-      cupom: celula(linha, col.cupom) || `L${numero}`,
+      // Sem coluna de cupom, cada linha é uma venda de um item só, identificada pela planilha.
+      cupom: celula(linha, col.cupom) || `${origem ? `${origem}-` : ""}L${numero}`,
       produtoId,
       quantidade,
       precoUnitarioCentavos: preco,

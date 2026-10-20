@@ -6,7 +6,7 @@ import {
 } from "../validacao/validar-nota";
 
 /** Motivos que reduzem a confiança do documento inteiro, não só de um item. */
-const MOTIVOS_DO_DOCUMENTO: readonly CodigoMotivo[] = [
+export const MOTIVOS_DO_DOCUMENTO: readonly CodigoMotivo[] = [
   "soma_diverge_do_total",
   "cnpj_invalido",
   "data_invalida",
@@ -39,7 +39,8 @@ export interface DocumentoRecalculado {
  * Recalcula motivos, confiança e status do documento depois de o dono corrigir um item (issue #26).
  * O motivo daquele item sai (a correção vale por construção); o da soma é refeito contra o total
  * impresso, então corrigir uma leitura errada pode resolver a divergência e corrigir para pior a cria.
- * Os demais motivos do documento (CNPJ, data) continuam: o dono não os corrigiu.
+ * Os demais motivos do documento (CNPJ, data) continuam na lista, e só deixam de reduzir a
+ * confiança depois que o dono confirma a nota (motivo `documento_confirmado`, issue #26).
  *
  * A confiança do documento que o modelo informa já embute a dúvida sobre o item ilegível. Quando o
  * último item duvidoso é resolvido e nenhum motivo de validação do documento resta, ela passa a
@@ -55,7 +56,8 @@ export function recalcularDocumento(e: EstadoDocumento): DocumentoRecalculado {
       mensagem: `A soma dos itens (${e.somaItensCentavos} centavos) difere do total da nota (${e.totalCentavos})`,
     });
   }
-  const reduzido = motivos.some((m) => MOTIVOS_DO_DOCUMENTO.includes(m.codigo));
+  const confirmadoPeloDono = motivos.some((m) => m.codigo === "documento_confirmado");
+  const reduzido = !confirmadoPeloDono && motivos.some((m) => MOTIVOS_DO_DOCUMENTO.includes(m.codigo));
   const confiancaDocumento = reduzido
     ? Math.min(e.confiancaOriginal, CONFIANCA_REDUZIDA)
     : e.itensAindaEmRevisao > 0

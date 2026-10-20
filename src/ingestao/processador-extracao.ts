@@ -6,8 +6,8 @@ import { documento } from "../infra/database/schema";
 import type { Armazenamento } from "../infra/armazenamento/armazenamento";
 import type { ExtratorNotas, ResultadoExtracao } from "./extracao/extrator-notas";
 import type { TipoImagem } from "./extracao/cliente-visao";
-import { gravarCompra } from "./gravar-compra";
-import { validarNota } from "./validacao/validar-nota";
+import { gravarCompra, type CompraGravada } from "./gravar-compra";
+import { validarNota, type NotaValidada } from "./validacao/validar-nota";
 
 export interface DependenciasProcessador {
   db: Db;
@@ -35,7 +35,8 @@ const IMAGEM_POR_EXTENSAO: Record<string, TipoImagem> = { jpg: "image/jpeg", png
  * Extrator, confere em código, grava com confiança e registra a execução (tokens, custo, latência).
  *
  * Nenhuma falha deixa o documento sem estado: erro não transitório vira `falha`; erro transitório
- * sobe para o BullMQ repetir e só vira `falha` na última tentativa.
+ * (leitura, modelo, validação ou gravação) sobe para o BullMQ repetir e só vira `falha` na última
+ * tentativa.
  */
 export class ProcessadorExtracao {
   constructor(private readonly dep: DependenciasProcessador) {}
@@ -71,18 +72,28 @@ export class ProcessadorExtracao {
 
     if (!resultado.ok) return this.falhar(entrada, resultado.erro, resultado.mensagem, resultado);
 
-    const validada = validarNota(resultado.extracao, {
-      hoje: this.dep.hoje?.() ?? new Date().toISOString().slice(0, 10),
-      limiteConfiancaItem: this.dep.limiteConfiancaItem,
-    });
-    const gravada = await gravarCompra(db, {
-      comercianteId,
-      documentoId,
-      extracaoOriginal: resultado.extracao,
-      validada,
-      limiteConfiancaItem: this.dep.limiteConfiancaItem,
-      limiteSimilaridade: this.dep.limiteSimilaridade,
-    });
+    // Validar e gravar também podem falhar (banco fora do ar, por exemplo). Sem este catch, o job
+    // esgotaria as tentativas com o documento em `processando`, e reenviar a imagem não o
+    // enfileira de novo (só `pendente` entra na fila).
+    let validada: NotaValidada;
+    let gravada: CompraGravada;
+    try {
+      validada = validarNota(resultado.extracao, {
+        hoje: this.dep.hoje?.() ?? new Date().toISOString().slice(0, 10),
+        limiteConfiancaItem: this.dep.limiteConfiancaItem,
+      });
+      gravada = await gravarCompra(db, {
+        comercianteId,
+        documentoId,
+        extracaoOriginal: resultado.extracao,
+        validada,
+        limiteConfiancaItem: this.dep.limiteConfiancaItem,
+        limiteSimilaridade: this.dep.limiteSimilaridade,
+      });
+    } catch (e) {
+      if (!ultimaTentativa) throw e;
+      return this.falhar(entrada, "erro_gravacao", e instanceof Error ? e.message : String(e), resultado);
+    }
     await this.registrar(
       entrada,
       resultado,

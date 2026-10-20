@@ -90,6 +90,7 @@ npm run dev
 - [Guia de desenvolvimento](docs/guia-desenvolvimento.md): arquitetura, etapas, modelo de dados, métricas, agente, avaliação, segurança
 - [Contexto do hackathon](docs/contexto-hackathon.md): critérios da banca, persona, viabilidade, custos, riscos
 - [Alertas do hackathon](docs/alertas-hackathon.md): prazo, escopo e critérios da banca (seção 9.4 do edital)
+- [Arquitetura](docs/arquitetura.md): módulos, dados, serviços externos e modelos por papel
 - [Fluxo do agente](docs/agent-flow.md): inputs, lógica e outputs do agente
 - [Especificação dos agentes](docs/especificacao-agentes.md): Extrator, Analista, orquestrador, ferramentas, falhas e avaliação
 - [Decisões](docs/decisoes/): ORM, modelo de linguagem, arquitetura do agente

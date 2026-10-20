@@ -8,8 +8,10 @@ Foto de nota (modelo com visão + validação em código), planilha de vendas e 
 
 1. lê a imagem e chama o `ExtratorNotas` (`extracao/`), módulo isolado atrás da porta `ClienteVisao`;
 2. confere a nota em código (`validacao/validar-nota.ts`): somas, quantidade x unitário, CNPJ e data. Divergência reduz a confiança e deixa o motivo, não descarta;
-3. grava fornecedor, compra e itens numa transação (`gravar-compra.ts`) e deixa o documento em `extraido` ou `revisao`;
-4. registra a execução (gatilho `extracao_nota`) com tokens, custo e latência.
+3. registra a execução (gatilho `extracao_nota`) com tokens, custo e latência, antes de gravar: a chamada já foi cobrada, então uma queda ou um job repetido não deixam extração sem auditoria;
+4. grava fornecedor, compra e itens numa transação (`gravar-compra.ts`) e deixa o documento em `extraido` ou `revisao`. Só há `revisao` quando existe item duvidoso com pergunta a responder; confiança baixa do documento sem item duvidoso (soma, CNPJ, data) fica em `confianca_media` e `motivos_validacao`, sem revisão, porque nenhuma pergunta a resolveria.
+
+Dois casos de entrada ruim não derrubam a gravação: CNPJ sem 14 dígitos (ilegível, "N/A") grava o fornecedor com `cnpj` nulo e o reaproveita só pelo nome entre fornecedores também sem CNPJ, nunca com identificador vazio compartilhado; data que não existe no calendário ("2026-02-31") grava a compra na data do envio do documento, com o motivo `data_invalida`, a confiança do documento reduzida e a do histórico de custo limitada a ela. Se a gravação falhar na última tentativa, o documento vai para `falha` em vez de ficar em `processando`.
 
 `GET /documentos/:id` devolve status, motivos, compra e itens com a confiança de cada um.
 
@@ -31,7 +33,7 @@ Item abaixo de `LIMITE_CONFIANCA_ITEM` gera uma `pergunta_dono` `confirmar_item`
 - `GET /perguntas` lista as pendentes.
 - `POST /perguntas/:id/resposta` com `{ "valor_unitario_centavos": 330, "quantidade": 24 }` (item) ou `{ "produto_id": "..." }` (vínculo). A interpretação de texto livre do dono é do agente (#53).
 
-A correção do item entra com origem `dono` e confiança 1, e o `historico_custo` ganha uma linha nova: o que o modelo leu continua lá. O documento é recalculado (`revisao/recalcular-documento.ts`): soma refeita contra o total, motivo do item resolvido sai, status volta a `extraido` quando não resta item duvidoso nem motivo do documento. Confirmar um vínculo liga também os outros itens iguais do mesmo fornecedor e dispensa as perguntas deles.
+A resposta confirma só o que traz: valor unitário e, se vier, quantidade (no máximo 3 casas decimais, a precisão de `item_de_compra.quantidade`). O custo entra no `historico_custo` como linha nova com origem `dono`, e o que o modelo leu continua lá. A confiança do item é a da leitura da linha inteira (descrição e unidade também), então fica a do modelo, e a origem do item só vira `dono` quando a resposta mudou os números gravados. A confiança da linha de custo é 1, limitada à do vínculo com o produto quando ele veio só da similaridade. O documento é recalculado (`revisao/recalcular-documento.ts`): soma refeita contra o total, motivo do item resolvido sai, status volta a `extraido` quando não resta item duvidoso. Confirmar um vínculo liga também os outros itens iguais do mesmo fornecedor e dispensa as perguntas deles.
 
 ## Falhas
 

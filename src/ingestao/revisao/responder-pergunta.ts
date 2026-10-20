@@ -13,7 +13,7 @@ import { centavos, multiplicar, somar } from "../../lib/dinheiro/dinheiro";
 import { extracaoNotaSchema } from "../extracao/esquema-extracao";
 import { normalizarDescricao } from "../normalizar-descricao";
 import type { MotivoValidacao } from "../validacao/validar-nota";
-import { registrarVinculo } from "../vinculo/vincular-produto";
+import { confiancaDoVinculo, registrarVinculo } from "../vinculo/vincular-produto";
 import { recalcularDocumento } from "./recalcular-documento";
 
 export type CodigoErroPergunta =
@@ -28,11 +28,14 @@ export class ErroPergunta extends Error {
   }
 }
 
+/** Casas decimais de `item_de_compra.quantidade` (`numeric(14,3)`): mais que isso o banco arredonda. */
+const PASSO_QUANTIDADE = 0.001;
+
 /** Resposta a "o valor unitário é este?": o valor certo, e a quantidade se também estava errada. */
 export const respostaItemSchema = z
   .object({
     valor_unitario_centavos: z.number().int().nonnegative(),
-    quantidade: z.number().positive().optional(),
+    quantidade: z.number().positive().multipleOf(PASSO_QUANTIDADE).optional(),
   })
   .strict();
 
@@ -54,8 +57,10 @@ export interface OpcoesResposta {
 
 /**
  * Grava a resposta do dono a uma pergunta pendente (issues #26 e #27), numa transação. O
- * `comerciante_id` vem da sessão. A resposta entra com origem `dono` e confiança 1; o que o modelo
- * leu antes continua no histórico, porque a correção é uma linha nova, nunca uma edição.
+ * `comerciante_id` vem da sessão. A resposta confirma só o que ela traz (valor unitário e, se vier,
+ * quantidade): o custo entra no histórico como linha nova, com origem `dono`, e o que o modelo leu
+ * antes continua lá. O que a resposta não cobre (descrição, unidade, vínculo incerto) mantém a
+ * origem e a confiança que tinha.
  */
 export async function responderPergunta(
   db: Db,
@@ -126,21 +131,30 @@ async function responderItem(
 
   const quantidade = resposta.quantidade ?? item.quantidade;
   const unitario = centavos(resposta.valor_unitario_centavos);
+  const alterouValores = unitario !== item.valorUnitarioCentavos || quantidade !== item.quantidade;
+  // A confiança do item é a da leitura da linha inteira, e a resposta não cobre a linha inteira:
+  // fica a do modelo. A origem só muda quando os números gravados passam a ser os do dono.
   await tx
     .update(itemDeCompra)
     .set({
       quantidade,
       valorUnitarioCentavos: unitario,
       valorTotalCentavos: multiplicar(unitario, quantidade),
-      confianca: 1,
-      origem: "dono",
+      origem: alterouValores ? "dono" : item.origem,
       revisaoPendente: false,
     })
     .where(and(eq(itemDeCompra.id, itemId), eq(itemDeCompra.comercianteId, comercianteId)));
 
   // Só há custo no histórico para item com produto. Sem produto, a linha nasce quando o dono
-  // confirmar o vínculo, já com este valor.
+  // confirmar o vínculo, já com este valor. O valor é do dono (confiança 1), mas a ligação com o
+  // produto pode ter vindo só da similaridade, e o custo não passa a valer mais que ela.
   if (item.produtoId) {
+    const confiancaVinculo = await confiancaDoVinculo(tx, {
+      comercianteId,
+      fornecedorId: c.fornecedorId,
+      descricao: item.descricaoNota,
+      produtoId: item.produtoId,
+    });
     await tx.insert(historicoCusto).values({
       comercianteId,
       produtoId: item.produtoId,
@@ -149,7 +163,7 @@ async function responderItem(
       custoUnitarioCentavos: unitario,
       itemDeCompraId: itemId,
       origem: "dono",
-      confianca: 1,
+      confianca: Math.min(1, confiancaVinculo ?? 1),
     });
   }
 
@@ -247,7 +261,29 @@ async function responderVinculo(
     (l) => l.item.id === itemId || normalizarDescricao(l.item.descricaoNota) === chave,
   );
 
+  // Item cujo valor unitário o dono já confirmou entra no histórico como dado do dono; o vínculo
+  // acabou de ser confirmado por ele também, então a confiança é 1.
+  const jaConfirmados = new Set(
+    (
+      await tx
+        .select({ itemId: perguntaDono.itemDeCompraId })
+        .from(perguntaDono)
+        .where(
+          and(
+            eq(perguntaDono.comercianteId, comercianteId),
+            eq(perguntaDono.tipo, "confirmar_item"),
+            eq(perguntaDono.status, "respondida"),
+            inArray(
+              perguntaDono.itemDeCompraId,
+              ligar.map((l) => l.item.id),
+            ),
+          ),
+        )
+    ).map((p) => p.itemId),
+  );
+
   for (const l of ligar) {
+    const confirmadoPeloDono = jaConfirmados.has(l.item.id);
     await tx
       .update(itemDeCompra)
       .set({ produtoId: prod.id })
@@ -259,8 +295,8 @@ async function responderVinculo(
       data: l.compra.data,
       custoUnitarioCentavos: l.item.valorUnitarioCentavos,
       itemDeCompraId: l.item.id,
-      origem: l.item.origem,
-      confianca: l.item.confianca,
+      origem: confirmadoPeloDono ? "dono" : l.item.origem,
+      confianca: confirmadoPeloDono ? 1 : l.item.confianca,
     });
   }
   const outros = ligar.map((l) => l.item.id).filter((id) => id !== itemId);

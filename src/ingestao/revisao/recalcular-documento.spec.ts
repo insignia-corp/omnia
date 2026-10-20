@@ -64,17 +64,28 @@ describe("recalcularDocumento", () => {
     const r = recalcularDocumento({ ...base, somaItensCentavos: 69640, totalCentavos: 70880 });
     expect(r.motivos.map((m) => m.codigo)).toEqual(["soma_diverge_do_total"]);
     expect(r.confiancaDocumento).toBe(0.5);
-    expect(r.status).toBe("revisao");
+    // Sem item duvidoso não há pergunta a responder: a confiança baixa fica registrada, sem revisão.
+    expect(r.status).toBe("extraido");
   });
 
   it("motivo de CNPJ não some quando o dono corrige um item", () => {
     const r = recalcularDocumento({ ...base, motivos: [{ codigo: "cnpj_invalido", mensagem: "x" }] });
     expect(r.motivos.map((m) => m.codigo)).toEqual(["cnpj_invalido"]);
     expect(r.confiancaDocumento).toBe(0.5);
-    expect(r.status).toBe("revisao");
+    expect(r.status).toBe("extraido");
   });
 
   it("aceita diferença de poucos centavos na soma", () => {
     expect(recalcularDocumento({ ...base, somaItensCentavos: 36125 }).motivos).toEqual([]);
+  });
+
+  it("documento de baixa confiança sem item em revisão não fica preso em revisão", () => {
+    const r = recalcularDocumento({ ...base, confiancaOriginal: 0.5, menorConfiancaItem: 0.5 });
+    expect(r.confiancaDocumento).toBe(0.5);
+    expect(r.status).toBe("extraido");
+  });
+
+  it("item ainda duvidoso mantém o documento em revisão", () => {
+    expect(recalcularDocumento({ ...base, itensAindaEmRevisao: 1 }).status).toBe("revisao");
   });
 });

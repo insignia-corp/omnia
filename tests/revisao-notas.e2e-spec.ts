@@ -44,6 +44,7 @@ const notaDeUmItem = (descricao: string, data = "2026-10-10") =>
 interface DocumentoApi {
   id: string;
   status: string;
+  confianca_media: number | null;
   motivos: Array<{ codigo: string }>;
   compra: null | {
     soma_itens_centavos: number;
@@ -218,21 +219,38 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
       expect(pergunta.pergunta).toContain("R$ 3,30");
     });
 
-    it("a resposta do dono corrige o item como origem dono, sem apagar o que o modelo leu", async () => {
+    it("a resposta do dono confirma o custo como dado do dono, sem apagar o que o modelo leu nem inflar o resto do item", async () => {
       const res = await responder(ids.a, pergunta.id, { valor_unitario_centavos: 330 }).expect(200);
       expect(res.body).toMatchObject({ tipo: "confirmar_item", status_documento: "extraido" });
 
       const depois = await aguardar(ids.a, doc.id);
       expect(depois.status).toBe("extraido");
+      // O dono confirmou o valor que o modelo já tinha lido: a confiança e a origem da linha, que
+      // cobrem também descrição e unidade, ficam as do modelo; só a pendência sai.
       expect(depois.compra!.itens.find((i) => i.ordem === 3)).toMatchObject({
-        confianca: 1,
-        origem: "dono",
+        confianca: 0.5,
+        origem: "foto_nota",
         revisao_pendente: false,
       });
       const linhas = await historico(ids.a, itemDuvidoso.id);
       expect(linhas).toHaveLength(2);
       expect(linhas[0]!.origem).toBe("foto_nota");
-      expect(linhas[1]).toMatchObject({ origem: "dono", confianca: 1, custoUnitarioCentavos: 330 });
+      expect(linhas[1]).toMatchObject({ origem: "dono", custoUnitarioCentavos: 330 });
+      // O custo é do dono, mas não vale mais que a ligação com o produto (confiança do vínculo).
+      const [item] = await db
+        .select()
+        .from(schema.itemDeCompra)
+        .where(eq(schema.itemDeCompra.id, itemDuvidoso.id));
+      const vinculos = await db
+        .select()
+        .from(schema.vinculoDescricaoProduto)
+        .where(
+          and(
+            eq(schema.vinculoDescricaoProduto.comercianteId, ids.a),
+            eq(schema.vinculoDescricaoProduto.produtoId, item!.produtoId!),
+          ),
+        );
+      expect(vinculos.map((v) => v.confianca)).toContain(linhas[1]!.confianca);
       expect(await pendentes(ids.a)).toEqual([]);
     });
 
@@ -242,17 +260,22 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
       await responder(ids.a, "00000000-0000-4000-8000-000000000000", {}).expect(404);
     });
 
-    it("corrigir para um valor que não fecha com o total mantém a nota em revisão, com o motivo", async () => {
+    it("corrigir para um valor que não fecha com o total deixa o motivo e a confiança baixa, sem pergunta pendente", async () => {
       passos.push(resposta(esperado("nota-11")));
       const docB = await aguardar(ids.b, await enviar(ids.b, "nota-11"));
       const perguntaB = (await pendentes(ids.b))[0]!;
       await responder(ids.b, perguntaB.id, { valor_unitario: 1 }).expect(400);
       await responder(ids.b, perguntaB.id, { valor_unitario_centavos: -5 }).expect(400);
+      // Mais de três casas decimais: o banco arredondaria a quantidade e o total gravado não fecharia.
+      await responder(ids.b, perguntaB.id, { valor_unitario_centavos: 330, quantidade: 1.2345 }).expect(400);
 
       const res = await responder(ids.b, perguntaB.id, { valor_unitario_centavos: 350 }).expect(200);
-      expect(res.body).toMatchObject({ status_documento: "revisao" });
+      expect(res.body).toMatchObject({ status_documento: "extraido" });
       const depois = await aguardar(ids.b, docB.id);
       expect(depois.motivos.map((m) => m.codigo)).toEqual(["soma_diverge_do_total"]);
+      expect(depois.confianca_media).toBeLessThan(0.8);
+      // O dono mudou o valor: o número gravado passa a ser dele.
+      expect(depois.compra!.itens.find((i) => i.ordem === 3)).toMatchObject({ origem: "dono" });
       // 24 unidades a R$ 3,50 no lugar de R$ 3,30: a soma sobe R$ 4,80 acima do total impresso.
       expect(depois.compra!.soma_itens_centavos).toBe(depois.compra!.total_centavos + 480);
     });

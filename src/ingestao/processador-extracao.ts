@@ -6,7 +6,7 @@ import { documento } from "../infra/database/schema";
 import type { Armazenamento } from "../infra/armazenamento/armazenamento";
 import type { ExtratorNotas, ResultadoExtracao } from "./extracao/extrator-notas";
 import type { TipoImagem } from "./extracao/cliente-visao";
-import { gravarCompra } from "./gravar-compra";
+import { gravarCompra, type CompraGravada } from "./gravar-compra";
 import { validarNota } from "./validacao/validar-nota";
 
 export interface DependenciasProcessador {
@@ -71,25 +71,34 @@ export class ProcessadorExtracao {
 
     if (!resultado.ok) return this.falhar(entrada, resultado.erro, resultado.mensagem, resultado);
 
-    const validada = validarNota(resultado.extracao, {
-      hoje: this.dep.hoje?.() ?? new Date().toISOString().slice(0, 10),
-      limiteConfiancaItem: this.dep.limiteConfiancaItem,
-    });
-    const gravada = await gravarCompra(db, {
-      comercianteId,
-      documentoId,
-      extracaoOriginal: resultado.extracao,
-      validada,
-      limiteConfiancaItem: this.dep.limiteConfiancaItem,
-      limiteSimilaridade: this.dep.limiteSimilaridade,
-    });
-    await this.registrar(
-      entrada,
-      resultado,
-      "aprovada",
-      `Extraídos ${validada.extracao.itens.length} itens`,
-      null,
-    );
+    // A chamada ao modelo já foi cobrada: a execução é registrada antes da gravação, assim uma queda
+    // entre as duas (ou o job repetido que se segue) nunca deixa extração cobrada sem auditoria.
+    let gravada: CompraGravada;
+    try {
+      const validada = validarNota(resultado.extracao, {
+        hoje: this.dep.hoje?.() ?? new Date().toISOString().slice(0, 10),
+        limiteConfiancaItem: this.dep.limiteConfiancaItem,
+      });
+      await this.registrar(
+        entrada,
+        resultado,
+        "aprovada",
+        `Extraídos ${validada.extracao.itens.length} itens`,
+        null,
+      );
+      gravada = await gravarCompra(db, {
+        comercianteId,
+        documentoId,
+        extracaoOriginal: resultado.extracao,
+        validada,
+        limiteConfiancaItem: this.dep.limiteConfiancaItem,
+        limiteSimilaridade: this.dep.limiteSimilaridade,
+      });
+    } catch (e) {
+      // Sem isto, uma falha que se repete até o fim das tentativas deixaria o documento em `processando`.
+      if (!ultimaTentativa) throw e;
+      return this.falhar(entrada, "erro_gravacao", e instanceof Error ? e.message : String(e), null);
+    }
     return { status: gravada.status, compraId: gravada.compraId, itensEmRevisao: gravada.itensEmRevisao };
   }
 

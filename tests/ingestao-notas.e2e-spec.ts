@@ -207,11 +207,17 @@ describe("ingestão de notas (e2e)", () => {
       expect(compras.rows[0].n).toBe(1);
     });
 
-    it("nota 10: a soma que não bate reduz a confiança do documento e deixa o motivo", async () => {
+    it("nota 10: a soma que não bate reduz a confiança do documento e deixa o motivo, sem pergunta a responder", async () => {
       passos.push(resposta(comoDoModelo("nota-10")));
       const enviado = await enviarOk(a, "nota-10");
       const doc = await aguardar(a, enviado.documento_id);
-      expect(doc.status).toBe("revisao");
+      // Confiança baixa do documento sem item duvidoso não tem pergunta que a resolva: não fica em revisão.
+      expect(doc.status).toBe("extraido");
+      const perguntas = await pool.query(
+        "select count(*)::int as n from pergunta_dono p join item_de_compra i on i.id = p.item_de_compra_id where i.compra_id = $1 and p.tipo = 'confirmar_item'",
+        [doc.compra!.id],
+      );
+      expect(perguntas.rows[0].n).toBe(0);
       expect(doc.motivos.map((m) => m.codigo)).toEqual(["soma_diverge_do_total"]);
       expect(doc.confianca_media).toBeLessThan(0.8);
       expect(doc.compra!.soma_itens_centavos).toBe(69640);
@@ -224,6 +230,58 @@ describe("ingestão de notas (e2e)", () => {
       const doc = await aguardar(a, enviado.documento_id);
       expect(doc.status).toBe("extraido");
       expect(doc.motivos).toEqual([]);
+    });
+  });
+
+  describe("dados de entrada problemáticos", () => {
+    const comAlteracao = (nota: string, alterar: (e: Record<string, unknown>) => void) => {
+      const e = JSON.parse(comoDoModelo(nota)) as Record<string, unknown>;
+      alterar(e);
+      return JSON.stringify(e);
+    };
+    const fornecedorDaCompra = async (compraId: string) =>
+      (await pool.query("select fornecedor_id from compra where id = $1", [compraId])).rows[0]
+        .fornecedor_id as string;
+
+    it("data que não existe no calendário não derruba a gravação: cai na data do envio, com o motivo", async () => {
+      passos.push(resposta(comAlteracao("nota-07", (e) => (e.data_emissao = "2026-02-31"))));
+      const enviado = await enviarOk(a, "nota-07");
+      const doc = await aguardar(a, enviado.documento_id);
+      expect(doc.status).not.toBe("processando");
+      expect(doc.motivos.map((m) => m.codigo)).toContain("data_invalida");
+      expect(doc.confianca_media).toBeLessThanOrEqual(0.5);
+      const [linha] = await db
+        .select()
+        .from(schema.documento)
+        .where(eq(schema.documento.id, enviado.documento_id));
+      expect(doc.compra!.data).toBe(linha!.criadoEm.toISOString().slice(0, 10));
+      // O que o modelo leu continua guardado como veio.
+      expect((linha!.extracaoJson as { data_emissao: string }).data_emissao).toBe("2026-02-31");
+    });
+
+    it("CNPJ ilegível fica nulo: fornecedores sem CNPJ não se juntam, só o de mesmo nome se reaproveita", async () => {
+      const semCnpj = (nota: string, nome: string) =>
+        comAlteracao(nota, (e) => {
+          e.fornecedor = { nome, cnpj: "ilegível" };
+        });
+      passos.push(
+        resposta(semCnpj("nota-04", "Distribuidora Sem CNPJ")),
+        resposta(semCnpj("nota-05", "Atacado Outro")),
+        resposta(semCnpj("nota-06", "DISTRIBUIDORA SEM CNPJ")),
+      );
+      const docs = [] as DocumentoApi[];
+      for (const nota of ["nota-04", "nota-05", "nota-06"]) {
+        docs.push(await aguardar(a, (await enviarOk(a, nota)).documento_id));
+      }
+      const [d1, d2, d3] = await Promise.all(docs.map((d) => fornecedorDaCompra(d.compra!.id)));
+      expect(d1).not.toBe(d2);
+      expect(d3).toBe(d1);
+      const nulos = await pool.query(
+        "select count(*)::int as n from fornecedor where comerciante_id = $1 and cnpj is null",
+        [a],
+      );
+      expect(nulos.rows[0].n).toBe(2);
+      expect(docs.every((d) => d.motivos.map((m) => m.codigo).includes("cnpj_invalido"))).toBe(true);
     });
   });
 

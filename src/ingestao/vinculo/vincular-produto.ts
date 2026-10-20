@@ -108,6 +108,33 @@ export async function buscarVinculo(db: Executor, busca: BuscaVinculo): Promise<
   );
 }
 
+/**
+ * Confiança do vínculo vigente entre a descrição e o produto: a do confirmado pelo dono, que vale
+ * mais, e entre iguais a da linha mais recente. Nulo quando não há vínculo registrado.
+ */
+export async function confiancaDoVinculo(
+  db: Executor,
+  v: { comercianteId: string; fornecedorId: string; descricao: string; produtoId: string },
+): Promise<number | null> {
+  const [linha] = await db
+    .select({ confianca: vinculoDescricaoProduto.confianca })
+    .from(vinculoDescricaoProduto)
+    .where(
+      and(
+        eq(vinculoDescricaoProduto.comercianteId, v.comercianteId),
+        eq(vinculoDescricaoProduto.descricaoNormalizada, normalizarDescricao(v.descricao)),
+        eq(vinculoDescricaoProduto.produtoId, v.produtoId),
+      ),
+    )
+    .orderBy(
+      desc(vinculoDescricaoProduto.confirmadoPeloDono),
+      sql`(${vinculoDescricaoProduto.fornecedorId} = ${v.fornecedorId}) desc nulls last`,
+      desc(vinculoDescricaoProduto.criadoEm),
+    )
+    .limit(1);
+  return linha?.confianca ?? null;
+}
+
 export interface NovoVinculo {
   comercianteId: string;
   fornecedorId: string;

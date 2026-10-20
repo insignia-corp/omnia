@@ -61,7 +61,8 @@ export function recalcularDocumento(e: EstadoDocumento): DocumentoRecalculado {
     : e.itensAindaEmRevisao > 0
       ? e.confiancaOriginal
       : Math.max(e.confiancaOriginal, e.menorConfiancaItem);
-  const status =
-    e.itensAindaEmRevisao > 0 || confiancaDocumento < e.limiteConfiancaItem ? "revisao" : "extraido";
+  // `revisao` só enquanto há pergunta de item a responder. Confiança baixa do documento sem item
+  // duvidoso não tem pergunta que a resolva e ficaria em revisão para sempre: fica registrada.
+  const status = e.itensAindaEmRevisao > 0 ? "revisao" : "extraido";
   return { motivos, confiancaDocumento, status };
 }

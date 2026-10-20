@@ -1,0 +1,115 @@
+{
+  "fornecedor": {
+    "nome": "Distribuidora Aurora Alimentos Ltda",
+    "cnpj": "31482907000168"
+  },
+  "data_emissao": "2026-08-24",
+  "itens": [
+    {
+      "descricao": "ARROZ BCO T1 5KG",
+      "quantidade": 20,
+      "unidade": "UN",
+      "valor_unitario_centavos": 2490,
+      "valor_total_centavos": 49800,
+      "confianca": 1
+    },
+    {
+      "descricao": "FEIJAO CARIOCA T1 1KG",
+      "quantidade": 36,
+      "unidade": "UN",
+      "valor_unitario_centavos": 640,
+      "valor_total_centavos": 23040,
+      "confianca": 1
+    },
+    {
+      "descricao": "OLEO SOJA 900ML",
+      "quantidade": 36,
+      "unidade": "UN",
+      "valor_unitario_centavos": 520,
+      "valor_total_centavos": 18720,
+      "confianca": 1
+    },
+    {
+      "descricao": "ACUCAR REFINADO 1KG",
+      "quantidade": 36,
+      "unidade": "UN",
+      "valor_unitario_centavos": 310,
+      "valor_total_centavos": 11160,
+      "confianca": 1
+    },
+    {
+      "descricao": "CAFE TORR MOIDO 500G",
+      "quantidade": 20,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1290,
+      "valor_total_centavos": 25800,
+      "confianca": 1
+    },
+    {
+      "descricao": "MACARRAO ESPAG 500G",
+      "quantidade": 36,
+      "unidade": "UN",
+      "valor_unitario_centavos": 245,
+      "valor_total_centavos": 8820,
+      "confianca": 1
+    },
+    {
+      "descricao": "FARINHA TRIGO 1KG",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 330,
+      "valor_total_centavos": 3960,
+      "confianca": 1
+    },
+    {
+      "descricao": "SAL REFINADO 1KG",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 125,
+      "valor_total_centavos": 1500,
+      "confianca": 1
+    },
+    {
+      "descricao": "MOLHO TOMATE 340G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 160,
+      "valor_total_centavos": 3840,
+      "confianca": 1
+    },
+    {
+      "descricao": "MILHO VERDE LT 200G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 175,
+      "valor_total_centavos": 2100,
+      "confianca": 1
+    },
+    {
+      "descricao": "FARINHA MANDIOCA 500G",
+      "quantidade": 6,
+      "unidade": "UN",
+      "valor_unitario_centavos": 280,
+      "valor_total_centavos": 1680,
+      "confianca": 1
+    },
+    {
+      "descricao": "VINAGRE ALCOOL 750ML",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 150,
+      "valor_total_centavos": 1800,
+      "confianca": 1
+    },
+    {
+      "descricao": "ACHOC PO 400G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 590,
+      "valor_total_centavos": 7080,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 159300,
+  "confianca_documento": 1
+}

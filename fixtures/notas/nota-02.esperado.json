@@ -1,0 +1,75 @@
+{
+  "fornecedor": {
+    "nome": "Bebidas Centro-Oeste Distribuidora Ltda",
+    "cnpj": "27650318000174"
+  },
+  "data_emissao": "2026-08-26",
+  "itens": [
+    {
+      "descricao": "REFRIG COLA 2L",
+      "quantidade": 30,
+      "unidade": "UN",
+      "valor_unitario_centavos": 580,
+      "valor_total_centavos": 17400,
+      "confianca": 1
+    },
+    {
+      "descricao": "REFRIG GUARANA 2L",
+      "quantidade": 18,
+      "unidade": "UN",
+      "valor_unitario_centavos": 540,
+      "valor_total_centavos": 9720,
+      "confianca": 1
+    },
+    {
+      "descricao": "REFRIG COLA LT 350ML",
+      "quantidade": 36,
+      "unidade": "UN",
+      "valor_unitario_centavos": 245,
+      "valor_total_centavos": 8820,
+      "confianca": 1
+    },
+    {
+      "descricao": "CERV PILSEN LT 350ML",
+      "quantidade": 72,
+      "unidade": "UN",
+      "valor_unitario_centavos": 255,
+      "valor_total_centavos": 18360,
+      "confianca": 1
+    },
+    {
+      "descricao": "CERV LONG NECK 330ML",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 380,
+      "valor_total_centavos": 9120,
+      "confianca": 1
+    },
+    {
+      "descricao": "AGUA MIN S/GAS 1,5L",
+      "quantidade": 48,
+      "unidade": "UN",
+      "valor_unitario_centavos": 120,
+      "valor_total_centavos": 5760,
+      "confianca": 1
+    },
+    {
+      "descricao": "SUCO LARANJA 1L",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 350,
+      "valor_total_centavos": 4200,
+      "confianca": 1
+    },
+    {
+      "descricao": "ENERGETICO 250ML",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 520,
+      "valor_total_centavos": 6240,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 79620,
+  "confianca_documento": 1
+}

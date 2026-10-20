@@ -1,0 +1,59 @@
+{
+  "fornecedor": {
+    "nome": "Laticínios Vale Verde S.A.",
+    "cnpj": "18204965000161"
+  },
+  "data_emissao": "2026-08-28",
+  "itens": [
+    {
+      "descricao": "LEITE UHT INTEG 1L",
+      "quantidade": 72,
+      "unidade": "UN",
+      "valor_unitario_centavos": 380,
+      "valor_total_centavos": 27360,
+      "confianca": 1
+    },
+    {
+      "descricao": "IOGURTE MORANGO 170G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 150,
+      "valor_total_centavos": 3600,
+      "confianca": 1
+    },
+    {
+      "descricao": "QJO MUSSARELA FAT 150G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 790,
+      "valor_total_centavos": 9480,
+      "confianca": 1
+    },
+    {
+      "descricao": "MANTEIGA C/SAL 200G",
+      "quantidade": 8,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1090,
+      "valor_total_centavos": 8720,
+      "confianca": 1
+    },
+    {
+      "descricao": "REQUEIJAO CREM 200G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 590,
+      "valor_total_centavos": 7080,
+      "confianca": 1
+    },
+    {
+      "descricao": "CREME LEITE 200G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 280,
+      "valor_total_centavos": 3360,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 59600,
+  "confianca_documento": 1
+}

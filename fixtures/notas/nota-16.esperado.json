@@ -1,0 +1,35 @@
+{
+  "fornecedor": {
+    "nome": "Distribuidora Aurora Alimentos Ltda",
+    "cnpj": "31482907000168"
+  },
+  "data_emissao": "2026-10-16",
+  "itens": [
+    {
+      "descricao": "ARROZ BCO T1 5KG",
+      "quantidade": 16,
+      "unidade": "UN",
+      "valor_unitario_centavos": 2790,
+      "valor_total_centavos": 44640,
+      "confianca": 1
+    },
+    {
+      "descricao": "FARINHA TRIGO 1KG",
+      "quantidade": 6,
+      "unidade": "UN",
+      "valor_unitario_centavos": 330,
+      "valor_total_centavos": 1980,
+      "confianca": 1
+    },
+    {
+      "descricao": "SAL REFINADO 1KG",
+      "quantidade": 6,
+      "unidade": "UN",
+      "valor_unitario_centavos": 125,
+      "valor_total_centavos": 750,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 47370,
+  "confianca_documento": 1
+}

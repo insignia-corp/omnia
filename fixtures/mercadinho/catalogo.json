@@ -1,0 +1,452 @@
+[
+  {
+    "id": "P01",
+    "nome": "Arroz branco tipo 1 5kg",
+    "codigo_barras": "2990000000019",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 3499,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P02",
+    "nome": "Feijão carioca tipo 1 1kg",
+    "codigo_barras": "2990000000026",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 899,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P03",
+    "nome": "Óleo de soja 900ml",
+    "codigo_barras": "2990000000033",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 729,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P04",
+    "nome": "Açúcar refinado 1kg",
+    "codigo_barras": "2990000000040",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 449,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P05",
+    "nome": "Café torrado e moído 500g",
+    "codigo_barras": "2990000000057",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 1790,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P06",
+    "nome": "Macarrão espaguete 500g",
+    "codigo_barras": "2990000000064",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 369,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P07",
+    "nome": "Farinha de trigo 1kg",
+    "codigo_barras": "2990000000071",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 479,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P08",
+    "nome": "Sal refinado 1kg",
+    "codigo_barras": "2990000000088",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 219,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P09",
+    "nome": "Molho de tomate 340g",
+    "codigo_barras": "2990000000095",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 259,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P10",
+    "nome": "Milho verde em conserva 200g",
+    "codigo_barras": "2990000000101",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 289,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P11",
+    "nome": "Farinha de mandioca 500g",
+    "codigo_barras": "2990000000118",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 429,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P12",
+    "nome": "Vinagre de álcool 750ml",
+    "codigo_barras": "2990000000125",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 249,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P13",
+    "nome": "Achocolatado em pó 400g",
+    "codigo_barras": "2990000000132",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 849,
+    "fornecedor_principal_id": "AUR"
+  },
+  {
+    "id": "P14",
+    "nome": "Refrigerante cola 2L",
+    "codigo_barras": "2990000000149",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 899,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P15",
+    "nome": "Refrigerante guaraná 2L",
+    "codigo_barras": "2990000000156",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 849,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P16",
+    "nome": "Refrigerante cola lata 350ml",
+    "codigo_barras": "2990000000163",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 399,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P17",
+    "nome": "Cerveja pilsen lata 350ml",
+    "codigo_barras": "2990000000170",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 329,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P18",
+    "nome": "Cerveja long neck 330ml",
+    "codigo_barras": "2990000000187",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 599,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P19",
+    "nome": "Água mineral sem gás 1,5L",
+    "codigo_barras": "2990000000194",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 249,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P20",
+    "nome": "Água mineral com gás 500ml",
+    "codigo_barras": "2990000000200",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 229,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P21",
+    "nome": "Suco de laranja 1L",
+    "codigo_barras": "2990000000217",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 549,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P22",
+    "nome": "Energético 250ml",
+    "codigo_barras": "2990000000224",
+    "unidade": "un",
+    "categoria": "bebidas",
+    "preco_venda_centavos": 799,
+    "fornecedor_principal_id": "BEB"
+  },
+  {
+    "id": "P23",
+    "nome": "Leite integral 1L",
+    "codigo_barras": "2990000000231",
+    "unidade": "un",
+    "categoria": "laticínios",
+    "preco_venda_centavos": 479,
+    "fornecedor_principal_id": "LAT"
+  },
+  {
+    "id": "P24",
+    "nome": "Iogurte de morango 170g",
+    "codigo_barras": "2990000000248",
+    "unidade": "un",
+    "categoria": "laticínios",
+    "preco_venda_centavos": 249,
+    "fornecedor_principal_id": "LAT"
+  },
+  {
+    "id": "P25",
+    "nome": "Queijo mussarela fatiado 150g",
+    "codigo_barras": "2990000000255",
+    "unidade": "un",
+    "categoria": "laticínios",
+    "preco_venda_centavos": 1099,
+    "fornecedor_principal_id": "LAT"
+  },
+  {
+    "id": "P26",
+    "nome": "Manteiga com sal 200g",
+    "codigo_barras": "2990000000262",
+    "unidade": "un",
+    "categoria": "laticínios",
+    "preco_venda_centavos": 1499,
+    "fornecedor_principal_id": "LAT"
+  },
+  {
+    "id": "P27",
+    "nome": "Requeijão cremoso 200g",
+    "codigo_barras": "2990000000279",
+    "unidade": "un",
+    "categoria": "laticínios",
+    "preco_venda_centavos": 849,
+    "fornecedor_principal_id": "LAT"
+  },
+  {
+    "id": "P28",
+    "nome": "Creme de leite 200g",
+    "codigo_barras": "2990000000286",
+    "unidade": "un",
+    "categoria": "laticínios",
+    "preco_venda_centavos": 429,
+    "fornecedor_principal_id": "LAT"
+  },
+  {
+    "id": "P29",
+    "nome": "Detergente líquido 500ml",
+    "codigo_barras": "2990000000293",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 299,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P30",
+    "nome": "Sabão em pó 800g",
+    "codigo_barras": "2990000000309",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 1199,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P31",
+    "nome": "Água sanitária 1L",
+    "codigo_barras": "2990000000316",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 349,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P32",
+    "nome": "Desinfetante 500ml",
+    "codigo_barras": "2990000000323",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 449,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P33",
+    "nome": "Papel higiênico folha dupla 4 rolos",
+    "codigo_barras": "2990000000330",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 999,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P34",
+    "nome": "Sabonete 85g",
+    "codigo_barras": "2990000000347",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 199,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P35",
+    "nome": "Creme dental 90g",
+    "codigo_barras": "2990000000354",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 349,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P36",
+    "nome": "Shampoo 325ml",
+    "codigo_barras": "2990000000361",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 999,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P37",
+    "nome": "Esponja de cozinha 3 unidades",
+    "codigo_barras": "2990000000378",
+    "unidade": "un",
+    "categoria": "higiene e limpeza",
+    "preco_venda_centavos": 199,
+    "fornecedor_principal_id": "HIG"
+  },
+  {
+    "id": "P38",
+    "nome": "Pão de forma tradicional 500g",
+    "codigo_barras": "2990000000385",
+    "unidade": "un",
+    "categoria": "padaria e snacks",
+    "preco_venda_centavos": 849,
+    "fornecedor_principal_id": "PAD"
+  },
+  {
+    "id": "P39",
+    "nome": "Biscoito recheado chocolate 120g",
+    "codigo_barras": "2990000000392",
+    "unidade": "un",
+    "categoria": "padaria e snacks",
+    "preco_venda_centavos": 279,
+    "fornecedor_principal_id": "PAD"
+  },
+  {
+    "id": "P40",
+    "nome": "Biscoito cream cracker 400g",
+    "codigo_barras": "2990000000408",
+    "unidade": "un",
+    "categoria": "padaria e snacks",
+    "preco_venda_centavos": 459,
+    "fornecedor_principal_id": "PAD"
+  },
+  {
+    "id": "P41",
+    "nome": "Salgadinho de milho 100g",
+    "codigo_barras": "2990000000415",
+    "unidade": "un",
+    "categoria": "padaria e snacks",
+    "preco_venda_centavos": 549,
+    "fornecedor_principal_id": "PAD"
+  },
+  {
+    "id": "P42",
+    "nome": "Chocolate ao leite 80g",
+    "codigo_barras": "2990000000422",
+    "unidade": "un",
+    "categoria": "padaria e snacks",
+    "preco_venda_centavos": 459,
+    "fornecedor_principal_id": "PAD"
+  },
+  {
+    "id": "P43",
+    "nome": "Bala de goma 90g",
+    "codigo_barras": "2990000000439",
+    "unidade": "un",
+    "categoria": "padaria e snacks",
+    "preco_venda_centavos": 249,
+    "fornecedor_principal_id": "PAD"
+  },
+  {
+    "id": "P44",
+    "nome": "Linguiça toscana 500g",
+    "codigo_barras": "2990000000446",
+    "unidade": "un",
+    "categoria": "frios e carnes",
+    "preco_venda_centavos": 1699,
+    "fornecedor_principal_id": "FRI"
+  },
+  {
+    "id": "P45",
+    "nome": "Presunto fatiado 200g",
+    "codigo_barras": "2990000000453",
+    "unidade": "un",
+    "categoria": "frios e carnes",
+    "preco_venda_centavos": 999,
+    "fornecedor_principal_id": "FRI"
+  },
+  {
+    "id": "P46",
+    "nome": "Salsicha hot dog 500g",
+    "codigo_barras": "2990000000460",
+    "unidade": "un",
+    "categoria": "frios e carnes",
+    "preco_venda_centavos": 999,
+    "fornecedor_principal_id": "FRI"
+  },
+  {
+    "id": "P47",
+    "nome": "Carvão vegetal 3kg",
+    "codigo_barras": "2990000000477",
+    "unidade": "un",
+    "categoria": "frios e carnes",
+    "preco_venda_centavos": 1599,
+    "fornecedor_principal_id": "FRI"
+  },
+  {
+    "id": "P48",
+    "nome": "Ovos brancos dúzia",
+    "codigo_barras": "2990000000484",
+    "unidade": "un",
+    "categoria": "mercearia",
+    "preco_venda_centavos": 1499,
+    "fornecedor_principal_id": "MIX"
+  },
+  {
+    "id": "P49",
+    "nome": "Pilha alcalina AA 2 unidades",
+    "codigo_barras": "2990000000491",
+    "unidade": "un",
+    "categoria": "variedades",
+    "preco_venda_centavos": 1099,
+    "fornecedor_principal_id": "MIX"
+  },
+  {
+    "id": "P50",
+    "nome": "Guardanapo de papel 50 folhas",
+    "codigo_barras": "2990000000507",
+    "unidade": "un",
+    "categoria": "variedades",
+    "preco_venda_centavos": 229,
+    "fornecedor_principal_id": "MIX"
+  }
+]

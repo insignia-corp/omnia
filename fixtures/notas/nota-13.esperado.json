@@ -1,0 +1,51 @@
+{
+  "fornecedor": {
+    "nome": "Bebidas Centro-Oeste Distribuidora Ltda",
+    "cnpj": "27650318000174"
+  },
+  "data_emissao": "2026-10-06",
+  "itens": [
+    {
+      "descricao": "REFRIG COLA 2L",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 580,
+      "valor_total_centavos": 13920,
+      "confianca": 1
+    },
+    {
+      "descricao": "REFRIG COLA LT 350ML",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 245,
+      "valor_total_centavos": 5880,
+      "confianca": 1
+    },
+    {
+      "descricao": "CERV PILSEN LT 350ML",
+      "quantidade": 96,
+      "unidade": "UN",
+      "valor_unitario_centavos": 259,
+      "valor_total_centavos": 24864,
+      "confianca": 1
+    },
+    {
+      "descricao": "CERV LONG NECK 330ML",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 380,
+      "valor_total_centavos": 4560,
+      "confianca": 1
+    },
+    {
+      "descricao": "AGUA MIN S/GAS 1,5L",
+      "quantidade": 36,
+      "unidade": "UN",
+      "valor_unitario_centavos": 120,
+      "valor_total_centavos": 4320,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 53544,
+  "confianca_documento": 1
+}

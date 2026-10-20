@@ -17,6 +17,7 @@
 | Saídas brutas de eval, testes e medições | [../evidencias/](../evidencias/) | Evidências |
 | Regras invioláveis, roteamento, convenções e fluxo de trabalho de qualquer agente | [../AGENTS.md](../AGENTS.md) | Sempre carregado |
 | Procedimentos de fechar sessão e auditar edição | [protocolos/](protocolos/) | Metodologia |
+| Divisão em 3 planos, issues de cada um, regras de colisão | [protocolos/divisao-planos.md](protocolos/divisao-planos.md) | Metodologia |
 
 ## Fluxo do conhecimento
 

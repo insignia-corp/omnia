@@ -84,12 +84,15 @@ npm run dev
 | `npm run lint` / `npm run typecheck` | ESLint e TypeScript |
 | `npm run db:generate` | Gera migração a partir de `src/infra/database/schema.ts` |
 | `npm run db:migrate` / `npm run db:reset` | Aplica migrações / zera o banco e reaplica |
+| `npm run db:seed` / `npm run seed:demo` | Carrega o mercadinho de teste (2 comerciantes) / zera o banco e carrega |
+| `npm run fixtures:gerar` | Regera os arquivos de `fixtures/` (ver `fixtures/README.md`) |
 
 ## Documentação
 
 - [Guia de desenvolvimento](docs/guia-desenvolvimento.md): arquitetura, etapas, modelo de dados, métricas, agente, avaliação, segurança
 - [Contexto do hackathon](docs/contexto-hackathon.md): critérios da banca, persona, viabilidade, custos, riscos
 - [Alertas do hackathon](docs/alertas-hackathon.md): prazo, escopo e critérios da banca (seção 9.4 do edital)
+- [Modelo de dados](docs/modelo-de-dados.md): tabelas, diagrama, histórico append-only e seed
 - [Arquitetura](docs/arquitetura.md): módulos, dados, serviços externos e modelos por papel
 - [Fluxo do agente](docs/agent-flow.md): inputs, lógica e outputs do agente
 - [Especificação dos agentes](docs/especificacao-agentes.md): Extrator, Analista, orquestrador, ferramentas, falhas e avaliação

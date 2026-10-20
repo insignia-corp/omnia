@@ -15,6 +15,20 @@
       "when": 1792464038339,
       "tag": "0001_nucleo_agente",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792506101437,
+      "tag": "0002_modelo_de_dados",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792506102867,
+      "tag": "0003_historico_append_only",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,14 @@ PRs em issues com `regra-inviolável` precisam de teste que prove a regra.
 5. Abra um Pull Request para `develop` com `Closes #12` na descrição e peça revisão de pelo menos 1 pessoa
 6. Releases: PR de `develop` para `main` ao fim de cada etapa
 
+## Antes de abrir a PR
+
+```bash
+npm run lint && npm run typecheck && npm test && npm run test:e2e
+```
+
+A CI roda os mesmos passos, mais a varredura de segredos e o build da imagem.
+
 ## Prefixos de commit
 
 `feat`, `fix`, `docs`, `refactor`, `test`, `chore`

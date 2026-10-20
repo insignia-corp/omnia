@@ -36,6 +36,13 @@
       "when": 1792527405093,
       "tag": "0004_vinculos_execucao_e_id_externo",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792528314658,
+      "tag": "0005_ingestao",
+      "breakpoints": true
     }
   ]
 }

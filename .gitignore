@@ -28,3 +28,6 @@ coverage/
 # Evidências brutas (o README e o que for promovido de propósito ficam)
 evidencias/*
 !evidencias/README.md
+
+# Arquivos enviados em desenvolvimento
+.dados/

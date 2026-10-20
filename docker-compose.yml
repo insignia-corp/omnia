@@ -32,6 +32,8 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgres://omnia:omnia@postgres:5432/omnia
       REDIS_URL: redis://redis:6379
+      ARMAZENAMENTO_DIR: /dados/arquivos
+    volumes: [arquivos:/dados]
     ports: ["${API_PORTA:-3000}:3000"]
     depends_on:
       postgres: { condition: service_healthy }
@@ -46,3 +48,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  arquivos:

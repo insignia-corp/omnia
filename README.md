@@ -18,7 +18,7 @@ TypeScript, NestJS, PostgreSQL (com `pg_trgm`), Redis + BullMQ, Docker Compose, 
 
 ## Roteiro
 
-O trabalho está organizado em [milestones](https://github.com/outz1/omnia/milestones), um por etapa do [guia de desenvolvimento](docs/guia-desenvolvimento.md). Cada etapa tem um épico com as sub-issues, e só se avança quando o critério de pronto passa.
+O trabalho está organizado em [milestones](https://github.com/insignia-corp/omnia/milestones), um por etapa do [guia de desenvolvimento](docs/guia-desenvolvimento.md). Cada etapa tem um épico com as sub-issues, e só se avança quando o critério de pronto passa.
 
 | Etapa | Pronto quando |
 | --- | --- |
@@ -36,7 +36,7 @@ Prazo: congelamento do código no **sábado 24/10/2026 às 15h30** ([alertas do 
 
 Trilhas paralelas: **Segurança e LGPD**, **Validação e negócio** (entrevistas, custos, concorrentes) e **Pitch e equipe**.
 
-Acompanhe o andamento no [quadro do projeto](https://github.com/users/outz1/projects/1) e veja como escolher e abrir issues no [CONTRIBUTING](CONTRIBUTING.md).
+Acompanhe o andamento no [quadro do projeto](https://github.com/orgs/insignia-corp/projects/2) e veja como escolher e abrir issues no [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Estrutura do repositório
 

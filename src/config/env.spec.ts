@@ -14,6 +14,13 @@ describe("carregarEnv", () => {
     expect(env.CANAL).toBe("web");
   });
 
+  it("aplica os padrões da ingestão", () => {
+    const env = carregarEnv(base);
+    expect(env.EXTRATOR_MODELO).toBe("claude-sonnet-5-5");
+    expect(env.ARMAZENAMENTO_DIR).toBe("./.dados/arquivos");
+    expect(env.UPLOAD_MAX_BYTES).toBe(10_485_760);
+  });
+
   it("trata variável vazia como não definida", () => {
     const env = carregarEnv({ ...base, ANTHROPIC_API_KEY: "", LLM_MODELO: "" });
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();

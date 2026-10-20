@@ -63,6 +63,7 @@ export const gatilhoExecucao = pgEnum("gatilho_execucao", [
   "relatorio_diario",
   "mensagem_dono",
   "nota_processada",
+  "extracao_nota",
 ]);
 export const resultadoExecucao = pgEnum("resultado_execucao", [
   "aprovada",
@@ -320,6 +321,10 @@ export const documento = pgTable(
     confiancaMedia: real("confianca_media"),
     /** Saída do modelo já validada pelo esquema Zod, guardada para auditoria. */
     extracaoJson: jsonb("extracao_json"),
+    /** Divergências achadas pelas conferências em código (soma, CNPJ, data...), uma por item da lista. */
+    motivosValidacao: jsonb("motivos_validacao")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     erro: text("erro"),
     criadoEm: criadoEm(),
     processadoEm: timestamp("processado_em", { withTimezone: true }),
@@ -449,8 +454,9 @@ export const vinculoDescricaoProduto = pgTable(
 );
 
 /**
- * Histórico de custo por produto, fornecedor e data. Append-only: uma linha por item de compra,
- * nunca atualizada nem apagada (só a exclusão do lojista apaga). Alimenta margem e variação de
+ * Histórico de custo por produto, fornecedor e data. Append-only: nunca atualizada nem apagada
+ * (só a exclusão do lojista apaga). Uma linha por leitura do item; quando o dono corrige o custo
+ * entra uma linha nova e vale a mais recente do item. Alimenta margem e variação de
  * custo, e é o ativo próprio de dados do projeto.
  */
 export const historicoCusto = pgTable(
@@ -468,7 +474,6 @@ export const historicoCusto = pgTable(
     criadoEm: criadoEm(),
   },
   (t) => [
-    unique("historico_custo_item_uq").on(t.itemDeCompraId),
     foreignKey({
       name: "historico_custo_produto_fk",
       columns: [t.produtoId, t.comercianteId],
@@ -485,6 +490,8 @@ export const historicoCusto = pgTable(
       foreignColumns: [itemDeCompra.id, itemDeCompra.comercianteId],
     }),
     index("historico_custo_busca_idx").on(t.comercianteId, t.produtoId, t.fornecedorId, t.data),
+    // Várias linhas por item: a correção do dono insere uma nova e vale a mais recente.
+    index("historico_custo_item_idx").on(t.itemDeCompraId, t.criadoEm),
     check("historico_custo_nao_negativo", sql`${t.custoUnitarioCentavos} >= 0`),
     confiancaNaFaixa("historico_custo_confianca_faixa", t.confianca),
   ],
@@ -493,6 +500,22 @@ export const historicoCusto = pgTable(
 /* ----------------------------------------------------------------------------------------------
  * Vendas
  * -------------------------------------------------------------------------------------------- */
+
+/** Mapeamento de colunas de uma planilha de vendas, confirmado pelo dono uma única vez. */
+export const mapeamentoPlanilha = pgTable(
+  "mapeamento_planilha",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    comercianteId: comercianteId(),
+    /** Cabeçalhos normalizados e ordenados, unidos: identifica o "formato" da planilha. */
+    assinatura: text("assinatura").notNull(),
+    /** Campo do sistema (data, produto, quantidade...) para o nome da coluna na planilha. */
+    mapeamento: jsonb("mapeamento").notNull(),
+    confirmadoPeloDono: boolean("confirmado_pelo_dono").notNull().default(false),
+    criadoEm: criadoEm(),
+  },
+  (t) => [unique("mapeamento_planilha_assinatura_uq").on(t.comercianteId, t.assinatura)],
+);
 
 export const venda = pgTable(
   "venda",

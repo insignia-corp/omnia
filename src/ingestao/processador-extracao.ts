@@ -15,6 +15,7 @@ export interface DependenciasProcessador {
   extrator: ExtratorNotas;
   registro: RegistroExecucoes;
   limiteConfiancaItem: number;
+  limiteSimilaridade: number;
   /** Modelo configurado, para registrar a execução mesmo quando a chamada nem chegou a responder. */
   modeloConfigurado: string;
   /** Data de hoje (AAAA-MM-DD). Injetável para os testes. */
@@ -80,6 +81,7 @@ export class ProcessadorExtracao {
       extracaoOriginal: resultado.extracao,
       validada,
       limiteConfiancaItem: this.dep.limiteConfiancaItem,
+      limiteSimilaridade: this.dep.limiteSimilaridade,
     });
     await this.registrar(
       entrada,

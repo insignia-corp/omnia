@@ -1,6 +1,6 @@
 import { LIMITE_CONFIANCA_ITEM } from "../../../ingestao/extracao/esquema-extracao";
+import { montarPerguntaItem } from "../../../ingestao/revisao/perguntas";
 import { normalizarDescricao } from "../../../ingestao/normalizar-descricao";
-import { formatarBRL, centavos } from "../../../lib/dinheiro/dinheiro";
 import type * as schema from "../schema";
 import type { Fixtures } from "./carregar-fixtures";
 import { uuidDeterministico } from "./uuid-deterministico";
@@ -189,10 +189,12 @@ export function montarSeed(fix: Fixtures, opcoes: OpcoesComerciante): LinhasSeed
           comercianteId,
           tipo: "confirmar_item",
           status: "pendente",
-          pergunta:
-            `Não consegui ler bem o item "${item.descricao}" da nota de ${nota.dataEmissao} ` +
-            `(${nomeFornecedor.get(nota.fornecedorId) ?? nota.fornecedorId}). ` +
-            `O valor unitário é ${formatarBRL(centavos(item.valor_unitario_centavos))}?`,
+          pergunta: montarPerguntaItem({
+            descricao: item.descricao,
+            data: nota.dataEmissao,
+            fornecedor: nomeFornecedor.get(nota.fornecedorId) ?? nota.fornecedorId,
+            valorUnitarioCentavos: item.valor_unitario_centavos,
+          }),
           contexto: { nota: nota.id, ordem: indice + 1, confianca: item.confianca },
           itemDeCompraId: itemId,
           criadoEm,

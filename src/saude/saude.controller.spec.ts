@@ -5,12 +5,13 @@ import { PRAZO_CHECAGEM_MS, SaudeController } from "./saude.controller";
 
 describe("SaudeController", () => {
   const query = jest.fn();
+  const release = jest.fn();
   const ping = jest.fn();
   const status = jest.fn();
 
   function criar(estadoRedis = "ready") {
     return new SaudeController(
-      { query } as unknown as Pool,
+      { connect: () => Promise.resolve({ query, release }) } as unknown as Pool,
       { ping, status: estadoRedis } as unknown as Redis,
     );
   }
@@ -20,6 +21,7 @@ describe("SaudeController", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     query.mockReset().mockResolvedValue({ rowCount: 1 });
+    release.mockReset();
     ping.mockReset().mockResolvedValue("PONG");
     status.mockReset();
   });
@@ -95,8 +97,27 @@ describe("SaudeController", () => {
     expect(status).toHaveBeenCalledWith(503);
   });
 
+  it("consulta numa transação com statement_timeout e devolve a conexão ao pool", async () => {
+    await criar().verificar(resposta);
+    expect(query).toHaveBeenCalledWith("BEGIN");
+    expect(query).toHaveBeenCalledWith(`SET LOCAL statement_timeout = ${PRAZO_CHECAGEM_MS}`);
+    expect(query).toHaveBeenCalledWith("COMMIT");
+    expect(release).toHaveBeenCalledTimes(2);
+    expect(release).toHaveBeenCalledWith(false);
+  });
+
+  it("destrói a conexão quando a consulta falha, em vez de devolvê-la ao pool", async () => {
+    query.mockImplementation((texto: string) =>
+      texto === "SELECT 1" ? Promise.reject(new Error("banco caiu")) : Promise.resolve({ rowCount: 1 }),
+    );
+    expect(await criar().verificar(resposta)).toMatchObject({ postgres: "falha", pgTrgm: "ok" });
+    expect(release).toHaveBeenCalledWith(true);
+  });
+
   it("retorna falha quando pg_trgm está ausente", async () => {
-    query.mockResolvedValueOnce({ rowCount: 1 }).mockResolvedValueOnce({ rowCount: 0 });
+    query.mockImplementation((texto: string) =>
+      Promise.resolve({ rowCount: texto.includes("pg_extension") ? 0 : 1 }),
+    );
     expect(await criar().verificar(resposta)).toMatchObject({
       status: "falha",
       postgres: "ok",

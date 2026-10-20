@@ -156,7 +156,7 @@ Limite conhecido: o verificador confere se o número aparece nos resultados das 
 ## 6. Observabilidade
 
 - Cada execução do Analista grava em `execucao_agente` o gatilho, as ferramentas chamadas (em `chamada_ferramenta`), tokens, custo estimado, latência, bloqueios do verificador, versão do prompt e modelo.
-- O Extrator também precisa gravar tokens, custo e latência, senão o custo por lojista fica incompleto. Feito (migração 0004): o valor `extracao_nota` do enum `gatilho_execucao` usa o mesmo registro, com `resultado` em `aprovada`, `fallback_erro` ou `recusa_modelo`; `entrada` guarda `documento:<id>`.
+- O Extrator também precisa gravar tokens, custo e latência, senão o custo por lojista fica incompleto. Feito (migração 0005): o valor `extracao_nota` do enum `gatilho_execucao` usa o mesmo registro, com `resultado` em `aprovada`, `fallback_erro` ou `recusa_modelo`; `entrada` guarda `documento:<id>`.
 - Métrica de degradação: taxa de bloqueio do verificador por dia.
 - Tela de bastidores (#77): mostra, em ordem, extração com confiança, chamadas de ferramenta, candidatos de alerta, a chamada de `select_alerts` com as justificativas, resultado do verificador e mensagem final.
 
@@ -189,7 +189,7 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 | Ferramentas P0 e `select_alerts` | `src/agente/ferramentas/` | #50 a #53 |
 | `propose_target_price`, tabela `confirmacao_pendente` e resolução do "sim" em código | `src/agente/`, `src/infra/database/schema.ts` | #104 |
 | Motor de alertas com impacto mensal em centavos e prioridade | `src/alertas/` | #43, #44 |
-| Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0004 | #24 |
+| Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
 | Prompt `sistema-v2.md` | `src/agente/prompts/` | #54 |
 | Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |
 

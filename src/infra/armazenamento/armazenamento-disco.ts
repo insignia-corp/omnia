@@ -1,10 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
+import { ehUuid } from "../../lib/uuid/uuid";
 import { ErroArmazenamento, type Armazenamento, type ArquivoSalvo } from "./armazenamento";
 import { detectarTipo, EXTENSAO, type TipoArquivo } from "./tipo-arquivo";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface OpcoesArmazenamentoDisco {
   raiz: string;
@@ -23,7 +22,7 @@ export class ArmazenamentoDisco implements Armazenamento {
 
   async salvar(comercianteId: string, conteudo: Buffer): Promise<ArquivoSalvo> {
     // O id vira nome de pasta: só UUID, para nunca escapar da raiz.
-    if (!UUID.test(comercianteId)) throw new Error("comerciante_id inválido para o armazenamento");
+    if (!ehUuid(comercianteId)) throw new Error("comerciante_id inválido para o armazenamento");
     if (conteudo.length === 0) throw new ErroArmazenamento("vazio", "Arquivo vazio");
     if (conteudo.length > this.opcoes.maxBytes) {
       throw new ErroArmazenamento(

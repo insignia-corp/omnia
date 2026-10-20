@@ -10,8 +10,8 @@ import { eq } from "drizzle-orm";
 import type { Request } from "express";
 import { DB, type Db } from "../infra/database/database.module";
 import { comerciante } from "../infra/database/schema";
+import { ehUuid } from "../lib/uuid/uuid";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const CABECALHO_COMERCIANTE = "x-comerciante-id";
 
 type RequisicaoComSessao = Request & { comercianteId?: string };
@@ -31,7 +31,7 @@ export class SessaoGuard implements CanActivate {
   async canActivate(contexto: ExecutionContext): Promise<boolean> {
     const req = contexto.switchToHttp().getRequest<RequisicaoComSessao>();
     const id = req.headers[CABECALHO_COMERCIANTE];
-    if (typeof id !== "string" || !UUID.test(id)) {
+    if (typeof id !== "string" || !ehUuid(id)) {
       throw new UnauthorizedException("Comerciante não identificado");
     }
     const [achado] = await this.db

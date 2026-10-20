@@ -24,3 +24,7 @@ Thumbs.db
 # Testes
 coverage/
 .claude/settings.local.json
+
+# Evidências brutas (o README e o que for promovido de propósito ficam)
+evidencias/*
+!evidencias/README.md

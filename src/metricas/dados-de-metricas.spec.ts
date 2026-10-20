@@ -3,7 +3,9 @@ import {
   compararNomes,
   compararTexto,
   custoMaisRecente,
+  indexarVendasPorDia,
   type CustoDeCompra,
+  type VendasDoDia,
 } from "./dados-de-metricas";
 
 const custo = (data: string, centavos: number, extra: Partial<CustoDeCompra> = {}): CustoDeCompra => ({
@@ -19,7 +21,52 @@ const custo = (data: string, centavos: number, extra: Partial<CustoDeCompra> = {
   ...extra,
 });
 
+const vendasDoDia = (data: string, cupons: number): VendasDoDia => ({
+  data,
+  cupons,
+  faturamentoCentavos: cupons * 1000,
+  registros: cupons,
+  menorConfianca: 1,
+  origens: ["planilha"],
+});
+
 describe("dados-de-metricas", () => {
+  describe("indexarVendasPorDia", () => {
+    const vendas = [vendasDoDia("2026-10-17", 5), vendasDoDia("2026-10-19", 8)];
+    const intervalo = { primeira: "2026-10-15", ultima: "2026-10-19" };
+
+    it("devolve a linha do dia", () => {
+      expect(indexarVendasPorDia(vendas, intervalo)("2026-10-19")).toBe(vendas[1]);
+    });
+
+    it("dia dentro do intervalo sem linha é dia sem venda: zero cupom e nenhuma procedência", () => {
+      expect(indexarVendasPorDia(vendas, intervalo)("2026-10-18")).toEqual({
+        data: "2026-10-18",
+        cupons: 0,
+        faturamentoCentavos: 0,
+        registros: 0,
+        menorConfianca: null,
+        origens: [],
+      });
+    });
+
+    it("as duas pontas do intervalo estão dentro", () => {
+      const vendasDe = indexarVendasPorDia(vendas, intervalo);
+      expect(vendasDe("2026-10-15")).not.toBeNull();
+      expect(vendasDe("2026-10-19")).not.toBeNull();
+    });
+
+    it("dia fora do intervalo é dia sem dado: nulo, nunca zero", () => {
+      const vendasDe = indexarVendasPorDia(vendas, intervalo);
+      expect(vendasDe("2026-10-14")).toBeNull();
+      expect(vendasDe("2026-10-20")).toBeNull();
+    });
+
+    it("sem intervalo nenhum dia tem dado", () => {
+      expect(indexarVendasPorDia(vendas, null)("2026-10-19")).toBeNull();
+    });
+  });
+
   describe("compararTexto", () => {
     it("ordena por código de caractere, sem localidade", () => {
       expect(compararTexto("2026-10-01", "2026-10-02")).toBe(-1);

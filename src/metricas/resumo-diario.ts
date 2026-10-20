@@ -6,7 +6,13 @@
  * dele, dia sem cupom é dia sem venda (loja fechada); fora dele, a comparação fica ausente.
  */
 import { somarDias } from "../lib/datas/datas";
-import type { ContaParaMetrica, IntervaloDeDados, MovimentoDoDia, VendasDoDia } from "./dados-de-metricas";
+import {
+  indexarVendasPorDia,
+  type ContaParaMetrica,
+  type IntervaloDeDados,
+  type MovimentoDoDia,
+  type VendasDoDia,
+} from "./dados-de-metricas";
 import { percentualDeBps, razaoEmBps } from "./pontos-base";
 import {
   dadoAusente,
@@ -108,23 +114,8 @@ function calcularSaldoDaConta(
 export function calcularResumoDiario(
   entrada: EntradaResumoDiario,
 ): ResultadoMetrica<ResumoDiario> | DadoAusente {
-  const { data, intervaloDeVendas: intervalo } = entrada;
-  const vendasPorData = new Map(entrada.vendas.map((v) => [v.data, v]));
-
-  /** As vendas do dia; zero dentro do intervalo importado e nulo fora dele. */
-  const vendasDe = (dia: string): VendasDoDia | null => {
-    if (!intervalo || dia < intervalo.primeira || dia > intervalo.ultima) return null;
-    return (
-      vendasPorData.get(dia) ?? {
-        data: dia,
-        cupons: 0,
-        faturamentoCentavos: 0,
-        registros: 0,
-        menorConfianca: null,
-        origens: [],
-      }
-    );
-  };
+  const { data } = entrada;
+  const vendasDe = indexarVendasPorDia(entrada.vendas, entrada.intervaloDeVendas);
 
   const hoje = vendasDe(data);
   if (!hoje) {

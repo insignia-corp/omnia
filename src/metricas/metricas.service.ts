@@ -4,11 +4,19 @@
  * um id de produto de outro lojista não é encontrado.
  */
 import { somarDias } from "../lib/datas/datas";
+import { calcularEspacoParaSubirPreco, type ProdutoComEspacoParaSubirPreco } from "./espaco-para-subir-preco";
+import { calcularEstoqueParado, type ProdutoParado } from "./estoque-parado";
+import {
+  PARAMETROS_GASTO_FORA_DO_PADRAO,
+  calcularGastoForaDoPadrao,
+  type GastoForaDoPadrao,
+} from "./gasto-fora-do-padrao";
 import { DIAS_DE_HISTORICO_DO_GIRO, calcularGiro, type Giro } from "./giro";
 import { PARAMETROS_MARGEM, calcularMargemDoProduto, type MargemDoProduto } from "./margem-por-produto";
 import type { FonteDeDadosMetricas } from "./repositorio-metricas";
 import { dadoAusente, type DadoAusente, type ResultadoMetrica } from "./resultado-metrica";
 import { DIAS_DE_COMPARACAO_DO_RESUMO, calcularResumoDiario, type ResumoDiario } from "./resumo-diario";
+import { DIAS_DE_HISTORICO_DO_TICKET, calcularTicketMedio, type TicketMedio } from "./ticket-medio";
 import { calcularVariacoesDeCusto, type VariacaoDeCusto } from "./variacao-de-custo";
 
 /** O que as métricas precisam saber da sessão. `ContextoSessao` das ferramentas serve. */
@@ -132,5 +140,52 @@ export class MetricasService {
       this.dados.contas(comercianteId),
     ]);
     return calcularResumoDiario({ data, vendas, intervaloDeVendas, movimentos, contas });
+  }
+
+  /** Ticket médio de um dia contra a média dos 28 anteriores (a data de referência, se não for indicada outra). */
+  async ticketMedio(
+    contexto: ContextoMetricas,
+    data: string = contexto.dataReferencia,
+  ): Promise<ResultadoMetrica<TicketMedio> | DadoAusente> {
+    const { comercianteId } = contexto;
+    const desde = somarDias(data, -DIAS_DE_HISTORICO_DO_TICKET);
+    const [vendas, intervaloDeVendas] = await Promise.all([
+      this.dados.vendasPorDia(comercianteId, desde, data),
+      this.dados.intervaloDeVendas(comercianteId),
+    ]);
+    return calcularTicketMedio({ data, vendas, intervaloDeVendas });
+  }
+
+  /** Gasto operacional de um dia contra o padrão dos 60 anteriores (a data de referência, se não for indicada outra). */
+  async gastoForaDoPadrao(
+    contexto: ContextoMetricas,
+    data: string = contexto.dataReferencia,
+  ): Promise<ResultadoMetrica<GastoForaDoPadrao> | DadoAusente> {
+    const { comercianteId } = contexto;
+    const desde = somarDias(data, -PARAMETROS_GASTO_FORA_DO_PADRAO.janelaDias);
+    const [movimentos, intervaloDeMovimentos] = await Promise.all([
+      this.dados.movimentosPorDia(comercianteId, data, desde),
+      this.dados.intervaloDeMovimentos(comercianteId),
+    ]);
+    return calcularGastoForaDoPadrao({ data, movimentos, intervaloDeMovimentos });
+  }
+
+  /** Produtos comprados há mais tempo sem vender. */
+  async estoqueParado(contexto: ContextoMetricas): Promise<ResultadoMetrica<ProdutoParado[]>> {
+    const { comercianteId, dataReferencia } = contexto;
+    const [produtos, custos, ultimasVendas] = await Promise.all([
+      this.dados.produtos(comercianteId),
+      this.dados.custosDeCompra(comercianteId, dataReferencia),
+      this.dados.ultimasVendasPorProduto(comercianteId, dataReferencia),
+    ]);
+    return calcularEstoqueParado({ produtos, custos, ultimasVendas, dataReferencia });
+  }
+
+  /** Produtos de giro alto com margem abaixo da meta. */
+  async espacoParaSubirPreco(
+    contexto: ContextoMetricas,
+  ): Promise<ResultadoMetrica<ProdutoComEspacoParaSubirPreco[]>> {
+    const [giro, margens] = await Promise.all([this.giro(contexto), this.margensDosProdutos(contexto)]);
+    return calcularEspacoParaSubirPreco({ giro, margens });
   }
 }

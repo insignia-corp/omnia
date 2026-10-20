@@ -115,11 +115,13 @@ O motor de alertas apenas lista candidatos com prioridade. Quem decide o que ent
 O código aplica estas regras além da tabela. Os valores iniciais ficam nas constantes `PARAMETROS_*` de [src/metricas](../src/metricas/README.md), e o teste de regressão confere que são os do gabarito.
 
 - Sem custo ou sem venda a margem não sai: a métrica devolve dado ausente, com a pergunta ao dono, nunca uma estimativa.
-- Dia sem dado não é zero. O resumo diário conhece o intervalo de vendas importado: dentro dele, dia sem cupom vale zero; fora dele, a comparação fica ausente, e um dia depois da última venda importada vira dado ausente em vez de faturamento zero. Um buraco no meio do intervalo conta como dia sem venda.
+- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio, gasto fora do padrão) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda.
 - O custo de cada item de compra vale pela leitura mais recente de `historico_custo`, então a correção do dono prevalece sem apagar a leitura do modelo. O custo mais recente de um produto é o de maior data; o empate desempata pela criação.
 - A variação de custo compara notas diferentes: duas linhas do mesmo produto na mesma nota não são um reajuste.
 - Razões em pontos-base e preço médio arredondam meio para cima, afastando do zero. Somas de quantidade são arredondadas em 3 casas, para o ruído de ponto flutuante não decidir um limite.
+- Mediana e desvio absoluto mediano são calculados em inteiros (meios e quartos de centavo) e saem em centavos inteiros; o desvio sai exato.
 - Nos rankings, o desempate é pelo nome em ordem alfabética do português e depois pelo id.
+- Produto nunca comprado ou nunca vendido na base fica fora do estoque parado: sem compra não há estoque a parar, e sem a última venda não há como medir os dias.
  
 ## O agente
  

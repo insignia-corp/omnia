@@ -22,6 +22,7 @@ import type {
   IntervaloDeDados,
   MovimentoDoDia,
   ProdutoParaMetrica,
+  UltimaVendaDoProduto,
   VendaDoProdutoNoDia,
   VendasDoDia,
 } from "./dados-de-metricas";
@@ -39,10 +40,14 @@ export interface FonteDeDadosMetricas {
   ): Promise<VendaDoProdutoNoDia[]>;
   vendasPorDia(comercianteId: string, desde: string, ate: string): Promise<VendasDoDia[]>;
   intervaloDeVendas(comercianteId: string): Promise<IntervaloDeDados | null>;
+  /** A última venda de cada produto vendido até a data, na base inteira. */
+  ultimasVendasPorProduto(comercianteId: string, ate: string): Promise<UltimaVendaDoProduto[]>;
   /** A leitura vigente de cada item de compra até a data, de qualquer produto ou do indicado. */
   custosDeCompra(comercianteId: string, ate: string, produtoId?: string): Promise<CustoDeCompra[]>;
-  /** Movimentos das contas ativas até a data, somados por conta, dia, sentido e categoria. */
-  movimentosPorDia(comercianteId: string, ate: string): Promise<MovimentoDoDia[]>;
+  /** Movimentos das contas ativas de `desde` (ou da abertura) até a data, somados por conta, dia, sentido e categoria. */
+  movimentosPorDia(comercianteId: string, ate: string, desde?: string): Promise<MovimentoDoDia[]>;
+  /** Primeiro e último dia com transação nas contas ativas; nulo sem nenhuma. */
+  intervaloDeMovimentos(comercianteId: string): Promise<IntervaloDeDados | null>;
   /** Contas ativas. */
   contas(comercianteId: string): Promise<ContaParaMetrica[]>;
 }
@@ -178,7 +183,59 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
     }));
   }
 
-  async movimentosPorDia(comercianteId: string, ate: string): Promise<MovimentoDoDia[]> {
+  async ultimasVendasPorProduto(comercianteId: string, ate: string): Promise<UltimaVendaDoProduto[]> {
+    const linhas = await this.db
+      .selectDistinctOn([itemDeVenda.produtoId], {
+        produtoId: itemDeVenda.produtoId,
+        data: venda.data,
+        confianca: venda.confianca,
+        origem: venda.origem,
+      })
+      .from(itemDeVenda)
+      .innerJoin(
+        venda,
+        and(eq(venda.id, itemDeVenda.vendaId), eq(venda.comercianteId, itemDeVenda.comercianteId)),
+      )
+      .where(
+        and(
+          eq(venda.comercianteId, comercianteId),
+          eq(itemDeVenda.comercianteId, comercianteId),
+          lte(venda.data, ate),
+        ),
+      )
+      // Vários cupons do mesmo produto no último dia: o id desempata, para a linha escolhida ser sempre a mesma.
+      .orderBy(asc(itemDeVenda.produtoId), desc(venda.data), desc(itemDeVenda.id));
+    return linhas.map((l) => ({
+      produtoId: l.produtoId,
+      data: l.data,
+      registros: 1,
+      menorConfianca: l.confianca,
+      origens: [l.origem],
+    }));
+  }
+
+  async intervaloDeMovimentos(comercianteId: string): Promise<IntervaloDeDados | null> {
+    const contasAtivas = await this.contas(comercianteId);
+    if (contasAtivas.length === 0) return null;
+    const [linha] = await this.db
+      .select({
+        primeira: sql<string | null>`min(${transacao.data})`,
+        ultima: sql<string | null>`max(${transacao.data})`,
+      })
+      .from(transacao)
+      .where(
+        and(
+          eq(transacao.comercianteId, comercianteId),
+          inArray(
+            transacao.contaId,
+            contasAtivas.map((c) => c.id),
+          ),
+        ),
+      );
+    return linha?.primeira && linha.ultima ? { primeira: linha.primeira, ultima: linha.ultima } : null;
+  }
+
+  async movimentosPorDia(comercianteId: string, ate: string, desde?: string): Promise<MovimentoDoDia[]> {
     const contasAtivas = await this.contas(comercianteId);
     if (contasAtivas.length === 0) return [];
     const linhas = await this.db
@@ -201,6 +258,7 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
             contasAtivas.map((c) => c.id),
           ),
           lte(transacao.data, ate),
+          desde ? gte(transacao.data, desde) : undefined,
         ),
       )
       .groupBy(transacao.contaId, transacao.data, transacao.tipo, transacao.categoria)

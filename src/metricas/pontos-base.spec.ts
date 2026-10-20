@@ -1,6 +1,31 @@
-import { percentualDeBps, razaoEmBps } from "./pontos-base";
+import { dividirArredondando, percentualDeBps, razaoEmBps } from "./pontos-base";
 
 describe("pontos-base", () => {
+  describe("dividirArredondando", () => {
+    it("arredonda para o inteiro mais próximo", () => {
+      expect(dividirArredondando(10, 4)).toBe(3); // 2,5
+      expect(dividirArredondando(9, 4)).toBe(2); // 2,25
+      expect(dividirArredondando(11, 4)).toBe(3); // 2,75
+    });
+
+    it("o meio vai para longe do zero, também nos negativos", () => {
+      expect(dividirArredondando(-10, 4)).toBe(-3);
+      expect(dividirArredondando(10, -4)).toBe(-3);
+      expect(dividirArredondando(-10, -4)).toBe(3);
+    });
+
+    it("divisão exata e zero", () => {
+      expect(dividirArredondando(12, 4)).toBe(3);
+      expect(dividirArredondando(0, 7)).toBe(0);
+      expect(Object.is(dividirArredondando(-1, 3), -0)).toBe(false);
+    });
+
+    it("null com divisor zero e erro com valor que não é número finito", () => {
+      expect(dividirArredondando(1, 0)).toBeNull();
+      expect(() => dividirArredondando(Number.NaN, 1)).toThrow(RangeError);
+    });
+  });
+
   describe("razaoEmBps", () => {
     it("calcula a razão em bps", () => {
       expect(razaoEmBps(25, 100)).toBe(2500);

@@ -28,12 +28,18 @@ export interface VendasDoDia extends Procedencia {
 }
 
 /**
- * Datas entre as quais há dado de venda. Dentro do intervalo, dia sem linha é dia sem venda;
- * fora dele é dia sem dado, que não pode virar zero.
+ * Datas entre as quais há dado importado (de vendas ou de movimentos bancários). Dentro do
+ * intervalo, dia sem linha é dia sem movimento; fora dele é dia sem dado, que não pode virar zero.
  */
 export interface IntervaloDeDados {
   primeira: string;
   ultima: string;
+}
+
+/** A última venda de um produto na base até a data. Vale 1 registro: a linha dessa venda. */
+export interface UltimaVendaDoProduto extends Procedencia {
+  produtoId: string;
+  data: string;
 }
 
 /** Uma leitura de custo: a linha vigente de `historico_custo` de um item de compra. */
@@ -64,6 +70,30 @@ export interface ContaParaMetrica {
   saldoInicialCentavos: number | null;
   /** O saldo inicial vale antes das transações deste dia, que já entram no cálculo. */
   saldoInicialEm: string | null;
+}
+
+/**
+ * Consulta de vendas por dia que separa "dia sem venda" de "dia sem dado": dentro do intervalo
+ * importado, o dia sem linha vale zero cupom; fora dele, a consulta devolve nulo.
+ */
+export function indexarVendasPorDia(
+  vendas: readonly VendasDoDia[],
+  intervalo: IntervaloDeDados | null,
+): (dia: string) => VendasDoDia | null {
+  const porData = new Map(vendas.map((v) => [v.data, v]));
+  return (dia) => {
+    if (!intervalo || dia < intervalo.primeira || dia > intervalo.ultima) return null;
+    return (
+      porData.get(dia) ?? {
+        data: dia,
+        cupons: 0,
+        faturamentoCentavos: 0,
+        registros: 0,
+        menorConfianca: null,
+        origens: [],
+      }
+    );
+  };
 }
 
 /** Comparação de texto sem depender de localidade, para datas ISO e ids. */

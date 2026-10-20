@@ -63,6 +63,13 @@ export const procedenciaDeUmRegistro = (origem: OrigemDado, confianca: number): 
   origens: [origem],
 });
 
+/** A procedência de um resultado já calculado, para uma métrica derivada de outras. */
+export const procedenciaDe = (resultado: ResultadoMetrica<unknown>): Procedencia => ({
+  registros: resultado.n_registros,
+  menorConfianca: resultado.menor_confianca,
+  origens: resultado.origens,
+});
+
 type ProcedenciaResumida = Pick<ResultadoMetrica<unknown>, "n_registros" | "menor_confianca" | "origens">;
 
 /** Soma os registros, fica com a pior confiança e junta as origens de todas as fontes usadas. */

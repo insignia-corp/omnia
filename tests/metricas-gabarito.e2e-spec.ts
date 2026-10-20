@@ -6,12 +6,18 @@ import { carregarEnv } from "../src/config/env";
 import { migrar } from "../src/infra/database/migrar";
 import * as schema from "../src/infra/database/schema";
 import { semear } from "../src/infra/database/seed/semear";
+import { PARAMETROS_ESTOQUE_PARADO } from "../src/metricas/estoque-parado";
+import {
+  PARAMETROS_GASTO_FORA_DO_PADRAO,
+  type GastoForaDoPadrao,
+} from "../src/metricas/gasto-fora-do-padrao";
 import { PARAMETROS_GIRO } from "../src/metricas/giro";
 import { PARAMETROS_MARGEM, type MargemDoProduto } from "../src/metricas/margem-por-produto";
 import { MetricasService, type ContextoMetricas } from "../src/metricas/metricas.service";
 import { RepositorioMetricasPostgres } from "../src/metricas/repositorio-metricas";
 import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "../src/metricas/resultado-metrica";
 import type { ResumoDiario } from "../src/metricas/resumo-diario";
+import { PARAMETROS_TICKET_MEDIO, type TicketMedio } from "../src/metricas/ticket-medio";
 import { PARAMETROS_VARIACAO_CUSTO } from "../src/metricas/variacao-de-custo";
 
 /**
@@ -77,12 +83,39 @@ interface DiaGabarito {
   faturamento_centavos: number;
 }
 
+interface DiaDoTicket {
+  data: string;
+  cupons: number;
+  ticket_medio_centavos: number | null;
+  base: { media_28_dias_centavos: number; queda_bps: number; queda_percentual: number } | null;
+}
+
+interface DesvioDoGasto {
+  data: string;
+  valor_centavos: number;
+  mediana_centavos: number;
+  desvio_absoluto_mediano_centavos: number;
+  desvio: number | null;
+  n_registros: number;
+  dispara_alerta: boolean;
+}
+
+interface ParadoGabarito {
+  produto_id: string;
+  ultima_venda: string;
+  dias_sem_venda: number;
+  dispara_alerta: boolean;
+}
+
 interface Gabarito {
   parametros: {
     data_referencia: string;
     margem: { janela_preco_dias: number };
     variacao_custo: { limite_bps: number; janela_alerta_dias: number };
     giro: { ultimos_dias: number; anteriores_dias: number; minimo_media_semanal: number; top_n: number };
+    estoque_parado: { limite_dias: number };
+    ticket_medio: { limite_queda_bps: number };
+    gasto_fora_do_padrao: { janela_dias: number; minimo_dias_de_historico: number; limite_desvio: number };
   };
   fornecedores: Array<{ id: string; nome: string }>;
   resumo_diario: { referencia: ResumoGabarito; dia_anterior: ResumoGabarito };
@@ -97,6 +130,10 @@ interface Gabarito {
     maior_volume: Array<{ produto_id: string; unidades_7_dias: number }>;
     por_produto: GiroGabarito[];
   };
+  espaco_para_subir_preco: Array<{ produto_id: string; margem_bps: number }>;
+  estoque_parado: ParadoGabarito[];
+  ticket_medio: { dias_com_queda_relevante: string[]; por_dia: DiaDoTicket[] };
+  gasto_fora_do_padrao: { dias_que_disparam: string[]; por_dia: DesvioDoGasto[] };
   serie_diaria: DiaGabarito[];
 }
 
@@ -193,6 +230,18 @@ describe("métricas contra o gabarito (e2e)", () => {
     );
     expect(PARAMETROS_GIRO.minimoMediaSemanal).toBe(gabarito.parametros.giro.minimo_media_semanal);
     expect(PARAMETROS_GIRO.topN).toBe(gabarito.parametros.giro.top_n);
+    expect(PARAMETROS_ESTOQUE_PARADO.limiteDias).toBe(gabarito.parametros.estoque_parado.limite_dias);
+    expect(PARAMETROS_ESTOQUE_PARADO.topN).toBe(gabarito.estoque_parado.length);
+    expect(PARAMETROS_TICKET_MEDIO.limiteQuedaBps).toBe(gabarito.parametros.ticket_medio.limite_queda_bps);
+    expect(PARAMETROS_GASTO_FORA_DO_PADRAO.janelaDias).toBe(
+      gabarito.parametros.gasto_fora_do_padrao.janela_dias,
+    );
+    expect(PARAMETROS_GASTO_FORA_DO_PADRAO.minimoDiasDeHistorico).toBe(
+      gabarito.parametros.gasto_fora_do_padrao.minimo_dias_de_historico,
+    );
+    expect(PARAMETROS_GASTO_FORA_DO_PADRAO.limiteDesvio).toBe(
+      gabarito.parametros.gasto_fora_do_padrao.limite_desvio,
+    );
   });
 
   describe("margem por produto (#33)", () => {
@@ -414,6 +463,154 @@ describe("métricas contra o gabarito (e2e)", () => {
     });
   });
 
+  describe("espaço para subir preço (#36)", () => {
+    it("lista os mesmos produtos do gabarito, com a margem deles", async () => {
+      const r = await servico.espacoParaSubirPreco(vilaNova);
+      expect(r.valor.map((p) => [skuPorProduto.get(p.produto_id), p.margem_bps])).toEqual(
+        gabarito.espaco_para_subir_preco.map((p) => [p.produto_id, p.margem_bps]),
+      );
+    });
+
+    it("cerveja e leite vendem bem e ficam abaixo da meta de 25%", async () => {
+      const r = await servico.espacoParaSubirPreco(vilaNova);
+      expect(r.valor).toHaveLength(2);
+      for (const produto of r.valor) {
+        expect(produto.margem_bps).toBeLessThan(produto.meta_bps);
+        expect(produto.unidades_7_dias).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe("ticket médio (#38)", () => {
+    const comBase = gabarito.ticket_medio.por_dia.filter((d) => d.base !== null);
+    const semBase = gabarito.ticket_medio.por_dia.filter((d) => d.base === null);
+
+    it("no dia de referência o ticket cai 43,12% contra a média dos 28 anteriores, acima do limite de 30%", async () => {
+      const r = valorDe<TicketMedio>(await servico.ticketMedio(vilaNova));
+      expect(r.valor).toMatchObject({
+        ticket_medio_centavos: 1566,
+        media_28_dias_centavos: 2753,
+        queda_bps: 4312,
+        queda_percentual: 43.12,
+        queda_relevante: true,
+      });
+    });
+
+    it.each(comBase.map((d) => [d.data, d] as const))("%s", async (data, esperado) => {
+      const r = valorDe<TicketMedio>(await servico.ticketMedio(vilaNova, data));
+      expect(r.valor).toMatchObject({
+        ticket_medio_centavos: esperado.ticket_medio_centavos,
+        media_28_dias_centavos: esperado.base?.media_28_dias_centavos,
+        queda_bps: esperado.base?.queda_bps,
+        queda_percentual: esperado.base?.queda_percentual,
+        queda_relevante: gabarito.ticket_medio.dias_com_queda_relevante.includes(data),
+      });
+    });
+
+    it("só o dia de referência tem queda relevante", async () => {
+      const relevantes: string[] = [];
+      for (const dia of comBase) {
+        const r = valorDe<TicketMedio>(await servico.ticketMedio(vilaNova, dia.data));
+        if (r.valor.queda_relevante) relevantes.push(dia.data);
+      }
+      expect(relevantes).toEqual(gabarito.ticket_medio.dias_com_queda_relevante);
+    });
+
+    it("antes de ter 28 dias de vendas a métrica é ausente, não uma média curta", async () => {
+      expect(semBase).toHaveLength(28);
+      for (const dia of semBase) {
+        expect(await servico.ticketMedio(vilaNova, dia.data)).toMatchObject({
+          ausente: true,
+          codigo: "historico_insuficiente",
+        });
+      }
+    });
+  });
+
+  describe("gasto fora do padrão (#39)", () => {
+    const avaliados = gabarito.gasto_fora_do_padrao.por_dia;
+    const antes = gabarito.serie_diaria
+      .map((d) => d.data)
+      .filter((d) => !avaliados.some((a) => a.data === d));
+
+    it("o gasto de R$ 1.015,34 do dia de referência está a 54,62 desvios da mediana", async () => {
+      const r = valorDe<GastoForaDoPadrao>(await servico.gastoForaDoPadrao(vilaNova));
+      expect(r.valor).toMatchObject({
+        valor_centavos: 101_534,
+        mediana_centavos: 6093,
+        desvio: 54.62,
+        dias_de_historico: 60,
+        acima_do_limite: true,
+      });
+    });
+
+    it.each(avaliados.map((d) => [d.data, d] as const))("%s", async (data, esperado) => {
+      const r = valorDe<GastoForaDoPadrao>(await servico.gastoForaDoPadrao(vilaNova, data));
+      // O gabarito guarda a mediana e o desvio absoluto mediano em meio centavo; aqui são inteiros,
+      // com o meio centavo arredondado para cima.
+      expect(r.valor).toMatchObject({
+        valor_centavos: esperado.valor_centavos,
+        mediana_centavos: Math.round(esperado.mediana_centavos),
+        desvio_absoluto_mediano_centavos: Math.round(esperado.desvio_absoluto_mediano_centavos),
+        desvio: esperado.desvio,
+        dias_de_historico: esperado.n_registros,
+        acima_do_limite: esperado.dispara_alerta,
+      });
+    });
+
+    it("só o dia de referência passa do limite", async () => {
+      const acima: string[] = [];
+      for (const dia of avaliados) {
+        const r = valorDe<GastoForaDoPadrao>(await servico.gastoForaDoPadrao(vilaNova, dia.data));
+        if (r.valor.acima_do_limite) acima.push(dia.data);
+      }
+      expect(acima).toEqual(gabarito.gasto_fora_do_padrao.dias_que_disparam);
+    });
+
+    it("antes de ter 30 dias de extrato a métrica é ausente", async () => {
+      expect(antes).toHaveLength(30);
+      for (const data of antes) {
+        expect(await servico.gastoForaDoPadrao(vilaNova, data)).toMatchObject({
+          ausente: true,
+          codigo: "historico_insuficiente",
+        });
+      }
+    });
+  });
+
+  describe("estoque parado (#37)", () => {
+    it("o vinagre está parado há 41 dias e o achocolatado, com 25, ainda não", async () => {
+      const r = await servico.estoqueParado(vilaNova);
+      const parados = r.valor
+        .filter((p) => p.parado)
+        .map((p) => [skuPorProduto.get(p.produto_id), p.dias_sem_venda]);
+      expect(parados).toEqual([["P12", 41]]);
+      expect(r.valor.find((p) => skuPorProduto.get(p.produto_id) === "P13")).toMatchObject({
+        dias_sem_venda: 25,
+        parado: false,
+      });
+    });
+
+    it("traz os mesmos dias, na mesma ordem, e os mesmos produtos nos dias que não empatam", async () => {
+      const r = await servico.estoqueParado(vilaNova);
+      expect(r.valor.map((p) => p.dias_sem_venda)).toEqual(
+        gabarito.estoque_parado.map((p) => p.dias_sem_venda),
+      );
+      // O gabarito desempata pela ordem do catálogo; o banco não tem essa ordem. Compara o produto
+      // só onde o número de dias é único no ranking.
+      for (const esperado of gabarito.estoque_parado) {
+        const empatados = gabarito.estoque_parado.filter((p) => p.dias_sem_venda === esperado.dias_sem_venda);
+        const obtido = r.valor.find((p) => skuPorProduto.get(p.produto_id) === esperado.produto_id);
+        if (empatados.length > 1 || esperado.dias_sem_venda <= 1) continue;
+        expect(obtido).toMatchObject({
+          ultima_venda: esperado.ultima_venda,
+          dias_sem_venda: esperado.dias_sem_venda,
+          parado: esperado.dispara_alerta,
+        });
+      }
+    });
+  });
+
   describe("isolamento entre lojistas", () => {
     const consultar = async <T extends Record<string, unknown>>(texto: string, valores: unknown[]) =>
       (await pool.query<T>(texto, valores)).rows;
@@ -443,15 +640,30 @@ describe("métricas contra o gabarito (e2e)", () => {
       const margensEsquina = await servico.margensDosProdutos(esquina);
       const variacoes = await servico.variacoesDeCusto(esquina);
       const giro = await servico.giro(esquina);
+      const parados = await servico.estoqueParado(esquina);
+      const espaco = await servico.espacoParaSubirPreco(esquina);
       expect(dela.size).toBe(12);
       expect(margensEsquina).toHaveLength(12);
       for (const id of [
         ...margensEsquina.map((m) => m.produto_id),
         ...variacoes.valor.map((v) => v.produto_id),
         ...giro.valor.por_produto.map((g) => g.produto_id),
+        ...parados.valor.map((p) => p.produto_id),
+        ...espaco.valor.map((p) => p.produto_id),
       ]) {
         expect(dela.has(id)).toBe(true);
       }
+    });
+
+    it("a Esquina tem só 14 dias de dados, então o ticket médio e o gasto fora do padrão são ausentes", async () => {
+      expect(await servico.ticketMedio(esquina)).toMatchObject({
+        ausente: true,
+        codigo: "historico_insuficiente",
+      });
+      expect(await servico.gastoForaDoPadrao(esquina)).toMatchObject({
+        ausente: true,
+        codigo: "historico_insuficiente",
+      });
     });
 
     it("o resumo da Esquina soma só as vendas e as saídas dela", async () => {

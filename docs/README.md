@@ -7,6 +7,7 @@
 | Etapa atual, números vigentes, próxima ação, pendências | [ESTADO.md](ESTADO.md) | Estado |
 | Etapas, modelo de dados, métricas, agente, avaliação, LGPD | [guia-desenvolvimento.md](guia-desenvolvimento.md) | Metodologia |
 | Prazo, escopo cortado, o que a banca avalia no código | [alertas-hackathon.md](alertas-hackathon.md) (prevalece sobre o guia) | Metodologia |
+| Tabelas, colunas, histórico append-only | [modelo-de-dados.md](modelo-de-dados.md) | Documentação |
 | Agentes: papéis, ferramentas, prompt, custo estimado | [especificacao-agentes.md](especificacao-agentes.md) | Documentação |
 | Fluxo do agente (inputs, lógica, outputs) | [agent-flow.md](agent-flow.md) | Documentação |
 | Módulos, serviços e dados | [arquitetura.md](arquitetura.md) | Documentação |

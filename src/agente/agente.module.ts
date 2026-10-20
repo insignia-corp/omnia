@@ -8,6 +8,7 @@ import {
   RegistroExecucoesPostgres,
   type RegistroExecucoes,
 } from "./execucao/registro-execucoes";
+import { montarCatalogo } from "./ferramentas/catalogo";
 import { RegistroFerramentas } from "./ferramentas/registro-ferramentas";
 import { ModeloAnthropic } from "./llm/modelo-anthropic";
 import { MODELO_LINGUAGEM, type ModeloLinguagem } from "./llm/modelo-linguagem";
@@ -16,8 +17,12 @@ import { carregarPromptSistema } from "./prompts/prompt-sistema";
 @Module({
   providers: [
     { provide: MODELO_LINGUAGEM, inject: [ENV], useFactory: (env: Env) => new ModeloAnthropic(env) },
-    // As ferramentas de leitura (#50 a #53) entram aqui conforme as métricas ficam prontas.
-    { provide: RegistroFerramentas, useFactory: () => new RegistroFerramentas([]) },
+    // Cada plano acrescenta as suas ferramentas no próprio arquivo; ver ferramentas/catalogo.ts.
+    {
+      provide: RegistroFerramentas,
+      inject: [DB],
+      useFactory: (db: Db) => new RegistroFerramentas(montarCatalogo({ db })),
+    },
     { provide: REGISTRO_EXECUCOES, inject: [DB], useFactory: (db: Db) => new RegistroExecucoesPostgres(db) },
     {
       provide: AgenteService,

@@ -24,7 +24,11 @@ const esquemaEnv = z.object({
   LIMITE_CONFIANCA_ITEM: z.coerce.number().min(0).max(1).default(0.8),
   EXTRATOR_MODELO: z.string().min(1).default("claude-sonnet-5-5"),
   ARMAZENAMENTO_DIR: z.string().min(1).default("./.dados/arquivos"),
-  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
+  UPLOAD_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024),
 
   // LGPD
   RETENCAO_MESES: z.coerce.number().int().positive().default(24),

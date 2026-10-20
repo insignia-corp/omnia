@@ -3,6 +3,8 @@ import type { Db } from "../../infra/database/database.module";
 import { chamadaFerramenta, execucaoAgente } from "../../infra/database/schema";
 
 export type Gatilho = "relatorio_diario" | "mensagem_dono" | "nota_processada";
+/** O registro também guarda as execuções do Extrator, que não são do Analista. */
+export type GatilhoRegistrado = Gatilho | "extracao_nota";
 export type ResultadoExecucao = "aprovada" | "fallback_verificador" | "fallback_erro" | "recusa_modelo";
 
 export interface ChamadaRegistrada {
@@ -23,7 +25,7 @@ export interface BloqueioVerificador {
 /** Tudo o que se registra de uma execução (edital 9.4, observabilidade). */
 export interface ExecucaoRegistrada {
   comercianteId: string;
-  gatilho: Gatilho;
+  gatilho: GatilhoRegistrado;
   entrada: string;
   modelo: string;
   versaoPrompt: string;

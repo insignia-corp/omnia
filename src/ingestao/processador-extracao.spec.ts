@@ -12,10 +12,14 @@ const entrada = {
   comercianteId: "22222222-2222-4222-8222-222222222222",
 };
 
-/** Banco falso: o documento existe e a transação da gravação sempre cai, como num erro de conexão. */
+/**
+ * Banco falso: o documento existe e a transação da gravação cai, como num erro de conexão. As
+ * transações seguintes (a que fecha o documento como falha) funcionam.
+ */
 function montar() {
   const atualizacoes: Array<Record<string, unknown>> = [];
-  const db = {
+  let transacoes = 0;
+  const base = {
     select: () => ({
       from: () => ({
         where: () => ({
@@ -29,8 +33,10 @@ function montar() {
         return { where: () => Promise.resolve() };
       },
     }),
-    transaction: () => Promise.reject(new Error("conexão perdida")),
-  } as unknown as Db;
+    transaction: (corpo: (tx: unknown) => Promise<unknown>) =>
+      ++transacoes === 1 ? Promise.reject(new Error("conexão perdida")) : corpo(base),
+  };
+  const db = base as unknown as Db;
   const extrator = {
     extrair: () =>
       Promise.resolve({

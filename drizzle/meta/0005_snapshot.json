@@ -1,6 +1,6 @@
 {
-  "id": "46f9e910-e894-4218-9083-19d038ac50d7",
-  "prevId": "047ab0d6-14fc-41df-b285-44e7a0f8d11a",
+  "id": "1b0422ae-2d88-47a0-98c4-9f44d9009642",
+  "prevId": "d0e30a43-aef5-47f0-b08d-f698cedeb436",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -141,19 +141,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "alerta_execucao_id_execucao_agente_id_fk": {
-          "name": "alerta_execucao_id_execucao_agente_id_fk",
-          "tableFrom": "alerta",
-          "tableTo": "execucao_agente",
-          "columnsFrom": [
-            "execucao_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "alerta_produto_fk": {
           "name": "alerta_produto_fk",
           "tableFrom": "alerta",
@@ -182,6 +169,21 @@
             "comerciante_id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "alerta_execucao_fk": {
+          "name": "alerta_execucao_fk",
+          "tableFrom": "alerta",
+          "tableTo": "execucao_agente",
+          "columnsFrom": [
+            "execucao_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -304,19 +306,6 @@
         }
       },
       "foreignKeys": {
-        "chamada_ferramenta_execucao_id_execucao_agente_id_fk": {
-          "name": "chamada_ferramenta_execucao_id_execucao_agente_id_fk",
-          "tableFrom": "chamada_ferramenta",
-          "tableTo": "execucao_agente",
-          "columnsFrom": [
-            "execucao_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "chamada_ferramenta_comerciante_id_comerciante_id_fk": {
           "name": "chamada_ferramenta_comerciante_id_comerciante_id_fk",
           "tableFrom": "chamada_ferramenta",
@@ -326,6 +315,21 @@
           ],
           "columnsTo": [
             "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chamada_ferramenta_execucao_fk": {
+          "name": "chamada_ferramenta_execucao_fk",
+          "tableFrom": "chamada_ferramenta",
+          "tableTo": "execucao_agente",
+          "columnsFrom": [
+            "execucao_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -1107,7 +1111,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "execucao_agente_id_comerciante_uq": {
+          "name": "execucao_agente_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1924,6 +1937,34 @@
         }
       },
       "indexes": {
+        "mensagem_id_externo_uq": {
+          "name": "mensagem_id_externo_uq",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "canal",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id_externo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"mensagem\".\"id_externo\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "mensagem_uma_proativa_por_dia_uq": {
           "name": "mensagem_uma_proativa_por_dia_uq",
           "columns": [
@@ -1982,15 +2023,17 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "mensagem_execucao_id_execucao_agente_id_fk": {
-          "name": "mensagem_execucao_id_execucao_agente_id_fk",
+        "mensagem_execucao_fk": {
+          "name": "mensagem_execucao_fk",
           "tableFrom": "mensagem",
           "tableTo": "execucao_agente",
           "columnsFrom": [
-            "execucao_id"
+            "execucao_id",
+            "comerciante_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "comerciante_id"
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
@@ -2934,7 +2977,6 @@
       "values": [
         "confirmar_item",
         "confirmar_vinculo",
-        "confirmar_documento",
         "informar_custo",
         "confirmar_acao"
       ]

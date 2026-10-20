@@ -1,6 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { somenteDigitos } from "../lib/cnpj/cnpj";
-import type { Db } from "../infra/database/database.module";
+import type { Db, Tx } from "../infra/database/database.module";
 import {
   compra,
   documento,
@@ -12,7 +12,7 @@ import {
 import type { ExtracaoNota } from "./extracao/esquema-extracao";
 import { montarPerguntaDocumento, montarPerguntaItem, montarPerguntaVinculo } from "./revisao/perguntas";
 import { MOTIVOS_DO_DOCUMENTO } from "./revisao/recalcular-documento";
-import type { NotaValidada } from "./validacao/validar-nota";
+import { dataDeCalendarioValida, type NotaValidada } from "./validacao/validar-nota";
 import { buscarVinculo, registrarVinculo } from "./vinculo/vincular-produto";
 
 export interface EntradaGravacao {
@@ -36,6 +36,49 @@ export interface CompraGravada {
   jaExistia: boolean;
 }
 
+/** CNPJ numérico tem 14 dígitos. Menos que isso é leitura ruim, e não serve de identificador. */
+const DIGITOS_CNPJ = 14;
+
+/**
+ * Acha ou cria o fornecedor da nota. Com CNPJ legível a chave é o CNPJ. Sem ele (ilegível, "N/A")
+ * o CNPJ fica nulo, e não vazio: um identificador vazio compartilhado juntaria fornecedores
+ * diferentes. Nesse caso a chave é o nome, só entre fornecedores também sem CNPJ.
+ */
+async function obterFornecedor(
+  tx: Tx,
+  e: EntradaGravacao,
+  nome: string,
+  cnpj: string | null,
+  confianca: number,
+): Promise<string> {
+  const base = { comercianteId: e.comercianteId, nome, origem: "foto_nota" as const, confianca };
+  if (cnpj) {
+    await tx
+      .insert(fornecedor)
+      .values({ ...base, cnpj })
+      .onConflictDoNothing({ target: [fornecedor.comercianteId, fornecedor.cnpj] });
+  }
+  const mesmoFornecedor = cnpj
+    ? eq(fornecedor.cnpj, cnpj)
+    : and(isNull(fornecedor.cnpj), sql`lower(${fornecedor.nome}) = ${nome.trim().toLowerCase()}`);
+  const busca = () =>
+    tx
+      .select({ id: fornecedor.id })
+      .from(fornecedor)
+      .where(and(eq(fornecedor.comercianteId, e.comercianteId), mesmoFornecedor))
+      .orderBy(asc(fornecedor.criadoEm))
+      .limit(1);
+  const [existente] = await busca();
+  if (existente) return existente.id;
+  if (cnpj) throw new Error("Fornecedor não encontrado depois de gravar");
+  const [novo] = await tx
+    .insert(fornecedor)
+    .values({ ...base, cnpj: null })
+    .returning({ id: fornecedor.id });
+  if (!novo) throw new Error("Falha ao gravar o fornecedor");
+  return novo.id;
+}
+
 /**
  * Grava o resultado de uma extração numa transação só: fornecedor, compra, itens e o estado do
  * documento. Idempotente por documento (uma compra por documento), então uma nova tentativa do job
@@ -54,7 +97,7 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
       .where(and(eq(compra.comercianteId, e.comercianteId), eq(compra.documentoId, e.documentoId)))
       .limit(1);
     const doc = await tx
-      .select({ status: documento.statusExtracao })
+      .select({ status: documento.statusExtracao, criadoEm: documento.criadoEm })
       .from(documento)
       .where(and(eq(documento.id, e.documentoId), eq(documento.comercianteId, e.comercianteId)))
       .limit(1);
@@ -81,31 +124,28 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
       };
     }
 
-    const cnpj = somenteDigitos(extracao.fornecedor.cnpj);
-    await tx
-      .insert(fornecedor)
-      .values({
-        comercianteId: e.comercianteId,
-        nome: extracao.fornecedor.nome,
-        cnpj,
-        origem: "foto_nota",
-        confianca: confiancaDocumento,
-      })
-      .onConflictDoNothing({ target: [fornecedor.comercianteId, fornecedor.cnpj] });
-    const [forn] = await tx
-      .select({ id: fornecedor.id })
-      .from(fornecedor)
-      .where(and(eq(fornecedor.comercianteId, e.comercianteId), eq(fornecedor.cnpj, cnpj)))
-      .limit(1);
-    if (!forn) throw new Error("Fornecedor não encontrado depois de gravar");
+    const digitos = somenteDigitos(extracao.fornecedor.cnpj);
+    const fornecedorId = await obterFornecedor(
+      tx,
+      e,
+      extracao.fornecedor.nome,
+      digitos.length === DIGITOS_CNPJ ? digitos : null,
+      confiancaDocumento,
+    );
+
+    // A coluna `data` é `date`: "2026-02-31" passa no formato, mas o PostgreSQL recusa e a nota
+    // se perderia. Data que não existe no calendário cai na data do envio, com o motivo
+    // `data_invalida` já no documento e a confiança do histórico limitada à do documento.
+    const dataSubstituida = !dataDeCalendarioValida(extracao.data_emissao);
+    const dataCompra = dataSubstituida ? doc[0].criadoEm.toISOString().slice(0, 10) : extracao.data_emissao;
 
     const [novaCompra] = await tx
       .insert(compra)
       .values({
         comercianteId: e.comercianteId,
         documentoId: e.documentoId,
-        fornecedorId: forn.id,
-        data: extracao.data_emissao,
+        fornecedorId,
+        data: dataCompra,
         totalCentavos: extracao.total_centavos,
         somaItensCentavos: e.validada.somaItensCentavos,
         origem: "foto_nota",
@@ -139,13 +179,13 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
       if (!item) throw new Error(`Item ${linha.ordem} sem correspondente na extração`);
       const base = {
         descricao: item.descricao,
-        data: extracao.data_emissao,
+        data: dataCompra,
         fornecedor: extracao.fornecedor.nome,
       };
 
       const vinculo = await buscarVinculo(tx, {
         comercianteId: e.comercianteId,
-        fornecedorId: forn.id,
+        fornecedorId,
         descricao: item.descricao,
         limiteSimilaridade: e.limiteSimilaridade,
       });
@@ -157,8 +197,8 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
         await tx.insert(historicoCusto).values({
           comercianteId: e.comercianteId,
           produtoId: vinculo.produtoId,
-          fornecedorId: forn.id,
-          data: extracao.data_emissao,
+          fornecedorId,
+          data: dataCompra,
           custoUnitarioCentavos: item.valor_unitario_centavos,
           itemDeCompraId: linha.id,
           origem: "foto_nota",
@@ -168,7 +208,7 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
         if (vinculo.metodo === "similaridade") {
           await registrarVinculo(tx, {
             comercianteId: e.comercianteId,
-            fornecedorId: forn.id,
+            fornecedorId,
             descricao: item.descricao,
             produtoId: vinculo.produtoId,
             metodo: "similaridade",

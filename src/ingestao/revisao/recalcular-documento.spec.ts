@@ -64,6 +64,7 @@ describe("recalcularDocumento", () => {
     const r = recalcularDocumento({ ...base, somaItensCentavos: 69640, totalCentavos: 70880 });
     expect(r.motivos.map((m) => m.codigo)).toEqual(["soma_diverge_do_total"]);
     expect(r.confiancaDocumento).toBe(0.5);
+    // Confiança baixa do documento mantém a revisão: a pergunta do documento é a saída.
     expect(r.status).toBe("revisao");
   });
 

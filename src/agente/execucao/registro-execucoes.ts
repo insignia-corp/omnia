@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Db } from "../../infra/database/database.module";
+import type { Db, Executor } from "../../infra/database/database.module";
 import { chamadaFerramenta, execucaoAgente } from "../../infra/database/schema";
 
 export type Gatilho = "relatorio_diario" | "mensagem_dono" | "nota_processada";
@@ -43,7 +43,8 @@ export interface ExecucaoRegistrada {
 }
 
 export interface RegistroExecucoes {
-  salvar(execucao: ExecucaoRegistrada): Promise<string>;
+  /** Com `executor`, grava dentro da transação aberta por quem chamou (tudo ou nada). */
+  salvar(execucao: ExecucaoRegistrada, executor?: Executor): Promise<string>;
 }
 
 export const REGISTRO_EXECUCOES = Symbol("REGISTRO_EXECUCOES");
@@ -51,8 +52,8 @@ export const REGISTRO_EXECUCOES = Symbol("REGISTRO_EXECUCOES");
 export class RegistroExecucoesPostgres implements RegistroExecucoes {
   constructor(private readonly db: Db) {}
 
-  async salvar(e: ExecucaoRegistrada): Promise<string> {
-    return this.db.transaction(async (tx) => {
+  async salvar(e: ExecucaoRegistrada, executor: Executor = this.db): Promise<string> {
+    return executor.transaction(async (tx) => {
       const [linha] = await tx
         .insert(execucaoAgente)
         .values({
@@ -99,7 +100,7 @@ export class RegistroExecucoesPostgres implements RegistroExecucoes {
 export class RegistroExecucoesMemoria implements RegistroExecucoes {
   readonly execucoes: (ExecucaoRegistrada & { id: string })[] = [];
 
-  salvar(e: ExecucaoRegistrada): Promise<string> {
+  salvar(e: ExecucaoRegistrada, _executor?: Executor): Promise<string> {
     const id = randomUUID();
     this.execucoes.push({ ...e, id });
     return Promise.resolve(id);

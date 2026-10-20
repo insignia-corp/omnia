@@ -304,6 +304,73 @@ describe("modelo de dados e seed (e2e)", () => {
       ]);
     });
 
+    describe("vínculo com a execução do agente", () => {
+      const novaExecucao = async (comercianteId: string) => {
+        const [e] = await consultar<{ id: string }>(
+          `insert into execucao_agente (comerciante_id, gatilho, entrada, modelo, versao_prompt, resultado,
+             mensagem_final, iteracoes, bloqueios_verificador, tokens_entrada, tokens_saida,
+             custo_estimado_microdolares, latencia_ms)
+           values ($1, 'mensagem_dono', 'oi', 'modelo', 'v1', 'aprovada', 'ok', 1, 0, 1, 1, 1, 1) returning id`,
+          [comercianteId],
+        );
+        return e!.id;
+      };
+
+      it("o banco recusa chamada, alerta e mensagem apontando para execução de outro comerciante", async () => {
+        const execucao = await novaExecucao(vilaNova);
+        const chamada = await falha(
+          `insert into chamada_ferramenta (execucao_id, comerciante_id, ordem, ferramenta, entrada, latencia_ms)
+           values ($1, $2, 1, 'get_product_margin', '{}', 1)`,
+          [execucao, esquina],
+        );
+        const alerta = await falha(
+          `insert into alerta (comerciante_id, tipo, prioridade, data_referencia, chave, metricas_apoio, execucao_id)
+           values ($1, 'estoque_parado', 2, '2030-01-04', 'P98', '{}', $2)`,
+          [esquina, execucao],
+        );
+        const msg = await falha(
+          `insert into mensagem (comerciante_id, direcao, texto, data_envio, execucao_id)
+           values ($1, 'enviada', 'oi', '2030-01-04', $2)`,
+          [esquina, execucao],
+        );
+        expect([chamada?.code, alerta?.code, msg?.code]).toEqual(["23503", "23503", "23503"]);
+        await pool.query("delete from execucao_agente where id = $1", [execucao]);
+      });
+
+      it("apagar a execução solta alerta e mensagem do mesmo comerciante sem perder o comerciante_id", async () => {
+        const execucao = await novaExecucao(esquina);
+        await pool.query(
+          `insert into mensagem (comerciante_id, direcao, texto, data_envio, execucao_id)
+           values ($1, 'enviada', 'vinculada', '2030-01-05', $2)`,
+          [esquina, execucao],
+        );
+        await pool.query("delete from execucao_agente where id = $1", [execucao]);
+        const linhas = await consultar<{ comerciante_id: string; execucao_id: string | null }>(
+          "select comerciante_id, execucao_id from mensagem where texto = 'vinculada' and comerciante_id = $1",
+          [esquina],
+        );
+        expect(linhas).toEqual([{ comerciante_id: esquina, execucao_id: null }]);
+        await pool.query("delete from mensagem where texto = 'vinculada' and comerciante_id = $1", [esquina]);
+      });
+    });
+
+    it("não grava duas vezes a mensagem com o mesmo id do canal (reentrega do webhook)", async () => {
+      const inserir = (idExterno: string | null) =>
+        falha(
+          `insert into mensagem (comerciante_id, direcao, texto, data_envio, id_externo)
+           values ($1, 'recebida', 'oi', '2030-01-06', $2)`,
+          [esquina, idExterno],
+        );
+      expect(await inserir("wamid.A")).toBeNull();
+      expect((await inserir("wamid.A"))?.code).toBe("23505");
+      // Sem id do canal, não há o que deduplicar.
+      expect(await inserir(null)).toBeNull();
+      expect(await inserir(null)).toBeNull();
+      await pool.query("delete from mensagem where comerciante_id = $1 and data_envio = '2030-01-06'", [
+        esquina,
+      ]);
+    });
+
     it("recusa confiança fora de 0 a 1, valor bancário zero e quantidade não positiva", async () => {
       const [c] = await consultar<{ id: string }>("select id from conta where comerciante_id = $1", [
         esquina,

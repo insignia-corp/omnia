@@ -23,6 +23,7 @@ import {
   acumularConsumo,
   consumoZerado,
   custoMicrodolares,
+  type ConsumoTokens,
   type ModeloLinguagem,
 } from "./llm/modelo-linguagem";
 import type { PromptSistema } from "./prompts/prompt-sistema";
@@ -76,7 +77,8 @@ export class AgenteService {
   async executar(pedido: PedidoAgente): Promise<RespostaAgente> {
     const inicio = performance.now();
     const { contexto } = pedido;
-    const consumo = consumoZerado();
+    // Com o fallback do servidor, cada resposta informa o modelo que de fato rodou: cada um tem seu preço.
+    const consumoPorModelo = new Map<string, ConsumoTokens>();
     const chamadas: ChamadaRegistrada[] = [];
     const bloqueios: BloqueioVerificador[] = [];
     // O dono pode ouvir de volta os números que ele mesmo escreveu, e a data da execução.
@@ -92,12 +94,17 @@ export class AgenteService {
     let mensagem: string = FALLBACK.erro;
     let erro: string | null = null;
     let iteracoes = 0;
+    // Verificador barrou a última resposta e a correção pedida não teve iteração para rodar.
+    let correcaoSemIteracao = false;
 
     try {
       while (iteracoes < this.limites.maxIteracoes) {
         iteracoes++;
         const resposta: BetaMessage = await this.modelo.gerar({ system, messages, tools });
-        acumularConsumo(consumo, resposta.usage);
+        const consumoDoModelo = consumoPorModelo.get(resposta.model) ?? consumoZerado();
+        acumularConsumo(consumoDoModelo, resposta.usage);
+        consumoPorModelo.set(resposta.model, consumoDoModelo);
+        correcaoSemIteracao = false;
         messages.push({ role: "assistant", content: resposta.content });
 
         if (resposta.stop_reason === "tool_use") {
@@ -142,6 +149,7 @@ export class AgenteService {
           mensagem = FALLBACK.verificador;
           break;
         }
+        correcaoSemIteracao = true;
         messages.push({
           role: "user",
           content:
@@ -153,6 +161,11 @@ export class AgenteService {
       }
       if (iteracoes >= this.limites.maxIteracoes && resultado === "fallback_erro" && !erro) {
         erro = `Limite de ${this.limites.maxIteracoes} iterações atingido`;
+        if (correcaoSemIteracao) {
+          // A última resposta foi barrada pelo verificador: o dono recebe a mensagem do verificador, não a de erro.
+          resultado = "fallback_verificador";
+          mensagem = FALLBACK.verificador;
+        }
       }
     } catch (e) {
       // Timeout, falha de rede ou erro da API: o dono recebe o fallback, nunca um número inventado.
@@ -160,11 +173,18 @@ export class AgenteService {
       this.logger.error(`Execução do agente falhou: ${erro}`);
     }
 
+    const consumo = [...consumoPorModelo.values()].reduce(somarConsumo, consumoZerado());
+    const modelos = consumoPorModelo.size > 0 ? [...consumoPorModelo.keys()] : [this.modelo.nome];
+    const custoEstimadoMicrodolares = [...consumoPorModelo].reduce(
+      (total, [nome, c]) => total + custoMicrodolares(nome, c),
+      0,
+    );
+
     const execucaoId = await this.registro.salvar({
       comercianteId: contexto.comercianteId,
       gatilho: pedido.gatilho,
       entrada: pedido.entrada,
-      modelo: this.modelo.nome,
+      modelo: modelos.join("+"),
       versaoPrompt: this.prompt.versao,
       resultado,
       mensagemFinal: mensagem,
@@ -173,7 +193,7 @@ export class AgenteService {
       tokensEntrada: consumo.entrada,
       tokensSaida: consumo.saida,
       tokensCacheLeitura: consumo.cacheLeitura,
-      custoEstimadoMicrodolares: custoMicrodolares(this.modelo.nome, consumo),
+      custoEstimadoMicrodolares,
       latenciaMs: Math.round(performance.now() - inicio),
       erro,
       chamadas,
@@ -218,10 +238,19 @@ function montarEntrada({ gatilho, entrada, contexto }: PedidoAgente): string {
     case "mensagem_dono":
       return `${data}\nO dono escreveu:\n<mensagem_do_dono>\n${seguro}\n</mensagem_do_dono>`;
     case "relatorio_diario":
-      return `${data}\nGere o relatório diário curto do comércio, com no máximo 3 alertas.\n${seguro}`;
+      return `${data}\nGere o relatório diário curto do comércio, com no máximo 3 alertas.\n<conteudo_de_documento>\n${seguro}\n</conteudo_de_documento>`;
     case "nota_processada":
       return `${data}\nUma nota de compra acabou de ser processada. Verifique se há algo que o dono precisa saber.\n<conteudo_de_documento>\n${seguro}\n</conteudo_de_documento>`;
   }
+}
+
+function somarConsumo(total: ConsumoTokens, c: ConsumoTokens): ConsumoTokens {
+  return {
+    entrada: total.entrada + c.entrada,
+    saida: total.saida + c.saida,
+    cacheLeitura: total.cacheLeitura + c.cacheLeitura,
+    cacheEscrita: total.cacheEscrita + c.cacheEscrita,
+  };
 }
 
 function textoDa(resposta: BetaMessage): string {

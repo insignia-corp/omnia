@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 import { ehUuid } from "../../lib/uuid/uuid";
 import { ErroArmazenamento, type Armazenamento, type ArquivoSalvo } from "./armazenamento";
@@ -50,6 +50,15 @@ export class ArmazenamentoDisco implements Armazenamento {
 
   async ler(caminho: string): Promise<Buffer> {
     return readFile(this.absoluto(caminho));
+  }
+
+  async remover(caminho: string): Promise<void> {
+    await rm(this.absoluto(caminho), { force: true });
+  }
+
+  async removerDoComerciante(comercianteId: string): Promise<void> {
+    if (!ehUuid(comercianteId)) throw new Error("comerciante_id inválido para o armazenamento");
+    await rm(this.absoluto(comercianteId.toLowerCase()), { recursive: true, force: true });
   }
 
   private absoluto(caminho: string): string {

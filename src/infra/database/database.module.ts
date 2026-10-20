@@ -18,7 +18,9 @@ export type Executor = Db | Tx;
     {
       provide: PG_POOL,
       inject: [ENV],
-      useFactory: (env: Env) => new Pool({ connectionString: env.DATABASE_URL, max: 10 }),
+      useFactory: (env: Env) =>
+        // Sem prazo para obter conexão, pedidos pendentes se acumulam enquanto o banco está fora.
+        new Pool({ connectionString: env.DATABASE_URL, max: 10, connectionTimeoutMillis: 5000 }),
     },
     { provide: DB, inject: [PG_POOL], useFactory: (pool: Pool): Db => drizzle(pool, { schema }) },
   ],

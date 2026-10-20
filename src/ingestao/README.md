@@ -7,9 +7,11 @@ Foto de nota (modelo com visão + validação em código), planilha de vendas e 
 `POST /documentos/notas` (campo `arquivo`, cabeçalho `X-Comerciante-Id`) guarda o arquivo (`src/infra/armazenamento`), cria o `documento` como `pendente` e enfileira o job `extrair-nota` no BullMQ (3 tentativas, espera exponencial). O worker (`fila/fila-extracao.ts`) chama `ProcessadorExtracao`, que:
 
 1. lê a imagem e chama o `ExtratorNotas` (`extracao/`), módulo isolado atrás da porta `ClienteVisao`;
-2. confere a nota em código (`validacao/validar-nota.ts`): somas, quantidade x unitário, CNPJ e data. Divergência reduz a confiança e deixa o motivo, não descarta;
-3. grava fornecedor, compra e itens numa transação (`gravar-compra.ts`) e deixa o documento em `extraido` ou `revisao`;
-4. registra a execução (gatilho `extracao_nota`) com tokens, custo e latência.
+2. confere a nota em código (`validacao/validar-nota.ts`): somas, quantidade x unitário, CNPJ e data. A quantidade já é arredondada às 3 casas do banco antes da conferência. Divergência reduz a confiança e deixa o motivo, não descarta;
+3. registra a execução (gatilho `extracao_nota`) com tokens, custo e latência, antes de gravar: a chamada já foi cobrada, então uma queda ou um job repetido não deixam extração sem auditoria;
+4. grava fornecedor, compra e itens numa transação (`gravar-compra.ts`) e deixa o documento em `extraido` ou `revisao`. Há `revisao` quando existe item duvidoso ou a confiança do documento fica abaixo do limite; nesse caso a nota nunca fica sem saída, porque ela gera a pergunta do item ou a do documento (veja "Perguntas ao dono").
+
+Dois casos de entrada ruim não derrubam a gravação: CNPJ sem 14 dígitos (ilegível, "N/A") grava o fornecedor com `cnpj` nulo e o reaproveita só pelo nome entre fornecedores também sem CNPJ, nunca com identificador vazio compartilhado; data que não existe no calendário ("2026-02-31") grava a compra na data do envio do documento, com o motivo `data_invalida`, a confiança do documento reduzida e a do histórico de custo limitada a ela. Se a gravação falhar na última tentativa, o documento vai para `falha` em vez de ficar em `processando`.
 
 `GET /documentos/:id` devolve status, motivos, compra e itens com a confiança de cada um.
 
@@ -31,7 +33,7 @@ Item abaixo de `LIMITE_CONFIANCA_ITEM` gera uma `pergunta_dono` `confirmar_item`
 - `GET /perguntas` lista as pendentes.
 - `POST /perguntas/:id/resposta` com `{ "valor_unitario_centavos": 330, "quantidade": 24 }` (item) `{ "produto_id": "..." }` (vínculo) ou `{ "confirmado": true }` (documento). A interpretação de texto livre do dono é do agente (#53).
 
-A correção do item entra com origem `dono` e confiança 1, e o `historico_custo` ganha uma linha nova: o que o modelo leu continua lá. O documento é recalculado (`revisao/recalcular-documento.ts`): soma refeita contra o total, motivo do item resolvido sai, status volta a `extraido` quando não resta item duvidoso nem motivo do documento. Confirmar um vínculo liga também os outros itens iguais do mesmo fornecedor e dispensa as perguntas deles.
+A correção do item entra com origem `dono` e confiança 1 (a quantidade, se vier, com no máximo 3 casas decimais, a precisão de `item_de_compra.quantidade`), e o `historico_custo` ganha uma linha nova: o que o modelo leu continua lá. O documento é recalculado (`revisao/recalcular-documento.ts`): soma refeita contra o total, motivo do item resolvido sai, status volta a `extraido` quando não resta item duvidoso nem motivo do documento. Confirmar um vínculo liga também os outros itens iguais do mesmo fornecedor e dispensa as perguntas deles.
 
 Confirmar o documento tira a nota da revisão (motivo `documento_confirmado`: os motivos continuam na lista, mas deixam de reduzir a confiança) e reemite o custo dos itens ligados com a confiança nova, em linhas novas do `historico_custo`. Corrigir um item que faça a soma deixar de fechar também cria essa pergunta, para a nota nunca ficar em revisão sem saída.
 
@@ -54,7 +56,8 @@ Conferido contra o gabarito (`tests/planilha-vendas.e2e-spec.ts`): CSV e XLSX im
 | --- | --- |
 | JSON fora do esquema | uma nova tentativa com o erro do Zod; depois `falha` (`json_invalido`) |
 | Imagem ilegível, recusa, erro não transitório | `falha` na hora, nada gravado |
-| Timeout, 429, 5xx, ou erro ao validar e gravar a compra | o BullMQ repete o job; `falha` só na última tentativa |
+| Timeout, 408, 409, 429, 5xx | o BullMQ repete o job; `falha` só na última tentativa |
+| Erro ao validar ou gravar (banco fora, restrição violada) | o BullMQ repete o job; na última tentativa o documento vira `falha` (`erro_gravacao`). A execução do modelo é registrada antes da gravação, então toda chamada cobrada fica auditada; no caminho de falha, o estado `falha` e o registro vão na mesma transação |
 | Job repetido de documento já resolvido | ignorado, sem nova chamada ao modelo |
 
 ## Pendente nesta etapa

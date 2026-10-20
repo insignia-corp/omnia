@@ -248,6 +248,8 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
       const perguntaB = (await pendentes(ids.b))[0]!;
       await responder(ids.b, perguntaB.id, { valor_unitario: 1 }).expect(400);
       await responder(ids.b, perguntaB.id, { valor_unitario_centavos: -5 }).expect(400);
+      // Mais de três casas decimais: o banco arredondaria a quantidade e o total gravado não fecharia.
+      await responder(ids.b, perguntaB.id, { valor_unitario_centavos: 330, quantidade: 1.2345 }).expect(400);
 
       const res = await responder(ids.b, perguntaB.id, { valor_unitario_centavos: 350 }).expect(200);
       expect(res.body).toMatchObject({ status_documento: "revisao" });

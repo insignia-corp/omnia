@@ -31,11 +31,14 @@ export class ErroPergunta extends Error {
   }
 }
 
+/** Casas decimais de `item_de_compra.quantidade` (`numeric(14,3)`): mais que isso o banco arredonda. */
+const PASSO_QUANTIDADE = 0.001;
+
 /** Resposta a "o valor unitário é este?": o valor certo, e a quantidade se também estava errada. */
 export const respostaItemSchema = z
   .object({
     valor_unitario_centavos: z.number().int().nonnegative(),
-    quantidade: z.number().positive().optional(),
+    quantidade: z.number().positive().multipleOf(PASSO_QUANTIDADE).optional(),
   })
   .strict();
 

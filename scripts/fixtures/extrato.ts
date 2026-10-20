@@ -56,7 +56,8 @@ export function montarExtrato(cupons: readonly Cupom[], notas: readonly NotaFixt
     faturamentoPorDia.set(cupom.data, (faturamentoPorDia.get(cupom.data) ?? 0) + total);
   }
   const notasPorDia = new Map<string, NotaFixture[]>();
-  for (const nota of notas)
+  // NF-e em XML é a prazo (boleto fora da janela): não gera saída no extrato.
+  for (const nota of notas.filter((n) => n.base.formato !== "xml"))
     notasPorDia.set(nota.base.data, [...(notasPorDia.get(nota.base.data) ?? []), nota]);
 
   const transacoes: Omit<Transacao, "id">[] = [];

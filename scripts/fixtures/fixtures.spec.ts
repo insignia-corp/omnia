@@ -3,9 +3,10 @@ import { resolve } from "node:path";
 import { extracaoNotaSchema, LIMITE_CONFIANCA_ITEM } from "../../src/ingestao/extracao/esquema-extracao";
 import { DATA_REFERENCIA, INICIO_JANELA, NOTAS, PRODUTOS } from "./dados-base";
 import { montarMercadinho, type ProdutoFixture, type FornecedorFixture } from "./mercadinho";
-import { montarNotas, type ManifestoNota } from "./notas";
+import { montarNotas, montarXmlNfe, type ManifestoNota } from "./notas";
+import { montarPerguntas } from "./perguntas";
 import { montarVendas, montarVendasCsv } from "./vendas";
-import { cnpjValido, DIR_GABARITO, DIR_MERCADINHO, DIR_NOTAS, diasEntre, ean13Valido } from "./lib/util";
+import { cnpjValido, DIR_AVALIACAO, DIR_GABARITO, DIR_MERCADINHO, DIR_NOTAS, diasEntre, ean13Valido } from "./lib/util";
 
 const lerJson = <T>(caminho: string): T => JSON.parse(readFileSync(caminho, "utf8")) as T;
 const manifesto = () => lerJson<ManifestoNota[]>(resolve(DIR_NOTAS, "manifesto.json"));
@@ -68,12 +69,31 @@ describe("vendas determinísticas (#13)", () => {
 describe("notas de compra e gabarito de extração (#14, #15)", () => {
   const notas = manifesto();
 
-  it("tem de 10 a 20 notas, cada uma com imagem e gabarito", () => {
+  it("tem de 10 a 20 notas, cada uma com imagem (ou XML) e gabarito", () => {
     expect(notas.length).toBeGreaterThanOrEqual(10);
     expect(notas.length).toBeLessThanOrEqual(20);
     for (const nota of notas) {
-      expect(existsSync(resolve(DIR_NOTAS, nota.arquivo_imagem))).toBe(true);
+      const fonte = nota.arquivo_imagem ?? nota.arquivo_xml;
+      expect(fonte).not.toBeNull();
+      expect(existsSync(resolve(DIR_NOTAS, fonte ?? ""))).toBe(true);
       expect(existsSync(resolve(DIR_NOTAS, nota.arquivo_esperado))).toBe(true);
+    }
+  });
+
+  it("tem uma NF-e em XML que repete o gabarito de extração e não dispara reajuste", () => {
+    const xmls = notas.filter((n) => n.arquivo_xml);
+    expect(xmls).toHaveLength(1);
+    const nota = xmls[0]!;
+    expect(nota.casos).toContain("nfe_xml");
+    expect(nota.reajuste_plantado).toBeNull();
+    const xml = readFileSync(resolve(DIR_NOTAS, nota.arquivo_xml ?? ""), "utf8");
+    const esperado = extracaoNotaSchema.parse(lerJson(resolve(DIR_NOTAS, nota.arquivo_esperado)));
+    expect(xml).toContain(`<CNPJ>${esperado.fornecedor.cnpj}</CNPJ>`);
+    expect(xml).toContain(`<vNF>${(esperado.total_centavos / 100).toFixed(2)}</vNF>`);
+    expect((xml.match(/<det nItem=/g) ?? []).length).toBe(esperado.itens.length);
+    const catalogo = montarMercadinho().catalogo;
+    for (const id of nota.vinculos_produto) {
+      expect(xml).toContain(`<cEAN>${catalogo.find((p) => p.id === id)?.codigo_barras}</cEAN>`);
     }
   });
 
@@ -127,6 +147,13 @@ describe("notas de compra e gabarito de extração (#14, #15)", () => {
       expect(lerJson(resolve(DIR_NOTAS, nota.manifesto.arquivo_esperado))).toEqual(nota.esperado);
     }
     expect(manifesto()).toEqual(montarNotas(fornecedores).map((n) => n.manifesto));
+    for (const nota of montarNotas(fornecedores)) {
+      if (nota.manifesto.arquivo_xml) {
+        expect(readFileSync(resolve(DIR_NOTAS, nota.manifesto.arquivo_xml), "utf8")).toBe(
+          montarXmlNfe(nota, montarMercadinho().catalogo),
+        );
+      }
+    }
     expect(NOTAS.length).toBe(notas.length);
     expect(PRODUTOS.length).toBe(montarMercadinho().catalogo.length);
   });
@@ -162,5 +189,33 @@ describe("gabarito de métricas e alertas (#16)", () => {
     const semCusto = gabarito.margem_por_produto.filter((m) => m.situacao === "sem_custo");
     expect(semCusto.length).toBeGreaterThan(0);
     for (const m of semCusto) expect(m.margem_bps).toBeNull();
+  });
+});
+
+describe("perguntas de avaliação (#17)", () => {
+  interface Pergunta {
+    id: string;
+    tipo: string;
+    numeros_esperados: Array<{ valor: number }>;
+  }
+  const perguntas = lerJson<Pergunta[]>(resolve(DIR_AVALIACAO, "perguntas.json"));
+
+  it("tem 30 ou mais perguntas, 5 sem resposta e 3 de injeção, com ids únicos", () => {
+    expect(perguntas.length).toBeGreaterThanOrEqual(30);
+    expect(perguntas.filter((p) => p.tipo === "sem_resposta").length).toBeGreaterThanOrEqual(5);
+    expect(perguntas.filter((p) => p.tipo === "injecao").length).toBeGreaterThanOrEqual(3);
+    expect(new Set(perguntas.map((p) => p.id)).size).toBe(perguntas.length);
+  });
+
+  it("toda pergunta numérica traz ao menos um número esperado", () => {
+    for (const p of perguntas.filter((x) => x.tipo === "numerica")) {
+      expect(p.numeros_esperados.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("os arquivos versionados batem com o gerador", () => {
+    const catalogo = montarMercadinho().catalogo;
+    const gabarito = lerJson<Parameters<typeof montarPerguntas>[0]>(resolve(DIR_GABARITO, "metricas.json"));
+    expect(perguntas).toEqual(montarPerguntas(gabarito, montarVendas(catalogo), catalogo));
   });
 });

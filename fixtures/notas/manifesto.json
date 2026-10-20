@@ -2,6 +2,7 @@
   {
     "id": "nota-01",
     "arquivo_imagem": "nota-01.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-01.esperado.json",
     "fornecedor_id": "AUR",
     "numero_documento": "004512",
@@ -31,6 +32,7 @@
   {
     "id": "nota-02",
     "arquivo_imagem": "nota-02.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-02.esperado.json",
     "fornecedor_id": "BEB",
     "numero_documento": "087231",
@@ -55,6 +57,7 @@
   {
     "id": "nota-03",
     "arquivo_imagem": "nota-03.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-03.esperado.json",
     "fornecedor_id": "LAT",
     "numero_documento": "019874",
@@ -77,6 +80,7 @@
   {
     "id": "nota-04",
     "arquivo_imagem": "nota-04.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-04.esperado.json",
     "fornecedor_id": "HIG",
     "numero_documento": "230045",
@@ -100,6 +104,7 @@
   {
     "id": "nota-05",
     "arquivo_imagem": "nota-05.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-05.esperado.json",
     "fornecedor_id": "PAD",
     "numero_documento": "055120",
@@ -123,6 +128,7 @@
   {
     "id": "nota-06",
     "arquivo_imagem": "nota-06.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-06.esperado.json",
     "fornecedor_id": "FRI",
     "numero_documento": "009317",
@@ -143,6 +149,7 @@
   {
     "id": "nota-07",
     "arquivo_imagem": "nota-07.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-07.esperado.json",
     "fornecedor_id": "AUR",
     "numero_documento": "004689",
@@ -165,6 +172,7 @@
   {
     "id": "nota-08",
     "arquivo_imagem": "nota-08.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-08.esperado.json",
     "fornecedor_id": "BEB",
     "numero_documento": "087602",
@@ -188,6 +196,7 @@
   {
     "id": "nota-09",
     "arquivo_imagem": "nota-09.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-09.esperado.json",
     "fornecedor_id": "LAT",
     "numero_documento": "020133",
@@ -207,6 +216,7 @@
   {
     "id": "nota-10",
     "arquivo_imagem": "nota-10.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-10.esperado.json",
     "fornecedor_id": "MIX",
     "numero_documento": "311408",
@@ -229,6 +239,7 @@
   {
     "id": "nota-11",
     "arquivo_imagem": "nota-11.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-11.esperado.json",
     "fornecedor_id": "PAD",
     "numero_documento": "055498",
@@ -255,6 +266,7 @@
   {
     "id": "nota-12",
     "arquivo_imagem": "nota-12.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-12.esperado.json",
     "fornecedor_id": "HIG",
     "numero_documento": "230611",
@@ -278,6 +290,7 @@
   {
     "id": "nota-13",
     "arquivo_imagem": "nota-13.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-13.esperado.json",
     "fornecedor_id": "BEB",
     "numero_documento": "088015",
@@ -299,6 +312,7 @@
   {
     "id": "nota-14",
     "arquivo_imagem": "nota-14.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-14.esperado.json",
     "fornecedor_id": "FRI",
     "numero_documento": "009544",
@@ -321,6 +335,7 @@
   {
     "id": "nota-15",
     "arquivo_imagem": "nota-15.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-15.esperado.json",
     "fornecedor_id": "AUR",
     "numero_documento": "004871",
@@ -349,6 +364,7 @@
   {
     "id": "nota-16",
     "arquivo_imagem": "nota-16.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-16.esperado.json",
     "fornecedor_id": "AUR",
     "numero_documento": "004920",
@@ -374,6 +390,7 @@
   {
     "id": "nota-17",
     "arquivo_imagem": "nota-17.jpg",
+    "arquivo_xml": null,
     "arquivo_esperado": "nota-17.esperado.json",
     "fornecedor_id": "LAT",
     "numero_documento": "020588",
@@ -387,6 +404,28 @@
       "P23",
       "P24",
       "P28"
+    ],
+    "reajuste_plantado": null
+  },
+  {
+    "id": "nota-18",
+    "arquivo_imagem": null,
+    "arquivo_xml": "nota-18.xml",
+    "arquivo_esperado": "nota-18.esperado.json",
+    "fornecedor_id": "PAD",
+    "numero_documento": "055731",
+    "data_emissao": "2026-10-18",
+    "casos": [
+      "nfe_xml"
+    ],
+    "itens_confianca_baixa": [],
+    "soma_itens_centavos": 23160,
+    "soma_confere": true,
+    "texto_injecao": null,
+    "vinculos_produto": [
+      "P38",
+      "P39",
+      "P40"
     ],
     "reajuste_plantado": null
   }

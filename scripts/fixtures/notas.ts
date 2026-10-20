@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { NOTAS, PRODUTOS, type NotaBase } from "./dados-base";
 import { type ExtracaoNota, LIMITE_CONFIANCA_ITEM } from "../../src/ingestao/extracao/esquema-extracao";
-import type { FornecedorFixture } from "./mercadinho";
-import { DIR_NOTAS, dataBr, decimalBr, decimalBrMilhar, escreverJson, formatarCnpj } from "./lib/util";
+import type { FornecedorFixture, ProdutoFixture } from "./mercadinho";
+import { DIR_NOTAS, dataBr, decimalBr, decimalBrMilhar, escreverJson, escreverTexto, formatarCnpj } from "./lib/util";
 
 /** Confiança esperada nos gabaritos: alta para itens legíveis, baixa para os planejados como ilegíveis. */
 const CONFIANCA_ALTA = 1;
@@ -11,7 +11,10 @@ const CONFIANCA_BAIXA = 0.5;
 
 export interface ManifestoNota {
   id: string;
-  arquivo_imagem: string;
+  /** Foto da nota; nulo quando a nota é uma NF-e em XML. */
+  arquivo_imagem: string | null;
+  /** NF-e em XML (parse determinístico, sem modelo com visão); nulo quando a nota é foto. */
+  arquivo_xml: string | null;
   arquivo_esperado: string;
   fornecedor_id: string;
   numero_documento: string;
@@ -99,6 +102,7 @@ export function montarNotas(fornecedores: readonly FornecedorFixture[]): NotaFix
     if (!somaConfere) casos.push("soma_diverge_do_total");
     if (base.caso?.injecao) casos.push("texto_de_injecao");
     if (base.caso?.inclinacao_graus) casos.push("foto_inclinada");
+    if (base.formato === "xml") casos.push("nfe_xml");
     if (
       base.itens.some(
         ([produtoId, , custo]) =>
@@ -119,7 +123,8 @@ export function montarNotas(fornecedores: readonly FornecedorFixture[]): NotaFix
 
     const manifesto: ManifestoNota = {
       id,
-      arquivo_imagem: `${id}.jpg`,
+      arquivo_imagem: base.formato === "xml" ? null : `${id}.jpg`,
+      arquivo_xml: base.formato === "xml" ? `${id}.xml` : null,
       arquivo_esperado: `${id}.esperado.json`,
       fornecedor_id: fornecedor.id,
       numero_documento: base.numero_documento,
@@ -257,10 +262,67 @@ export function renderizarNota(nota: NotaFixture, destino: string): void {
   execFileSync("magick", argumentos, { stdio: "pipe" });
 }
 
-export function escreverNotas(notas: readonly NotaFixture[], comImagens: boolean): void {
+const reais = (centavos: number): string =>
+  `${Math.trunc(centavos / 100)}.${String(centavos % 100).padStart(2, "0")}`;
+
+/** NF-e simplificada (layout 4.00), suficiente para o parser determinístico da issue #26. */
+export function montarXmlNfe(nota: NotaFixture, catalogo: readonly ProdutoFixture[]): string {
+  const { esperado, manifesto } = nota;
+  const produtoPorId = new Map(catalogo.map((p) => [p.id, p]));
+  const itens = esperado.itens
+    .map((item, indice) => {
+      const produto = produtoPorId.get(manifesto.vinculos_produto[indice] ?? "");
+      if (!produto) throw new Error(`${nota.id}: produto sem vínculo no item ${indice + 1}`);
+      return `      <det nItem="${indice + 1}">
+        <prod>
+          <cProd>${produto.id}</cProd>
+          <cEAN>${produto.codigo_barras}</cEAN>
+          <xProd>${item.descricao}</xProd>
+          <uCom>${item.unidade}</uCom>
+          <qCom>${item.quantidade}.0000</qCom>
+          <vUnCom>${reais(item.valor_unitario_centavos)}0000</vUnCom>
+          <vProd>${reais(item.valor_total_centavos)}</vProd>
+        </prod>
+      </det>`;
+    })
+    .join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe versao="4.00">
+      <ide>
+        <nNF>${Number(manifesto.numero_documento)}</nNF>
+        <dhEmi>${esperado.data_emissao}T10:30:00-03:00</dhEmi>
+      </ide>
+      <emit>
+        <CNPJ>${esperado.fornecedor.cnpj}</CNPJ>
+        <xNome>${esperado.fornecedor.nome}</xNome>
+      </emit>
+${itens}
+      <total>
+        <ICMSTot>
+          <vProd>${reais(manifesto.soma_itens_centavos)}</vProd>
+          <vNF>${reais(esperado.total_centavos)}</vNF>
+        </ICMSTot>
+      </total>
+    </infNFe>
+  </NFe>
+</nfeProc>
+`;
+}
+
+export function escreverNotas(
+  notas: readonly NotaFixture[],
+  comImagens: boolean,
+  catalogo: readonly ProdutoFixture[],
+): void {
   for (const nota of notas) {
     escreverJson(resolve(DIR_NOTAS, nota.manifesto.arquivo_esperado), nota.esperado);
-    if (comImagens) renderizarNota(nota, resolve(DIR_NOTAS, nota.manifesto.arquivo_imagem));
+    if (nota.manifesto.arquivo_xml) {
+      escreverTexto(resolve(DIR_NOTAS, nota.manifesto.arquivo_xml), montarXmlNfe(nota, catalogo));
+    } else if (comImagens && nota.manifesto.arquivo_imagem) {
+      renderizarNota(nota, resolve(DIR_NOTAS, nota.manifesto.arquivo_imagem));
+    }
   }
   escreverJson(
     resolve(DIR_NOTAS, "manifesto.json"),

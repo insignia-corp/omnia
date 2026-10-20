@@ -1,5 +1,5 @@
 /**
- * Gera todos os dados de teste em `fixtures/` com semente fixa (issues #12 a #16 e #18).
+ * Gera todos os dados de teste em `fixtures/` com semente fixa (issues #12 a #18).
  * Uso: `npm run fixtures:gerar`. Duas execuções seguidas produzem arquivos idênticos.
  *
  * As imagens das notas usam ImageMagick (`magick`). Sem ele, passe `--sem-imagens` e os
@@ -9,6 +9,7 @@ import { escreverExtrato, montarExtrato } from "./extrato";
 import { gerarGabarito } from "./gabarito";
 import { escreverMercadinho, montarMercadinho } from "./mercadinho";
 import { escreverNotas, montarNotas } from "./notas";
+import { escreverPerguntas } from "./perguntas";
 import { escreverVendasCsv, escreverVendasXlsx, montarVendas } from "./vendas";
 
 async function main(): Promise<void> {
@@ -21,10 +22,11 @@ async function main(): Promise<void> {
   await escreverVendasXlsx(cupons, mercadinho.catalogo);
 
   const notas = montarNotas(mercadinho.fornecedores);
-  escreverNotas(notas, comImagens);
+  escreverNotas(notas, comImagens, mercadinho.catalogo);
   escreverExtrato(montarExtrato(cupons, notas));
 
   gerarGabarito();
+  escreverPerguntas(cupons, mercadinho.catalogo);
   console.log(
     `fixtures: ${mercadinho.catalogo.length} produtos, ${cupons.length} cupons, ${notas.length} notas${comImagens ? " com imagens" : ""}`,
   );

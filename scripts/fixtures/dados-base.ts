@@ -182,6 +182,8 @@ export interface NotaBase {
   itens: readonly ItemNotaBase[];
   /** Número impresso da nota do fornecedor. */
   numero_documento: string;
+  /** NF-e em XML em vez de foto: o parse é determinístico e dispensa o modelo com visão. */
+  formato?: "xml";
   caso?: {
     /** PLANTADO: item com impressão pouco legível (confiança baixa esperada). */
     item_pouco_legivel?: string;
@@ -435,6 +437,19 @@ export const NOTAS: readonly NotaBase[] = [
       ["P23", 72],
       ["P24", 18],
       ["P28", 12],
+    ],
+  },
+  {
+    numero: 18,
+    data: "2026-10-18",
+    fornecedor: "PAD",
+    numero_documento: "055731",
+    formato: "xml",
+    // NF-e em XML: mesmos custos da nota 11, sem reajuste. Fica fora do extrato (boleto a prazo).
+    itens: [
+      ["P38", 24],
+      ["P39", 36],
+      ["P40", 12],
     ],
   },
 ];

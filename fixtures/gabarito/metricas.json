@@ -667,14 +667,14 @@
       "situacao": "ok",
       "preco_medio_venda_centavos": 849,
       "custo_compra_mais_recente_centavos": 580,
-      "compra_data": "2026-09-30",
-      "compra_nota": "nota-11",
+      "compra_data": "2026-10-18",
+      "compra_nota": "nota-18",
       "fornecedor_id": "PAD",
       "margem_bps": 3168,
       "margem_percentual": 31.68,
       "abaixo_da_meta": false,
       "n_registros": 225,
-      "menor_confianca": 0.5
+      "menor_confianca": 1
     },
     {
       "produto_id": "P39",
@@ -682,14 +682,14 @@
       "situacao": "ok",
       "preco_medio_venda_centavos": 279,
       "custo_compra_mais_recente_centavos": 160,
-      "compra_data": "2026-09-30",
-      "compra_nota": "nota-11",
+      "compra_data": "2026-10-18",
+      "compra_nota": "nota-18",
       "fornecedor_id": "PAD",
       "margem_bps": 4265,
       "margem_percentual": 42.65,
       "abaixo_da_meta": false,
       "n_registros": 213,
-      "menor_confianca": 0.5
+      "menor_confianca": 1
     },
     {
       "produto_id": "P40",
@@ -697,14 +697,14 @@
       "situacao": "ok",
       "preco_medio_venda_centavos": 459,
       "custo_compra_mais_recente_centavos": 290,
-      "compra_data": "2026-09-30",
-      "compra_nota": "nota-11",
+      "compra_data": "2026-10-18",
+      "compra_nota": "nota-18",
       "fornecedor_id": "PAD",
       "margem_bps": 3682,
       "margem_percentual": 36.82,
       "abaixo_da_meta": false,
       "n_registros": 94,
-      "menor_confianca": 0.5
+      "menor_confianca": 1
     },
     {
       "produto_id": "P41",

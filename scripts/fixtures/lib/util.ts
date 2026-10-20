@@ -1,10 +1,11 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 export const RAIZ = resolve(__dirname, "../../..");
 export const DIR_MERCADINHO = resolve(RAIZ, "fixtures/mercadinho");
 export const DIR_NOTAS = resolve(RAIZ, "fixtures/notas");
 export const DIR_GABARITO = resolve(RAIZ, "fixtures/gabarito");
+export const DIR_AVALIACAO = resolve(RAIZ, "fixtures/avaliacao");
 
 /** Gerador pseudoaleatório com semente (mulberry32): mesma semente, mesma sequência. */
 export class Aleatorio {
@@ -101,27 +102,9 @@ export function decimalBrMilhar(valorCentavos: number): string {
   return `${inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".")},${centavos}`;
 }
 
-export function digitosCnpj(base12: string): string {
-  const calcular = (digitos: number[], pesos: number[]) => {
-    const soma = digitos.reduce((acc, d, i) => acc + d * (pesos[i] ?? 0), 0);
-    const resto = soma % 11;
-    return resto < 2 ? 0 : 11 - resto;
-  };
-  const d = base12.split("").map(Number);
-  const d1 = calcular(d, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  const d2 = calcular([...d, d1], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  return `${base12}${d1}${d2}`;
-}
-
-export function cnpjValido(cnpj: string): boolean {
-  const limpo = cnpj.replace(/\D/g, "");
-  if (limpo.length !== 14 || /^(\d)\1+$/.test(limpo)) return false;
-  return digitosCnpj(limpo.slice(0, 12)) === limpo;
-}
-
-export function formatarCnpj(cnpj: string): string {
-  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-}
+// Mesma implementação usada pela validação de notas em produção.
+export { cnpjValido, formatarCnpj } from "../../../src/lib/cnpj/cnpj";
+export { completarCnpj as digitosCnpj } from "../../../src/lib/cnpj/cnpj";
 
 export function ean13(base12: string): string {
   const soma = base12.split("").reduce((acc, d, i) => acc + Number(d) * (i % 2 === 0 ? 1 : 3), 0);
@@ -138,6 +121,10 @@ export function mediana(valores: readonly number[]): number {
   const central =
     ordenados.length % 2 === 1 ? ordenados[meio] : ((ordenados[meio - 1] ?? 0) + (ordenados[meio] ?? 0)) / 2;
   return central ?? 0;
+}
+
+export function lerJson<T>(caminho: string): T {
+  return JSON.parse(readFileSync(caminho, "utf8")) as T;
 }
 
 /** Escrita estável: JSON com 2 espaços e quebra de linha final. */

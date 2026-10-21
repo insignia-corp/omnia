@@ -7,9 +7,9 @@ import Redis from "ioredis";
 import { Pool } from "pg";
 import { FILA_REAJUSTE, FilaReajuste } from "../../src/alertas/jobs/fila-reajuste";
 import { VerificadorDeReajuste } from "../../src/alertas/jobs/verificar-reajuste";
+import { RepositorioAlertasPostgres } from "../../src/alertas/repositorio-alertas";
 import { fonteDeLimitesPadrao } from "../../src/alertas/limites";
 import { MotorDeAlertas } from "../../src/alertas/motor-de-alertas";
-import { RepositorioAlertasPostgres } from "../../src/alertas/repositorio-alertas";
 import { carregarEnv } from "../../src/config/env";
 import { FILA_EXTRACAO, FilaExtracao, type AposExtracao } from "../../src/ingestao/fila/fila-extracao";
 import type { ProcessadorExtracao } from "../../src/ingestao/processador-extracao";
@@ -201,6 +201,30 @@ describe("job de reajuste após cada nota (e2e)", () => {
       const r = await verificador.verificar({ documentoId, comercianteId: vilaNova }, "2026-10-20");
       expect(r.gravados).toBe(0);
       expect(await reajustes(vilaNova)).toHaveLength(antes.length);
+    });
+
+    it("jaGravados só enxerga os alertas do próprio lojista, mesmo com tipo e chave iguais", async () => {
+      const repositorio = new RepositorioAlertasPostgres(db);
+      await db.insert(schema.alerta).values(
+        [vilaNova, esquina].map((comercianteId) => ({
+          comercianteId,
+          tipo: "estoque_parado" as const,
+          prioridade: 3,
+          dataReferencia: "2026-10-01",
+          chave: "mesma-chave",
+          metricasApoio: {},
+        })),
+      );
+      await db
+        .update(schema.alerta)
+        .set({ chave: "so-da-vila" })
+        .where(and(eq(schema.alerta.comercianteId, vilaNova), eq(schema.alerta.chave, "mesma-chave")));
+      expect(await repositorio.jaGravados(esquina, ["estoque_parado"])).toEqual([
+        { tipo: "estoque_parado", chave: "mesma-chave" },
+      ]);
+      expect(await repositorio.jaGravados(vilaNova, ["estoque_parado"])).toEqual([
+        { tipo: "estoque_parado", chave: "so-da-vila" },
+      ]);
     });
 
     it("o comerciante é o do job: documento de um lojista com o id de outro não grava nada", async () => {

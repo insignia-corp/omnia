@@ -40,15 +40,18 @@ describe("FilaExtracao: gancho após a extração", () => {
     },
   );
 
-  it.each([{ status: "falha" as const }, { status: "ignorado" as const }, { status: "extraido" as const }])(
-    "não chama o gancho sem compra gravada ou com status $status",
-    async (resultado) => {
-      const gancho = jest.fn();
-      const { fila } = criar(resultado, gancho);
-      await tratar(fila, job(DADOS));
-      expect(gancho).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    { status: "falha" as const },
+    { status: "ignorado" as const },
+    { status: "extraido" as const },
+    { status: "falha" as const, compraId: "compra-x" },
+    { status: "ignorado" as const, compraId: "compra-x" },
+  ])("não chama o gancho sem compra gravada ou com status $status", async (resultado) => {
+    const gancho = jest.fn();
+    const { fila } = criar(resultado, gancho);
+    await tratar(fila, job(DADOS));
+    expect(gancho).not.toHaveBeenCalled();
+  });
 
   it("falha do gancho é registrada com o documento e não falha nem repete a extração", async () => {
     const erro = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);

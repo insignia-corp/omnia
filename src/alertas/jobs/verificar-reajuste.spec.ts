@@ -1,5 +1,6 @@
 import type { Executor } from "../../infra/database/database.module";
 import type { MotorDeAlertas } from "../motor-de-alertas";
+import { chaveReajuste } from "./fila-reajuste";
 import { VerificadorDeReajuste } from "./verificar-reajuste";
 
 /** Banco falso: devolve as linhas de produto da nota, qualquer que seja a consulta. */
@@ -47,5 +48,15 @@ describe("VerificadorDeReajuste", () => {
       "2026-10-16",
     );
     expect(executar.mock.calls[0]?.[0]).toEqual({ comercianteId: "c-job", dataReferencia: "2026-10-16" });
+  });
+});
+
+describe("chaveReajuste", () => {
+  it("o jobId é comerciante e documento: o mesmo documento de outro lojista é outro job", () => {
+    expect(chaveReajuste({ comercianteId: "c1", documentoId: "d1" })).toBe("c1_d1");
+    expect(chaveReajuste({ comercianteId: "c2", documentoId: "d1" })).not.toBe(
+      chaveReajuste({ comercianteId: "c1", documentoId: "d1" }),
+    );
+    expect(chaveReajuste({ comercianteId: "c1", documentoId: "d1" })).not.toContain(":");
   });
 });

@@ -102,6 +102,7 @@ Cada métrica é uma função pura em TypeScript, com testes unitários, que dev
 | --- | --- | --- |
 | Margem por produto | (preço médio de venda - custo da compra mais recente) / preço médio de venda | Margem abaixo da meta que o dono informou |
 | Maior giro | Unidades vendidas nos últimos 7 dias comparadas com a média semanal dos 28 dias anteriores | Produto entre os de maior alta ou de maior volume |
+| Receita por produto | Soma, em centavos, do valor vendido de cada produto nos últimos 7 dias; ranking dos 5 de maior receita | Não gera alerta, alimenta `get_top_products` |
 | Variação de custo | (custo da compra atual - custo da compra anterior do mesmo produto e fornecedor) / custo anterior | Variação acima de 5% |
 | Espaço para subir preço | Giro alto combinado com margem abaixo da meta | As duas condições juntas |
 | Estoque parado | Dias sem venda de um produto que já foi comprado | Mais de 30 dias sem venda |
@@ -115,7 +116,7 @@ O motor de alertas apenas lista candidatos com prioridade. Quem decide o que ent
 O código aplica estas regras além da tabela. Os valores iniciais ficam nas constantes `PARAMETROS_*` de [src/metricas](../src/metricas/README.md), e o teste de regressão confere que são os do gabarito.
 
 - Sem custo ou sem venda a margem não sai: a métrica devolve dado ausente, com a pergunta ao dono, nunca uma estimativa.
-- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio, gasto fora do padrão) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. No resumo, o extrato tem o próprio intervalo: sem extrato para o dia, `gastos_centavos` e `saldo_do_dia_centavos` são dado ausente. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias.
+- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio, gasto fora do padrão) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. No resumo, o extrato tem o próprio intervalo: sem extrato para o dia, `gastos_centavos` e `saldo_do_dia_centavos` são dado ausente. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias, e a receita por produto quando cobrem os 7 dias.
 - Venda de planilha cuja importação ainda pede revisão do dono (documento fora de `extraido`) entra nas métricas com confiança 0,5, não 1; volta ao valor original quando o documento é resolvido.
 - O custo de cada item de compra vale pela leitura mais recente de `historico_custo`, então a correção do dono prevalece sem apagar a leitura do modelo. O custo mais recente de um produto é o de maior data; o empate desempata pela criação.
 - A variação de custo compara notas diferentes: duas linhas do mesmo produto na mesma nota não são um reajuste.

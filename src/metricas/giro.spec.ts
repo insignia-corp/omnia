@@ -1,7 +1,10 @@
 import type { ProdutoParaMetrica, VendaDoProdutoNoDia } from "./dados-de-metricas";
 import { calcularGiro, type EntradaGiro } from "./giro";
+import { ehDadoAusente } from "./resultado-metrica";
 
 const REF = "2026-10-19";
+/** Vendas importadas de 15/09 a 19/10: as duas janelas inteiras. */
+const COBERTURA = { primeira: "2026-09-15", ultima: REF };
 
 const produto = (id: string, nome = id): ProdutoParaMetrica => ({ id, nome, margemMetaBps: null });
 
@@ -21,8 +24,14 @@ const venda = (
   ...extra,
 });
 
-const calcular = (entrada: Partial<EntradaGiro>) =>
-  calcularGiro({ produtos: [], vendas: [], dataReferencia: REF, ...entrada });
+const calcularOuAusente = (entrada: Partial<EntradaGiro>) =>
+  calcularGiro({ produtos: [], vendas: [], intervaloDeVendas: COBERTURA, dataReferencia: REF, ...entrada });
+
+const calcular = (entrada: Partial<EntradaGiro>) => {
+  const r = calcularOuAusente(entrada);
+  if (ehDadoAusente(r)) throw new Error(`Esperava giro, veio dado ausente: ${r.codigo}`);
+  return r;
+};
 
 const doProduto = (r: ReturnType<typeof calcular>, id: string) => {
   const g = r.valor.por_produto.find((p) => p.produto_id === id);
@@ -31,6 +40,31 @@ const doProduto = (r: ReturnType<typeof calcular>, id: string) => {
 };
 
 describe("calcularGiro", () => {
+  describe("cobertura das vendas importadas", () => {
+    it.each([
+      ["sem nenhuma venda importada", null],
+      ["só 14 dias de vendas, de 06/10 a 19/10", { primeira: "2026-10-06", ultima: REF }],
+      ["a janela de 28 dias começa um dia antes da primeira venda", { primeira: "2026-09-16", ultima: REF }],
+      ["a última venda importada é anterior à data de referência", { primeira: "2026-09-15", ultima: "2026-10-18" }],
+    ])("%s: dado ausente, não volume zero", (_caso, intervaloDeVendas) => {
+      const r = calcularOuAusente({
+        produtos: [produto("a")],
+        vendas: [venda("a", "2026-10-15", 40)],
+        intervaloDeVendas,
+      });
+      expect(r).toMatchObject({ ausente: true, codigo: "historico_insuficiente" });
+    });
+
+    it("com as duas janelas cobertas, dia sem venda dentro delas vale zero", () => {
+      const r = calcular({
+        produtos: [produto("a")],
+        vendas: [venda("a", "2026-10-15", 40)],
+        intervaloDeVendas: { primeira: "2026-09-15", ultima: REF },
+      });
+      expect(doProduto(r, "a").unidades_7_dias).toBe(40);
+    });
+  });
+
   describe("janelas", () => {
     it("os últimos 7 dias vão de 13/10 a 19/10 e os 28 anteriores de 15/09 a 12/10", () => {
       const r = calcular({ produtos: [produto("a")] });
@@ -154,12 +188,13 @@ describe("calcularGiro", () => {
 
     it("o top N vem dos parâmetros", () => {
       const dois = calcularGiro(
-        { produtos: ids.map((id) => produto(id)), vendas, dataReferencia: REF },
+        { produtos: ids.map((id) => produto(id)), vendas, intervaloDeVendas: COBERTURA, dataReferencia: REF },
         {
           minimoMediaSemanal: 14,
           topN: 2,
         },
       );
+      if (ehDadoAusente(dois)) throw new Error("Esperava giro, veio dado ausente");
       expect(dois.valor.maior_alta.map((g) => g.produto_id)).toEqual(["d", "f"]);
     });
 

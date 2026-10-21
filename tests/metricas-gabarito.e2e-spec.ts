@@ -11,7 +11,7 @@ import {
   PARAMETROS_GASTO_FORA_DO_PADRAO,
   type GastoForaDoPadrao,
 } from "../src/metricas/gasto-fora-do-padrao";
-import { PARAMETROS_GIRO } from "../src/metricas/giro";
+import { PARAMETROS_GIRO, type Giro } from "../src/metricas/giro";
 import { PARAMETROS_MARGEM, type MargemDoProduto } from "../src/metricas/margem-por-produto";
 import { MetricasService, type ContextoMetricas } from "../src/metricas/metricas.service";
 import { RepositorioMetricasPostgres } from "../src/metricas/repositorio-metricas";
@@ -351,9 +351,9 @@ describe("métricas contra o gabarito (e2e)", () => {
   });
 
   describe("maior giro (#34)", () => {
-    let giro: Awaited<ReturnType<MetricasService["giro"]>>;
+    let giro: ResultadoMetrica<Giro>;
     beforeAll(async () => {
-      giro = await servico.giro(vilaNova);
+      giro = valorDe<Giro>(await servico.giro(vilaNova));
     });
 
     it("usa as mesmas janelas do gabarito", () => {
@@ -465,14 +465,14 @@ describe("métricas contra o gabarito (e2e)", () => {
 
   describe("espaço para subir preço (#36)", () => {
     it("lista os mesmos produtos do gabarito, com a margem deles", async () => {
-      const r = await servico.espacoParaSubirPreco(vilaNova);
+      const r = valorDe(await servico.espacoParaSubirPreco(vilaNova));
       expect(r.valor.map((p) => [skuPorProduto.get(p.produto_id), p.margem_bps])).toEqual(
         gabarito.espaco_para_subir_preco.map((p) => [p.produto_id, p.margem_bps]),
       );
     });
 
     it("cerveja e leite vendem bem e ficam abaixo da meta de 25%", async () => {
-      const r = await servico.espacoParaSubirPreco(vilaNova);
+      const r = valorDe(await servico.espacoParaSubirPreco(vilaNova));
       expect(r.valor).toHaveLength(2);
       for (const produto of r.valor) {
         expect(produto.margem_bps).toBeLessThan(produto.meta_bps);
@@ -647,12 +647,20 @@ describe("métricas contra o gabarito (e2e)", () => {
       for (const id of [
         ...margensEsquina.map((m) => m.produto_id),
         ...variacoes.valor.map((v) => v.produto_id),
-        ...giro.valor.por_produto.map((g) => g.produto_id),
+        ...(ehDadoAusente(giro) ? [] : giro.valor.por_produto.map((g) => g.produto_id)),
         ...parados.valor.map((p) => p.produto_id),
-        ...espaco.valor.map((p) => p.produto_id),
+        ...(ehDadoAusente(espaco) ? [] : espaco.valor.map((p) => p.produto_id)),
       ]) {
         expect(dela.has(id)).toBe(true);
       }
+    });
+
+    it("a Esquina tem só 14 dias de dados, então o giro e o espaço para subir preço são ausentes", async () => {
+      expect(await servico.giro(esquina)).toMatchObject({ ausente: true, codigo: "historico_insuficiente" });
+      expect(await servico.espacoParaSubirPreco(esquina)).toMatchObject({
+        ausente: true,
+        codigo: "historico_insuficiente",
+      });
     });
 
     it("a Esquina tem só 14 dias de dados, então o ticket médio e o gasto fora do padrão são ausentes", async () => {

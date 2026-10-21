@@ -14,7 +14,7 @@ import {
 import { DIAS_DE_HISTORICO_DO_GIRO, calcularGiro, type Giro } from "./giro";
 import { PARAMETROS_MARGEM, calcularMargemDoProduto, type MargemDoProduto } from "./margem-por-produto";
 import type { FonteDeDadosMetricas } from "./repositorio-metricas";
-import { dadoAusente, type DadoAusente, type ResultadoMetrica } from "./resultado-metrica";
+import { dadoAusente, ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "./resultado-metrica";
 import { DIAS_DE_COMPARACAO_DO_RESUMO, calcularResumoDiario, type ResumoDiario } from "./resumo-diario";
 import { DIAS_DE_HISTORICO_DO_TICKET, calcularTicketMedio, type TicketMedio } from "./ticket-medio";
 import { calcularVariacoesDeCusto, type VariacaoDeCusto } from "./variacao-de-custo";
@@ -116,14 +116,15 @@ export class MetricasService {
   }
 
   /** Giro dos últimos 7 dias contra a média semanal dos 28 anteriores, com os rankings. */
-  async giro(contexto: ContextoMetricas): Promise<ResultadoMetrica<Giro>> {
+  async giro(contexto: ContextoMetricas): Promise<ResultadoMetrica<Giro> | DadoAusente> {
     const { comercianteId, dataReferencia } = contexto;
     const desde = somarDias(dataReferencia, -(DIAS_DE_HISTORICO_DO_GIRO - 1));
-    const [produtos, vendas] = await Promise.all([
+    const [produtos, vendas, intervaloDeVendas] = await Promise.all([
       this.dados.produtos(comercianteId),
       this.dados.vendasPorProdutoPorDia(comercianteId, desde, dataReferencia),
+      this.dados.intervaloDeVendas(comercianteId),
     ]);
-    return calcularGiro({ produtos, vendas, dataReferencia });
+    return calcularGiro({ produtos, vendas, intervaloDeVendas, dataReferencia });
   }
 
   /** Resumo de um dia (a data de referência, se não for indicada outra). */
@@ -192,8 +193,9 @@ export class MetricasService {
   /** Produtos de giro alto com margem abaixo da meta. */
   async espacoParaSubirPreco(
     contexto: ContextoMetricas,
-  ): Promise<ResultadoMetrica<ProdutoComEspacoParaSubirPreco[]>> {
+  ): Promise<ResultadoMetrica<ProdutoComEspacoParaSubirPreco[]> | DadoAusente> {
     const [giro, margens] = await Promise.all([this.giro(contexto), this.margensDosProdutos(contexto)]);
+    if (ehDadoAusente(giro)) return giro;
     return calcularEspacoParaSubirPreco({ giro, margens });
   }
 }

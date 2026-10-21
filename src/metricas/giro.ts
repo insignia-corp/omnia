@@ -7,12 +7,19 @@ import { somarDias } from "../lib/datas/datas";
 import {
   compararNomes,
   compararTexto,
+  type IntervaloDeDados,
   type ProdutoParaMetrica,
   type VendaDoProdutoNoDia,
 } from "./dados-de-metricas";
 import { percentualDeBps, razaoEmBps } from "./pontos-base";
 import { somarQuantidades } from "./quantidades";
-import { resultadoMetrica, type Periodo, type ResultadoMetrica } from "./resultado-metrica";
+import {
+  dadoAusente,
+  resultadoMetrica,
+  type DadoAusente,
+  type Periodo,
+  type ResultadoMetrica,
+} from "./resultado-metrica";
 
 /** As janelas fazem parte da definição da métrica e dos nomes dos campos; os demais valores são ajustáveis. */
 const ULTIMOS_DIAS = 7;
@@ -54,6 +61,8 @@ export interface EntradaGiro {
   produtos: readonly ProdutoParaMetrica[];
   /** Vendas de qualquer produto e dia: a função recorta as duas janelas. */
   vendas: readonly VendaDoProdutoNoDia[];
+  /** Datas entre as quais há venda importada; dia fora delas é dia sem dado, não dia sem venda. */
+  intervaloDeVendas: IntervaloDeDados | null;
   dataReferencia: string;
 }
 
@@ -65,17 +74,30 @@ function acumular(mapa: Map<string, number[]>, chave: string, valor: number): vo
   else mapa.set(chave, [valor]);
 }
 
-/** Giro de todos os produtos na data de referência, com os rankings de alta e de volume. */
+/**
+ * Giro de todos os produtos na data de referência, com os rankings de alta e de volume. Devolve
+ * dado ausente enquanto as vendas importadas não cobrirem as duas janelas: dia sem dado contado
+ * como volume zero derrubaria a média e inventaria uma alta.
+ */
 export function calcularGiro(
   entrada: EntradaGiro,
   parametros: ParametrosGiro = PARAMETROS_GIRO,
-): ResultadoMetrica<Giro> {
+): ResultadoMetrica<Giro> | DadoAusente {
   const ref = entrada.dataReferencia;
   const recente: Periodo = { inicio: somarDias(ref, -(ULTIMOS_DIAS - 1)), fim: ref };
   const anterior: Periodo = {
     inicio: somarDias(ref, -(ULTIMOS_DIAS + ANTERIORES_DIAS - 1)),
     fim: somarDias(ref, -ULTIMOS_DIAS),
   };
+
+  const intervalo = entrada.intervaloDeVendas;
+  if (!intervalo || intervalo.primeira > anterior.inicio || intervalo.ultima < ref) {
+    return dadoAusente(
+      "historico_insuficiente",
+      `O giro precisa de vendas importadas de ${anterior.inicio} a ${ref} (${DIAS_DE_HISTORICO_DO_GIRO} dias) e a base não cobre esse período.`,
+      "Pode enviar a planilha de vendas das últimas 5 semanas?",
+    );
+  }
 
   const conhecidos = new Set(entrada.produtos.map((p) => p.id));
   const unidadesRecentes = new Map<string, number[]>();

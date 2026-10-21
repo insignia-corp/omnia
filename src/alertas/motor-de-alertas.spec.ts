@@ -95,3 +95,12 @@ describe("motor de alertas: dinheiro e prioridade", () => {
     expect(repositorio.gravados[0]?.prioridade).toBe(2);
   });
 });
+
+describe("motor de alertas: confiança para o agente", () => {
+  it("grava a confiança como menor_confianca, o campo que select_alerts lê", async () => {
+    const { motor, repositorio } = motorCom([variacao({ menor_confianca: 0.6 })], giro(10));
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados[0]?.metricasApoio).toMatchObject({ menor_confianca: 0.6 });
+    expect(repositorio.gravados[0]?.metricasApoio).not.toHaveProperty("confianca");
+  });
+});

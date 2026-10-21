@@ -36,7 +36,7 @@ Nível de 1 (mais importante) a 3, por critério em `prioridade.ts`:
 3. Sem impacto em reais (giro em alta, estoque parado, ou reajuste sem giro) o candidato fica em 3: sem número, sem urgência.
 4. **Confiança** abaixo de 0,8, ou desconhecida, rebaixa um nível (até o 3).
 
-Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave; `candidatos` do resultado do motor já vem nessa ordem. O impacto e a confiança ficam em `metricas_apoio` (`impacto_centavos`, `confianca`) junto com a procedência da métrica (`fonte`).
+Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave; `candidatos` do resultado do motor já vem nessa ordem. O impacto e a confiança ficam em `metricas_apoio` (`impacto_centavos`, `menor_confianca`) junto com a procedência da métrica (`fonte`).
 
 ## Supressão (#44)
 

@@ -80,7 +80,11 @@ export class MotorDeAlertas {
         prioridade: c.prioridade,
         produtoId: c.produtoId,
         fornecedorId: c.fornecedorId,
-        metricasApoio: { ...c.metricasApoio, impacto_centavos: c.impactoCentavos, confianca: c.confianca },
+        metricasApoio: {
+          ...c.metricasApoio,
+          impacto_centavos: c.impactoCentavos,
+          menor_confianca: c.confianca,
+        },
       })),
     );
     return {

@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { fonteDeLimitesPadrao } from "../../src/alertas/limites";
 import { MotorDeAlertas } from "../../src/alertas/motor-de-alertas";
 import { RepositorioAlertasPostgres } from "../../src/alertas/repositorio-alertas";
+import { criarSelectAlerts } from "../../src/agente/ferramentas/select-alerts";
 import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
@@ -159,6 +160,18 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       for (const c of [...porTipo("giro_em_alta"), ...porTipo("estoque_parado")])
         expect(c.prioridade).toBe(3);
       expect(r.candidatos.every((c) => [1, 2, 3].includes(c.prioridade))).toBe(true);
+    });
+
+    it("select_alerts sobre as linhas do motor devolve a confiança real, não nula", async () => {
+      const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      const escolhidos = r.candidatos.slice(0, 3);
+      const guardada = escolhidos.map((c) => c.metricasApoio.menor_confianca);
+      expect(guardada.every((v) => typeof v === "number")).toBe(true);
+      const saida = await criarSelectAlerts(db).executar(
+        { comercianteId: vilaNova, nomeComercio: "Vila Nova", dataReferencia: REF },
+        { alertas: escolhidos.map((c) => ({ alerta_id: c.id, justificativa: "teste" })) },
+      );
+      expect(saida.menor_confianca).toBe(Math.min(...(guardada as number[])));
     });
 
     it("é idempotente: repetir no mesmo dia não cria nem altera candidato", async () => {

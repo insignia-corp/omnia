@@ -42,6 +42,7 @@ import { carregarPromptSistema } from "./prompts/prompt-sistema";
         new AgenteService(modelo, ferramentas, registro, carregarPromptSistema(), {
           maxIteracoes: env.AGENTE_MAX_ITERACOES,
           maxRegeracoes: env.AGENTE_MAX_REGERACOES,
+          maxMs: env.AGENTE_TIMEOUT_MS,
           esforcoPorGatilho: {
             mensagem_dono: env.LLM_ESFORCO_CONVERSA,
             relatorio_diario: env.LLM_ESFORCO,

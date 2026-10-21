@@ -24,8 +24,9 @@ export interface ProdutoAmbiguo {
 }
 
 /**
- * Margem de um produto (issue #51), achado pelo nome aproximado ou pelo id do candidato que o dono escolheu. Sem escolha clara, devolve os
- * candidatos para o agente perguntar ao dono; sem nenhum, dado ausente. A margem é a da métrica.
+ * Margem de um produto (issue #51), achado pelo nome aproximado ou pelo id do candidato que o dono
+ * escolheu. Sem escolha clara, devolve os candidatos para o agente perguntar ao dono; sem nenhum,
+ * dado ausente. A margem é a da métrica.
  */
 export function criarGetProductMargin(metricas: MetricasService, db: Db) {
   return definirFerramenta({

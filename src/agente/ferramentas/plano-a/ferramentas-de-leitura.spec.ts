@@ -462,8 +462,16 @@ describe("ferramentas de leitura do plano A", () => {
     it("descrição que o dono já confirmou na nota liga sozinha, com confiança 1", async () => {
       const { mock, metricas: m } = servico();
       const id = randomUUID();
-      const banco = dbCom([{ produto_id: id, nome: "Leite integral 1L", sim: 1 }], id);
+      // Pela similaridade os dois empatam (seria sugestão): só a descrição confirmada decide.
+      const banco = dbCom(
+        [
+          { produto_id: id, nome: "Leite integral 1L", sim: 1 },
+          { produto_id: randomUUID(), nome: "Leite integral 1L", sim: 1 },
+        ],
+        id,
+      );
       const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "leite uht" });
+      expect(saida).not.toHaveProperty("ambiguo");
       expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
       expect(saida).toMatchObject({ confianca_da_busca: 1 });
       expect(parametrosDe(banco.execute.mock.calls[0]?.[0])).toEqual(

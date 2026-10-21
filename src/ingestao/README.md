@@ -50,6 +50,14 @@ A venda é única por `(comerciante, data, cupom)`: reimportar o mesmo arquivo, 
 
 Conferido contra o gabarito (`tests/planilha-vendas.e2e-spec.ts`): CSV e XLSX importam 3.623 cupons e 11.365 itens sem rejeição; em 2026-10-19 são 78 cupons e R$ 1.221,51.
 
+## NF-e em XML (#29)
+
+O mesmo `POST /documentos/notas` aceita o XML (o tipo vem dos primeiros bytes, não da extensão). `nfe/ler-nfe.ts` lê em código, sem modelo: parser SAX (`saxes`) que não lê DTD nem resolve entidades e recusa qualquer DOCTYPE (XXE, entidades em cascata). Os elementos casam pelo nome local, então prefixo de namespace e o layout antigo (`dEmi`) funcionam. Só entram emitente, data, itens (`xProd`, `uCom`, `qCom`, `vUnCom`, `vProd`), número e `vNF`; texto livre como `infAdic` é ignorado e nada do XML vira instrução. Dinheiro vem por texto e inteiro (`parseDecimalNfe`, até 10 casas, arredonda na 3ª), sem ponto flutuante. O total é o `vNF`.
+
+O XML é lido antes de ser guardado (inválido devolve 422 e não deixa rastro). Depois passa pelas mesmas conferências da foto (`validarNota`) e pelo mesmo `gravarCompra`, na própria requisição e sem fila, com origem `nfe` e confiança 1 em compra e itens. Vínculo, perguntas e histórico de custo seguem o caminho da foto; como o vínculo por similaridade devolve a própria similaridade, o custo gravado pode ter confiança menor que 1. Nota com frete, desconto ou imposto que faz a soma dos itens divergir do `vNF` cai em `revisao` (`soma_diverge_do_total`) e o dono confirma.
+
+Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem outro hash e vira outra compra. Conferido em `tests/ingestao-nfe.e2e-spec.ts` contra `fixtures/notas/nota-18`.
+
 ## Falhas
 
 | Caso | Resultado |
@@ -62,4 +70,4 @@ Conferido contra o gabarito (`tests/planilha-vendas.e2e-spec.ts`): CSV e XLSX im
 
 ## Pendente nesta etapa
 
-NF-e em XML (#29) e o uso do `cEAN` no vínculo da NF-e. Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.
+Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.

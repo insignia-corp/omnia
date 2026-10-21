@@ -98,6 +98,7 @@ export class ProcessadorExtracao {
         comercianteId,
         documentoId,
         extracaoOriginal: resultado.extracao,
+        origem: "foto_nota",
         validada,
         sugestoesModelo,
         limiteConfiancaItem: this.dep.limiteConfiancaItem,

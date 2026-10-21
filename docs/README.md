@@ -15,7 +15,7 @@
 | Critérios da banca, persona, viabilidade, riscos | [contexto-hackathon.md](contexto-hackathon.md) | Pesquisa |
 | Dados de teste, gabarito, convenções | [../fixtures/README.md](../fixtures/README.md) | Dados |
 | Saídas brutas de eval, testes e medições | [../evidencias/](../evidencias/) | Evidências |
-| Relatório de cada rodada do `npm run eval` (como rodar: [../src/avaliacao/README.md](../src/avaliacao/README.md)) | [avaliacoes/](avaliacoes/) | Evidências |
+| Relatório de cada rodada do `npm run eval` e do `npm run eval:extracao` (como rodar: [../src/avaliacao/README.md](../src/avaliacao/README.md)) | [avaliacoes/](avaliacoes/) | Evidências |
 | Regras invioláveis, roteamento, convenções e fluxo de trabalho de qualquer agente | [../AGENTS.md](../AGENTS.md) | Sempre carregado |
 | Procedimentos de fechar sessão e auditar edição | [protocolos/](protocolos/) | Metodologia |
 | Divisão em 3 planos, issues de cada um, regras de colisão | [protocolos/divisao-planos.md](protocolos/divisao-planos.md) | Metodologia |

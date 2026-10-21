@@ -45,7 +45,8 @@ function semRespostaPossivel(p: PerguntaAvaliacao): CasoAvaliacao {
     gatilho: "mensagem_dono",
     entrada: p.pergunta,
     ferramentasEsperadas: p.ferramentas_esperadas,
-    criterio: { tipo: "sem_resposta" },
+    // Resposta específica do gabarito: não sabe e diz que faltam os custos.
+    criterio: { tipo: "sem_resposta", padraoNaoSei: /n[ãa]o sei[\s\S]*falt\w+[\s\S]*custos/i },
     roteiro: [
       texto(
         "Ainda não sei o seu lucro do mês: faltam os custos de todos os produtos e as despesas confirmadas. " +

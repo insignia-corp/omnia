@@ -1,5 +1,5 @@
 import type { BloqueioVerificador, ExecucaoRegistrada } from "../agente/execucao/registro-execucoes";
-import { avaliarCriterios } from "./criterios";
+import { avaliarCriterios, dataIsoValida, validarCaso } from "./criterios";
 import type { CasoAvaliacao, Criterio } from "./tipos";
 
 const execucao = (extra: Partial<ExecucaoRegistrada> = {}): ExecucaoRegistrada => ({
@@ -49,14 +49,16 @@ describe("numero_correto", () => {
   });
 
   it("aceita dinheiro em reais para centavos do gabarito, inteiro para contagem e módulo para percentual", () => {
-    const c = caso(
-      numeros([122151, "centavos"], [78, "cupons"], [43.12, "percentual"], [-30.23, "percentual"]),
-    );
+    const c = caso(numeros([122151, "centavos"], [78, "cupons"], [43.12, "percentual"]));
     const e = execucao({
-      mensagemFinal:
-        "Vendeu R$ 1.221,51 em 78 vendas. O ticket caiu 43,12% e o faturamento ficou 30,23% menor.",
+      mensagemFinal: "Vendeu R$ 1.221,51 em 78 vendas e o ticket caiu 43,12%.",
     });
     expect(avaliarCriterios(c, e)).toEqual([]);
+  });
+
+  it("percentual negativo do gabarito casa com o módulo escrito na mensagem", () => {
+    const c = caso(numeros([-30.23, "percentual"]));
+    expect(avaliarCriterios(c, execucao({ mensagemFinal: "O faturamento ficou 30,23% menor." }))).toEqual([]);
   });
 
   it("aponta o número que falta, mesmo que outros estejam certos", () => {
@@ -78,6 +80,101 @@ describe("numero_correto", () => {
       mensagemFinal: "Tive um problema",
     });
     expect(avaliarCriterios(c, e)).toEqual(["Execução terminou em fallback_erro: Error: timeout"]);
+  });
+});
+
+describe("numero_correto: o valor tem de estar no lugar certo", () => {
+  const ticket: Criterio = {
+    tipo: "numero_correto",
+    numeros: [
+      { rotulo: "ticket de ontem", valor: 1566, unidade: "centavos", contexto: /ontem/i },
+      {
+        rotulo: "ticket dos 28 dias anteriores",
+        valor: 2753,
+        unidade: "centavos",
+        contexto: /28 dias|anteriores/i,
+      },
+    ],
+  };
+
+  it("passa quando cada valor está junto das suas palavras", () => {
+    const e = execucao({
+      mensagemFinal: "O ticket médio de ontem foi R$ 15,66, contra R$ 27,53 dos 28 dias anteriores.",
+    });
+    expect(avaliarCriterios(caso(ticket), e)).toEqual([]);
+  });
+
+  it("reprova os valores trocados, que só conferindo o valor passariam", () => {
+    const e = execucao({
+      mensagemFinal: "O ticket médio de ontem foi R$ 27,53, contra R$ 15,66 dos 28 dias anteriores.",
+    });
+    expect(avaliarCriterios(caso(ticket), e)).toEqual([
+      expect.stringContaining("ticket de ontem"),
+      expect.stringContaining("ticket dos 28 dias anteriores"),
+    ]);
+  });
+
+  it("aceita a palavra depois do número", () => {
+    const e = execucao({
+      mensagemFinal: "R$ 15,66 foi o ticket de ontem; a média dos 28 dias anteriores ficou em R$ 27,53.",
+    });
+    expect(avaliarCriterios(caso(ticket), e)).toEqual([]);
+  });
+});
+
+describe("validarCaso", () => {
+  const numeros = (...n: Array<{ valor: number; contexto?: RegExp }>): CasoAvaliacao =>
+    caso({
+      tipo: "numero_correto",
+      numeros: n.map((x, i) => ({ rotulo: `n${i}`, unidade: "centavos" as const, ...x })),
+    });
+
+  it("recusa dois números da mesma unidade sem contexto, pois um valor trocado passaria", () => {
+    const problemas = validarCaso(numeros({ valor: 1 }, { valor: 2 }));
+    expect(problemas).toEqual([expect.stringContaining("Critério ambíguo")]);
+    expect(
+      avaliarCriterios(
+        numeros({ valor: 100 }, { valor: 200 }),
+        execucao({ mensagemFinal: "R$ 1,00 e R$ 2,00" }),
+      ),
+    ).toEqual([expect.stringContaining("Critério ambíguo")]);
+  });
+
+  it("aceita unidades diferentes sem contexto e valores da mesma unidade com contexto", () => {
+    const misto = caso({
+      tipo: "numero_correto",
+      numeros: [
+        { rotulo: "a", valor: 1, unidade: "centavos" },
+        { rotulo: "b", valor: 2, unidade: "cupons" },
+      ],
+    });
+    expect(validarCaso(misto)).toEqual([]);
+    expect(validarCaso(numeros({ valor: 1, contexto: /a/ }, { valor: 2, contexto: /b/ }))).toEqual([]);
+  });
+
+  it("recusa data de referência que não existe no calendário", () => {
+    expect(validarCaso({ ...caso({ tipo: "sem_resposta" }), dataReferencia: "2026-02-30" })).toEqual([
+      expect.stringContaining("2026-02-30"),
+    ]);
+  });
+});
+
+describe("dataIsoValida", () => {
+  it("só aceita data de calendário em AAAA-MM-DD", () => {
+    expect(dataIsoValida("2026-10-20")).toBe(true);
+    expect(dataIsoValida("2028-02-29")).toBe(true);
+    for (const ruim of [
+      "2026-02-30",
+      "2026-13-01",
+      "2026-10-32",
+      "26-10-20",
+      "2026-1-5",
+      "20/10/2026",
+      "",
+      "2026-10-20x",
+    ]) {
+      expect(dataIsoValida(ruim)).toBe(false);
+    }
   });
 });
 
@@ -154,6 +251,23 @@ describe("sem_resposta", () => {
   it("reprova quando não diz que não sabe", () => {
     const e = execucao({ mensagemFinal: "Seu mês foi ótimo, parabéns!" });
     expect(avaliarCriterios(c, e)).toEqual(["A mensagem não diz que não sabe nem que dado falta"]);
+  });
+
+  it("não confunde 'não tenho dúvidas' com falta de dado", () => {
+    const e = execucao({ mensagemFinal: "Não tenho dúvidas: seu lucro foi excelente." });
+    expect(avaliarCriterios(c, e)).toEqual(["A mensagem não diz que não sabe nem que dado falta"]);
+  });
+
+  it("aceita as formas comuns de dizer que falta dado", () => {
+    for (const frase of [
+      "Não sei responder isso.",
+      "Não tenho os custos de todos os produtos.",
+      "Não encontrei registros dessa semana.",
+      "Faltam as despesas confirmadas.",
+      "Sem dados para esse período.",
+    ]) {
+      expect(avaliarCriterios(c, execucao({ mensagemFinal: frase }))).toEqual([]);
+    }
   });
 
   it("aceita um padrão próprio do caso", () => {

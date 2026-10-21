@@ -12,6 +12,7 @@ import type { Env } from "../config/env";
 import type { Db } from "../infra/database/database.module";
 import { comerciante } from "../infra/database/schema";
 import { todosOsCasos } from "./casos/index";
+import { dataIsoValida, validarCaso } from "./criterios";
 import { ModeloRoteirizado, NOME_MODELO_FALSO } from "./modelo-roteirizado";
 import { executarRodada } from "./runner";
 import type { CasoAvaliacao, ModoModelo, Rodada } from "./tipos";
@@ -94,6 +95,9 @@ export async function rodarAvaliacao(op: OpcoesAvaliacao): Promise<Rodada> {
         "Sem chave, use --modelo falso.",
     );
   }
+  if (op.dataReferencia !== undefined && !dataIsoValida(op.dataReferencia)) {
+    throw new ErroAvaliacao(`--data "${op.dataReferencia}" não é uma data AAAA-MM-DD válida.`);
+  }
   const todos = op.catalogoDeCasos ?? todosOsCasos();
   const ids = op.casos ?? todos.map((c) => c.id);
   const desconhecidos = ids.filter((id) => !todos.some((c) => c.id === id));
@@ -103,6 +107,8 @@ export async function rodarAvaliacao(op: OpcoesAvaliacao): Promise<Rodada> {
     );
   }
   const casos = todos.filter((c) => ids.includes(c.id));
+  const problemas = casos.flatMap((c) => validarCaso(c).map((p) => `${c.id}: ${p}`));
+  if (problemas.length > 0) throw new ErroAvaliacao(`Caso mal definido:\n  ${problemas.join("\n  ")}`);
 
   const mercadinho = dadosDoMercadinho(raiz);
   const dono = await acharComerciante(op.db, op.comercianteId, mercadinho.nome);

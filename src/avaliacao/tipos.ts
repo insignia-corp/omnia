@@ -13,6 +13,12 @@ export interface NumeroEsperado {
   rotulo: string;
   valor: number;
   unidade: UnidadeNumero;
+  /**
+   * Palavras que identificam o número na mensagem (ex.: `/ontem/`, `/28 dias|anteriores/`). Obrigatório
+   * quando outro número esperado do caso tem a mesma unidade: sem ele, um valor trocado por outro
+   * passaria, porque só o valor seria conferido, não o que ele significa.
+   */
+  contexto?: RegExp;
 }
 
 /** Como o caso é julgado, além de chamar as ferramentas esperadas. */

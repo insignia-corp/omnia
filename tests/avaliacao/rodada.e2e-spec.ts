@@ -113,6 +113,26 @@ describe("rodada de avaliação com banco real (e2e)", () => {
     );
   });
 
+  it("recusa data de referência impossível e caso com número ambíguo, antes de rodar", async () => {
+    await expect(
+      rodarAvaliacao({ db, env, modo: "falso", comercianteId, dataReferencia: "2026-02-30" }),
+    ).rejects.toThrow(/2026-02-30.*não é uma data/);
+    const ambiguo: CasoAvaliacao = {
+      ...casoQueFalha,
+      id: "ambiguo-1",
+      criterio: {
+        tipo: "numero_correto",
+        numeros: [
+          { rotulo: "a", valor: 1, unidade: "centavos" },
+          { rotulo: "b", valor: 2, unidade: "centavos" },
+        ],
+      },
+    };
+    await expect(
+      rodarAvaliacao({ db, env, modo: "falso", comercianteId, catalogoDeCasos: [ambiguo] }),
+    ).rejects.toThrow(/ambiguo-1: Critério ambíguo/);
+  });
+
   it("modo real sem ANTHROPIC_API_KEY falha com mensagem clara, antes de tocar no banco", async () => {
     const semChave: Env = { ...env };
     delete semChave.ANTHROPIC_API_KEY;

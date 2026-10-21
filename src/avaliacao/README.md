@@ -16,7 +16,7 @@ Sem `ANTHROPIC_API_KEY`, `--modelo real` para antes de tocar no banco, com a men
 ## O que sai
 
 - `docs/avaliacoes/AAAA-MM-DD-<versao-prompt>-<modelo>.md`: relatório da rodada, versionado no git. No modo falso o sufixo é `falso`, para a rodada da CI não sobrescrever a de um modelo real do mesmo dia. Traz acertos por categoria, falhas com o motivo, custo e latência por execução, modelo e versão do prompt.
-- `evidencias/AAAA-MM-DD-eval-<modo>-<hhmmss>.json`: saída bruta (mensagem e chamadas de cada caso). Fica fora do git.
+- `evidencias/AAAA-MM-DD-eval-<modo>-<hhmmssmmm>.json`: saída bruta (mensagem e chamadas de cada caso). Fica fora do git e nunca é sobrescrita (colisão ganha `-2`, `-3`). O relatório de mesmo dia, prompt e modelo é substituído; o git guarda o anterior.
 - Cada execução também entra em `execucao_agente` (e `chamada_ferramenta`) do mercadinho. `npm run seed:demo` limpa.
 
 ## Como funciona
@@ -37,7 +37,9 @@ Regras dos critérios:
 
 - Dinheiro do gabarito vem em centavos e a mensagem o escreve em reais (`122151` vira "R$ 1.221,51"). Percentual compara o módulo; o sentido (queda, alta) vem da palavra e ainda não é conferido.
 - `bloqueio_verificador`: o número barrado não pode aparecer na mensagem final, e o fallback do verificador não pode ter número.
-- `sem_resposta`: aprovada, sem nenhum número e dizendo que não sabe ou o que falta.
+- `numero_correto` com dois ou mais números da mesma unidade exige `contexto` em cada um (ex.: `/ontem/`, `/28 dias|anteriores/`): sem isso, a resposta com os valores trocados passaria. O contexto é procurado entre o número anterior e o seguinte da mensagem. O harness recusa o caso antes de rodar.
+- `sem_resposta`: aprovada, sem nenhum número e dizendo que não sabe ou o que falta. O padrão padrão pede "não sei", "não tenho dados" e variantes; o caso pode declarar `padraoNaoSei` mais específico (o q33 declara).
+- Data de referência (`--data` ou do caso) tem de existir no calendário, senão a rodada nem começa.
 
 ## Para acrescentar casos (#69 a #74)
 

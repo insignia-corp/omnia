@@ -146,7 +146,25 @@ describe("nomes e gravação", () => {
   });
 
   it("saída bruta leva a hora, para rodadas do mesmo dia não se perderem", () => {
-    expect(nomeDaEvidencia(mista)).toBe("2026-10-21-eval-real-143015.json");
+    expect(nomeDaEvidencia(mista)).toBe("2026-10-21-eval-real-143015000.json");
+  });
+
+  it("duas rodadas no mesmo instante não se sobrescrevem: a saída bruta da segunda ganha sufixo", () => {
+    const base = mkdtempSync(path.join(tmpdir(), "omnia-eval-"));
+    try {
+      const dirs = { relatorios: path.join(base, "docs"), evidencias: path.join(base, "ev") };
+      const primeira = gravarRodada(mista, dirs);
+      const outra = rodada([resultado({ id: "outra" })]);
+      const segunda = gravarRodada({ ...outra, iniciadaEm: mista.iniciadaEm }, dirs);
+      const terceira = gravarRodada({ ...outra, iniciadaEm: mista.iniciadaEm }, dirs);
+
+      expect(path.basename(segunda.evidencia)).toBe("2026-10-21-eval-real-143015000-2.json");
+      expect(path.basename(terceira.evidencia)).toBe("2026-10-21-eval-real-143015000-3.json");
+      expect((JSON.parse(readFileSync(primeira.evidencia, "utf8")) as Rodada).resultados).toHaveLength(3);
+      expect((JSON.parse(readFileSync(segunda.evidencia, "utf8")) as Rodada).resultados[0]?.id).toBe("outra");
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
   });
 
   it("grava o relatório versionado e a saída bruta completa, criando as pastas", () => {

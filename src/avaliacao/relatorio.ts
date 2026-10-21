@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { CategoriaCaso, ResultadoCaso, Rodada } from "./tipos";
 
@@ -130,10 +130,20 @@ export function nomeDoRelatorio(rodada: Rodada): string {
   return `${diaDa(rodada.iniciadaEm)}-${rodada.versaoPrompt}-${sufixo}.md`;
 }
 
-/** Nome da saída bruta em `evidencias/`: com a hora, para rodadas do mesmo dia não se perderem. */
+/** Nome da saída bruta em `evidencias/`: com hora e milissegundos, para rodadas do mesmo dia não se perderem. */
 export function nomeDaEvidencia(rodada: Rodada): string {
-  const hora = rodada.iniciadaEm.slice(11, 19).replaceAll(":", "");
+  const hora = rodada.iniciadaEm.slice(11, 23).replace(/[:.]/g, "");
   return `${diaDa(rodada.iniciadaEm)}-eval-${rodada.modo}-${hora}.json`;
+}
+
+/** Primeiro caminho livre: duas rodadas no mesmo milissegundo ganham `-2`, `-3`, e nenhuma sobrescreve a outra. */
+function caminhoLivre(caminho: string): string {
+  if (!existsSync(caminho)) return caminho;
+  const { dir, name, ext } = path.parse(caminho);
+  for (let n = 2; ; n++) {
+    const candidato = path.join(dir, `${name}-${n}${ext}`);
+    if (!existsSync(candidato)) return candidato;
+  }
 }
 
 export interface ArquivosGravados {
@@ -141,7 +151,10 @@ export interface ArquivosGravados {
   evidencia: string;
 }
 
-/** Grava o relatório versionado em `docs/avaliacoes/` e a saída bruta em `evidencias/`. */
+/**
+ * Grava o relatório versionado em `docs/avaliacoes/` e a saída bruta em `evidencias/`. O relatório de
+ * mesmo dia, prompt e modelo é substituído (o git guarda o anterior); a saída bruta nunca é sobrescrita.
+ */
 export function gravarRodada(
   rodada: Rodada,
   dirs: { relatorios: string; evidencias: string },
@@ -149,8 +162,9 @@ export function gravarRodada(
   mkdirSync(dirs.relatorios, { recursive: true });
   mkdirSync(dirs.evidencias, { recursive: true });
   const relatorio = path.join(dirs.relatorios, nomeDoRelatorio(rodada));
-  const evidencia = path.join(dirs.evidencias, nomeDaEvidencia(rodada));
+  const evidencia = caminhoLivre(path.join(dirs.evidencias, nomeDaEvidencia(rodada)));
   writeFileSync(relatorio, renderizarRelatorio(rodada));
-  writeFileSync(evidencia, `${JSON.stringify(rodada, null, 2)}\n`);
+  // `wx` falha se outro processo criou o arquivo entre a checagem e a escrita, em vez de sobrescrever.
+  writeFileSync(evidencia, `${JSON.stringify(rodada, null, 2)}\n`, { flag: "wx" });
   return { relatorio, evidencia };
 }

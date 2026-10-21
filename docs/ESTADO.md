@@ -2,7 +2,7 @@
 
 Fonte única do estado atual. Atualizado por `/checkpoint`. Só números datados e com o comando que os gerou; método e decisões moram nos docs-dono (ver [README](README.md)).
 
-Atualizado em: 2026-10-21 · commit base: `ee1c20f` (`develop` após o PR 168) · branch `docs/estado-checkpoint-2`
+Atualizado em: 2026-10-21 · commit base: `12eb342` (`develop` após o PR 170) · branch `docs/estado-checkpoint-2`
 
 ## Etapa
 
@@ -19,17 +19,17 @@ Atualizado em: 2026-10-21 · commit base: `ee1c20f` (`develop` após o PR 168) �
 
 ## Números vigentes
 
-Gerados em 2026-10-21 sobre a `develop` em `ee1c20f`, com Node 24 (via `npx`), PostgreSQL 18 e Redis 8 descartáveis.
+Gerados em 2026-10-21 sobre a `develop` em `12eb342`, com Node 24 (via `npx`), PostgreSQL 18 e Redis 8 descartáveis.
 
 | O quê | Valor | Gerado por | Em |
 | --- | --- | --- | --- |
-| Testes unitários | 938 passam em 66 suítes | `npm test` (Node 24) | 2026-10-21 |
-| Testes e2e | 423 passam em 26 suítes (PostgreSQL e Redis reais, cliente de visão e modelo falsos) | `npm run test:e2e` (Node 24) | 2026-10-21 |
+| Testes unitários | 955 passam em 66 suítes | `npm test` (Node 24) | 2026-10-21 |
+| Testes e2e | 429 passam em 28 suítes (PostgreSQL e Redis reais, cliente de visão e modelo falsos) | `npm run test:e2e` (Node 24) | 2026-10-21 |
 | Lint | 0 erros | `npm run lint` | 2026-10-21 |
 | Typecheck | 0 erros | `npm run typecheck` | 2026-10-21 |
 | Build | passa | `npm run build` | 2026-10-21 |
 | Eval (modelo falso, prompt `sistema-v2`) | 50 de 50 casos passam (numéricas, verificador, sem resposta e injeção); relatório em `docs/avaliacoes/2026-10-21-sistema-v2-falso.md` | `npm run seed:demo` e `npm run eval` | 2026-10-21 |
-| Vínculo nota-produto sem perguntar | 97,9% (92 de 94 itens das 18 notas), 0 ligações erradas. O e2e `tests/vinculo-notas` (94 itens, 0 ligações erradas, pelo menos 90% sem perguntar) faz parte dos 423 e reconfirmou essas condições em 2026-10-21; só o 97,9% exato não foi medido de novo | `npm run test:e2e -- tests/vinculo` | 2026-10-20 |
+| Vínculo nota-produto sem perguntar | 97,9% (92 de 94 itens das 18 notas), 0 ligações erradas. O e2e `tests/vinculo-notas` (94 itens, 0 ligações erradas, pelo menos 90% sem perguntar) faz parte dos 429 e reconfirmou essas condições em 2026-10-21; só o 97,9% exato não foi medido de novo | `npm run test:e2e -- tests/vinculo` | 2026-10-20 |
 
 ## Em PR aberto
 
@@ -37,7 +37,7 @@ Gerados em 2026-10-21 sobre a `develop` em `ee1c20f`, com Node 24 (via `npx`), P
 - PR 164: `get_product_margin` resolve produtos de mesmo nome e usa descrições confirmadas (#156).
 - PR 165: modelo padrão do agente passa a `claude-sonnet-5-5`.
 - PR 169: receita por produto e critério `receita` em `get_top_products` (#148).
-- PR 170: extrato por conta no resumo diário e no gasto fora do padrão, origem e confiança do produto (#143, #144).
+- PR 171: este checkpoint.
 
 ## Pendências
 
@@ -50,7 +50,7 @@ Gerados em 2026-10-21 sobre a `develop` em `ee1c20f`, com Node 24 (via `npx`), P
 - O alerta ainda não grava os status `enviado` e `descartado`, então a supressão por status não funciona de ponta a ponta (#155).
 - `get_product_margin`: a descrição de nota deve seguir o mesmo critério da busca por nome (#167).
 - Planilha importada com linha rejeitada fica em `revisao` e as vendas dela entram nas métricas com confiança 0,5 sem caminho para voltar (#142).
-- O extrato de uma conta vale até a última transação importada, e uma conta ativa parada ou sem transação deixa o dia sem total de gastos; a cobertura por conta está no PR 170 e usar a data da última sincronização é a #166.
+- O extrato de uma conta vale até a última transação importada (a cobertura por conta e a origem do produto nas métricas entraram no PR 170, #143 e #144 fechadas): uma conta ativa parada ou sem transação deixa o dia sem total de gastos até haver data da última sincronização (#166).
 - A exclusão em cascata de um comerciante com a planilha da demo importada (cerca de 15 mil linhas) leva cerca de 6 s; considerar ao implementar a exclusão LGPD (#85).
 - Ambiente: `npm test` e `npm run test:e2e` exigem Node 24 (a CI usa 24); no Node 22 as suítes que carregam o Nest não rodam. Banco que já aplicou a migração com a numeração antiga (`0004_ingestao`) precisa ser recriado (`npm run db:reset`).
 - Identidade do comerciante nas rotas HTTP é o cabeçalho `X-Comerciante-Id` conferido no banco (`src/comerciante/sessao.ts`), provisório até o canal autenticar.
@@ -65,4 +65,5 @@ Gerados em 2026-10-21 sobre a `develop` em `ee1c20f`, com Node 24 (via `npx`), P
 - 2026-10-20: divisão técnica em 3 planos (PR 128). Ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço (PR 127).
 - 2026-10-21: Etapa 3 completa (PRs 126 e 146): métricas, correções do Codex e regressão contra o gabarito. Canal com chat web (PR 129), registro de execuções e retentativas (PR 131), `ask_owner` e `save_owner_answer` (PR 132), loop diário e modo conversa (PR 133), reset da demo e bastidores (PR 134), NF-e em XML (PR 136), vínculo por código de barras e sugestão do modelo (PR 137), harness de avaliação (PR 138), ação com confirmação do dono (PR 141). Também mesclados: ponto de encaixe do catálogo e módulos vazios (PR 130), documentação do fluxo do agente (PR 135), ajuste do e2e de revisão de notas (PR 140) e correção do verificador para ignorar ids (PR 150). No fim do dia: ferramentas de leitura do agente (PRs 145 e 160), guardas de CI com a renumeração da migração `0012` para `0007` (PR 152), sobras da revisão do PR 134 (PR 154) e os casos de avaliação numéricos, do verificador e sem resposta (commit `151a03b`).
 - 2026-10-21 (noite): motor de regras de alertas com prioridade e supressão (PR 153), avaliação de injeção de instrução (PR 161) e da extração de notas (PR 162), `get_product_margin` com apelidos confirmados e produtos de mesmo nome (PR 168), e este checkpoint (PR 151, versão anterior). Issues novas: #166 (extrato por data de sincronização) e #167 (descrição de nota em `get_product_margin`).
+- 2026-10-21 (madrugada de 22): cobertura de extrato por conta e origem e confiança do produto nas métricas (PR 170).
 - 2026-10-24 15h30: congelamento do código.

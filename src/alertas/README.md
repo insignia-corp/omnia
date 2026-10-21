@@ -10,17 +10,17 @@ Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara c
 
 | Tipo | Vira candidato quando | Chave |
 | --- | --- | --- |
-| `reajuste_de_custo` | variação de custo acima de 5% e compra de no máximo 7 dias | produto, fornecedor e id da compra atual |
+| `reajuste_de_custo` | variação de custo acima do limite, em compra recente (limites da métrica de variação de custo) | produto, fornecedor e id da compra atual |
 | `margem_abaixo_da_meta` | margem do produto abaixo da meta | produto |
 | `espaco_para_subir_preco` | giro alto e margem abaixo da meta | produto |
 | `giro_em_alta` | entre os de maior alta do giro, com alta acima de 0 | produto |
-| `estoque_parado` | mais de 30 dias sem venda | produto |
-| `ticket_medio_em_queda` | ticket do dia 30% ou mais abaixo da média dos 28 dias | dia |
-| `gasto_fora_do_padrao` | desvio robusto do gasto operacional acima de 3 | dia |
+| `estoque_parado` | mais dias sem venda que o limite do estoque parado | produto |
+| `ticket_medio_em_queda` | queda do ticket do dia contra a média anterior chega ao limite do ticket médio | dia |
+| `gasto_fora_do_padrao` | desvio robusto do gasto operacional acima do limite do gasto fora do padrão | dia |
 
 Dado ausente nunca é zero: a regra não gera candidato e o motivo volta em `ausentes` no resultado do motor (por exemplo, `historico_insuficiente` na Esquina, que tem 14 dias de dados).
 
-Os limites iniciais são os `PARAMETROS_*` das métricas (`limites.ts`). Cada comerciante pode sobrepor os seus por uma `FonteDeLimites`; a fonte padrão não sobrepõe nada. Janelas e tamanho de ranking continuam os da métrica.
+Os valores dos limites são das métricas: ficam nas constantes `PARAMETROS_*` de [src/metricas](../metricas/README.md) e na seção "Métricas determinísticas" de [docs/guia-desenvolvimento.md](../../docs/guia-desenvolvimento.md). `limites.ts` só os reaproveita como valor inicial. Cada comerciante pode sobrepor os seus por uma `FonteDeLimites`; a fonte padrão não sobrepõe nada. Janelas e tamanho de ranking continuam os da métrica.
 
 ## Prioridade e ordem (#44)
 

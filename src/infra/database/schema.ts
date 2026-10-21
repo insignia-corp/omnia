@@ -498,6 +498,34 @@ export const historicoCusto = pgTable(
   ],
 );
 
+/**
+ * Cada preço-meta que o dono confirmou para um produto (issue #104). `produto.preco_meta_centavos`
+ * guarda o valor vigente; aqui fica o histórico, append-only (regra inviolável 10): o anterior não
+ * é apagado. A confirmação do dono que autorizou a mudança fica em `pergunta_dono` (`confirmar_acao`).
+ */
+export const historicoPrecoMeta = pgTable(
+  "historico_preco_meta",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    comercianteId: comercianteId(),
+    produtoId: uuid("produto_id").notNull(),
+    precoMetaCentavos: bigint("preco_meta_centavos", { mode: "number" }).notNull(),
+    /** Valor vigente antes desta mudança; nulo na primeira meta do produto. */
+    anteriorCentavos: bigint("anterior_centavos", { mode: "number" }),
+    origem: origemDado("origem").notNull().default("dono"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    foreignKey({
+      name: "historico_preco_meta_produto_fk",
+      columns: [t.produtoId, t.comercianteId],
+      foreignColumns: [produto.id, produto.comercianteId],
+    }),
+    index("historico_preco_meta_busca_idx").on(t.comercianteId, t.produtoId, t.criadoEm),
+    check("historico_preco_meta_positivo", sql`${t.precoMetaCentavos} > 0`),
+  ],
+);
+
 /* ----------------------------------------------------------------------------------------------
  * Vendas
  * -------------------------------------------------------------------------------------------- */

@@ -210,6 +210,165 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     });
   });
 
+  describe("aliases confirmados e produtos de mesmo nome (#156)", () => {
+    // Id novo a cada execução (a chave é global), com "99" no segundo grupo.
+    const ID_COM_99 = `f0e1d2c3-99ab-4cde-8f01-${randomUUID().slice(-12)}`;
+    let loja: ContextoSessao;
+    let produtoB = "";
+    let sabonete = "";
+    let arrozBranco = "";
+
+    const nomeAchado = (saida: Saida & { nome?: string }) =>
+      (saida.valor as { nome?: string } | undefined)?.nome ?? saida.nome;
+
+    beforeAll(async () => {
+      const [dono] = await db.insert(schema.comerciante).values({ nome: "E2E Margem 156" }).returning();
+      loja = { comercianteId: dono!.id, nomeComercio: "E2E Margem 156", dataReferencia: REF };
+      const base = { comercianteId: dono!.id, origem: "dono" as const };
+      const produtos = await db
+        .insert(schema.produto)
+        .values([
+          { ...base, id: ID_COM_99, nome: "Feijão Preto 1kg", sku: "FP-1", codigoBarras: "7891000100103" },
+          { ...base, nome: "Feijão Preto 1kg", sku: "FP-2" },
+          { ...base, nome: "Sabonete Neutro 85g", sku: "SB-1" },
+          { ...base, nome: "Arroz Branco Tipo 1 5kg", sku: "AR-1" },
+          { ...base, nome: "Arroz Integral 1kg", sku: "AR-2" },
+          { ...base, nome: "Suco de Uva 1L", sku: "SU-1" },
+          { ...base, nome: "Suco de Uva 300ml", sku: "SU-2" },
+          // Produtos com nome e apelido ao mesmo tempo: o apelido de MG-1 e MG-2 é pior que o nome, o de MG-3 empata.
+          { ...base, nome: "Margarina Cremosa 500g", sku: "MG-1" },
+          { ...base, nome: "Margarina Cremosa 500g", sku: "MG-2" },
+          { ...base, nome: "Margarina Cremosa 500g", sku: "MG-3" },
+          // 01:30 UTC de 02/10 ainda é 01/10 em Brasília: a data mostrada ao dono é a do fuso dele.
+          { ...base, nome: "Pão Francês 50g", sku: "PF-1", criadoEm: new Date("2026-10-02T01:30:00Z") },
+          { ...base, nome: "Pão Francês 50g", sku: "PF-2", criadoEm: new Date("2026-10-02T12:00:00Z") },
+        ])
+        .returning();
+      produtoB = produtos.find((p) => p.sku === "FP-2")!.id;
+      sabonete = produtos.find((p) => p.sku === "SB-1")!.id;
+      arrozBranco = produtos.find((p) => p.sku === "AR-1")!.id;
+      const vinculo = { comercianteId: dono!.id, produtoId: sabonete, metodo: "dono" as const, confianca: 1 };
+      await db.insert(schema.vinculoDescricaoProduto).values([
+        { ...vinculo, descricaoNormalizada: "SAB LIQ YPE COCO 5L", confirmadoPeloDono: true },
+        { ...vinculo, descricaoNormalizada: "DESCRICAO NAO CONFIRMADA XPTO", confirmadoPeloDono: false },
+        { ...vinculo, produtoId: arrozBranco, descricaoNormalizada: "ARROZ", confirmadoPeloDono: true },
+      ]);
+      // Dois produtos com o mesmo apelido confirmado: a busca pelo apelido empata e mostra a descrição que casou.
+      const apelidos: Record<string, string> = {
+        "SU-1": "SUCO UVA INTEGRAL",
+        "SU-2": "SUCO UVA INTEGRAL",
+        "MG-1": "MARG QUALY CREMOSA",
+        "MG-2": "MARG QUALY CREMOSA",
+        "MG-3": "MARGARINA CREMOSA 500G",
+      };
+      for (const [sku, apelido] of Object.entries(apelidos)) {
+        await db.insert(schema.vinculoDescricaoProduto).values({
+          ...vinculo,
+          produtoId: produtos.find((p) => p.sku === sku)!.id,
+          descricaoNormalizada: apelido,
+          confirmadoPeloDono: true,
+        });
+      }
+    });
+
+    // Sem limpeza: o histórico de vínculos é só de acréscimo (regra 10), e cada execução usa um comerciante novo.
+
+    it("a descrição de nota que o dono confirmou acha o produto", async () => {
+      const saida = await chamar(loja, "get_product_margin", { produto: "sab liq ype coco" });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(nomeAchado(saida)).toBe("Sabonete Neutro 85g");
+    });
+
+    it("apelido confirmado que casa por inteiro decide, mesmo quando o nome empata na palavra", async () => {
+      const saida = await chamar(loja, "get_product_margin", { produto: "arroz" });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(nomeAchado(saida)).toBe("Arroz Branco Tipo 1 5kg");
+      expect((saida as unknown as { produto_id?: string }).produto_id).toBe(arrozBranco);
+    });
+
+    it("candidatos mostram a descrição de nota quando o apelido supera o nome, e nada quando o nome vence", async () => {
+      const porApelido = await chamar(loja, "get_product_margin", { produto: "suco uva integral" });
+      expect(porApelido.ambiguo).toBe(true);
+      const candidatos = (porApelido.candidatos ?? []) as unknown as Array<{
+        sku: string;
+        descricao_de_nota: string | null;
+      }>;
+      const doApelido = candidatos.filter((c) => ["SU-1", "SU-2"].includes(c.sku));
+      expect(doApelido).toHaveLength(2);
+      expect(doApelido.map((c) => c.descricao_de_nota)).toEqual(["SUCO UVA INTEGRAL", "SUCO UVA INTEGRAL"]);
+
+      const porNome = await chamar(loja, "get_product_margin", { produto: "Feijão Preto 1kg" });
+      const doNome = (porNome.candidatos ?? []) as unknown as Array<{ descricao_de_nota: string | null }>;
+      expect(doNome).toHaveLength(2);
+      expect(doNome.every((c) => c.descricao_de_nota === null)).toBe(true);
+
+      // Nome e apelido no mesmo produto: o nome vence (apelido pior) ou empata (apelido igual ao nome).
+      const comApelido = await chamar(loja, "get_product_margin", { produto: "Margarina Cremosa 500g" });
+      const margarinas = (comApelido.candidatos ?? []) as unknown as Array<{
+        sku: string;
+        descricao_de_nota: string | null;
+      }>;
+      expect(margarinas.map((c) => c.sku).sort()).toEqual(["MG-1", "MG-2", "MG-3"]);
+      expect(margarinas.every((c) => c.descricao_de_nota === null)).toBe(true);
+    });
+
+    it("a data de cadastro do candidato é a do fuso do dono, não a UTC", async () => {
+      const saida = await chamar(loja, "get_product_margin", { produto: "Pão Francês 50g" });
+      const candidatos = (saida.candidatos ?? []) as unknown as Array<{ sku: string; cadastrado_em: string }>;
+      expect(Object.fromEntries(candidatos.map((c) => [c.sku, c.cadastrado_em]))).toEqual({
+        "PF-1": "2026-10-01",
+        "PF-2": "2026-10-02",
+      });
+    });
+
+    it("descrição não confirmada não vale", async () => {
+      const saida = await chamar(loja, "get_product_margin", { produto: "descricao nao confirmada xpto" });
+      expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+    });
+
+    it("produtos de mesmo nome: candidatos distinguíveis e o id escolhido resolve na segunda chamada", async () => {
+      const ambiguo = await chamar(loja, "get_product_margin", { produto: "Feijão Preto 1kg" });
+      expect(ambiguo.ambiguo).toBe(true);
+      const candidatos = (ambiguo.candidatos ?? []) as unknown as Array<{
+        produto_id: string;
+        sku: string | null;
+        codigo_barras: string | null;
+        cadastrado_em: string;
+      }>;
+      expect(candidatos.map((c) => c.sku).sort()).toEqual(["FP-1", "FP-2"]);
+      expect(candidatos.find((c) => c.sku === "FP-1")?.codigo_barras).toBe("7891000100103");
+      expect(candidatos[0]?.cadastrado_em).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      const escolhido = await chamar(loja, "get_product_margin", { produto_id: produtoB });
+      expect(escolhido.ambiguo).toBeUndefined();
+      expect(nomeAchado(escolhido)).toBe("Feijão Preto 1kg");
+      // Sem custo no produto novo, o resultado é a ausência com o id escolhido: prova que foi o B.
+      expect((escolhido as unknown as { produto_id?: string }).produto_id).toBe(produtoB);
+    });
+
+    it("regra 8: o id do produto (com 99) não autoriza o 99 numa mensagem", async () => {
+      const ambiguo = await chamar(loja, "get_product_margin", { produto: "Feijão Preto 1kg" });
+      expect(JSON.stringify(ambiguo)).toContain(ID_COM_99);
+      expect(verificarNumeros("O feijão subiu 99%.", new NumerosAutorizados([ambiguo])).aprovado).toBe(false);
+    });
+
+    it("isolamento: id e descrição de outro comerciante não valem", async () => {
+      const deOutro = await chamar(vilaNova, "get_product_margin", { produto_id: produtoB });
+      expect(deOutro).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+      // Nem o id nem o nome do produto de outro lojista aparecem na resposta.
+      expect(JSON.stringify(deOutro)).not.toContain(produtoB);
+      expect(JSON.stringify(deOutro)).not.toContain("Feijão");
+      expect(await chamar(vilaNova, "get_product_margin", { produto_id: sabonete })).toMatchObject({
+        ausente: true,
+      });
+      const alias = await chamar(vilaNova, "get_product_margin", { produto: "sab liq ype coco" });
+      expect(nomeAchado(alias)).not.toBe("Sabonete Neutro 85g");
+      expect(await chamar(loja, "get_product_margin", { produto: "Refrigerante cola 2L" })).toMatchObject({
+        ausente: true,
+      });
+    });
+  });
+
   it("get_cost_changes devolve as variações do gabarito", async () => {
     const saida = await chamar(vilaNova, "get_cost_changes", {});
     const valor = saida.valor as unknown as Array<{

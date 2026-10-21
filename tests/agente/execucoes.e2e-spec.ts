@@ -86,6 +86,8 @@ describe("consulta do registro de execuções (e2e)", () => {
     await registro.salvar(base(a, { bloqueios: [{ tentativa: 1, numeros: ["R$ 9,99"] }] }));
     // A extração não passa pelo verificador: fica fora da métrica de bloqueio.
     await registro.salvar(base(a, { gatilho: "extracao_nota", bloqueios: [] }));
+    // Confirmação do "sim" resolvida em código (modelo "codigo"): também fora da métrica.
+    await registro.salvar(base(a, { modelo: "codigo", iteracoes: 0, bloqueios: [] }));
     await registro.salvar(base(b));
 
     const modulo = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -142,6 +144,9 @@ describe("consulta do registro de execuções (e2e)", () => {
     await get(a, "/execucoes/verificador/bloqueios").expect(400);
     await get(a, "/execucoes/verificador/bloqueios?de=2026-10-20&ate=2026-10-01").expect(400);
     await get(a, "/execucoes/verificador/bloqueios?de=ontem&ate=hoje").expect(400);
+    // Formato certo, data que não existe: 400 e não erro do banco.
+    await get(a, "/execucoes/verificador/bloqueios?de=2026-02-30&ate=2026-02-30").expect(400);
+    await get(a, "/execucoes/verificador/bloqueios?de=2026-13-01&ate=2026-13-02").expect(400);
   });
 
   it("id que não é UUID, 400", async () => {

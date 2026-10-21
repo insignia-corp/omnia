@@ -2,7 +2,7 @@
 
 Fonte única do estado atual. Atualizado por `/checkpoint`. Só números datados e com o comando que os gerou; método e decisões moram nos docs-dono (ver [README](README.md)).
 
-Atualizado em: 2026-10-21 · commit base: `358d386` (`develop` após o PR 146) · branch `docs/estado-checkpoint`
+Atualizado em: 2026-10-21 · commit base: `eec578c` (`develop` após o PR 150) · branch `docs/estado-checkpoint`
 
 ## Etapa
 
@@ -19,11 +19,11 @@ Atualizado em: 2026-10-21 · commit base: `358d386` (`develop` após o PR 146) �
 
 ## Números vigentes
 
-Gerados em 2026-10-21 sobre a `develop` em `358d386`, com Node 24 (via `npx`), PostgreSQL 18 e Redis 8 descartáveis.
+Gerados em 2026-10-21 sobre a `develop` em `eec578c`, com Node 24 (via `npx`), PostgreSQL 18 e Redis 8 descartáveis.
 
 | O quê | Valor | Gerado por | Em |
 | --- | --- | --- | --- |
-| Testes unitários | 730 passam em 57 suítes | `npm test` (Node 24) | 2026-10-21 |
+| Testes unitários | 740 passam em 57 suítes | `npm test` (Node 24) | 2026-10-21 |
 | Testes e2e | 379 passam em 24 suítes (PostgreSQL e Redis reais, cliente de visão e modelo falsos) | `npm run test:e2e` (Node 24) | 2026-10-21 |
 | Lint | 0 erros | `npm run lint` | 2026-10-21 |
 | Typecheck | 0 erros | `npm run typecheck` | 2026-10-21 |
@@ -34,18 +34,19 @@ Gerados em 2026-10-21 sobre a `develop` em `358d386`, com Node 24 (via `npx`), P
 ## Em PR aberto
 
 - PR 145: ferramentas de leitura do agente (#50, #51).
-- PR 150: correção do verificador para que ids nas saídas das ferramentas não autorizem números.
 - PR 151: este checkpoint.
 - PR 152: guardas de CI (variáveis de ambiente contra `.env.example`, deriva de migrações e `comerciante_id` por tabela).
 - PR 153: motor de regras de alertas com prioridade e supressão (#43, #44).
 - PR 154: sobras da revisão do PR 134 (reset com job ativo, versão do painel, data da demo).
-- O PR 139 foi fechado: a `develop` já tem a correção do PR 140. O job de reajuste (#45, #46) está em andamento e sem PR aberto na data.
+- O PR 150 (verificador ignora ids nas saídas das ferramentas) foi mesclado. O PR 139 foi fechado: a `develop` já tem a correção do PR 140. O job de reajuste (#45, #46) está em andamento e sem PR aberto na data.
 
 ## Pendências
 
 - Eval com modelo real ainda não rodou (`npm run eval -- --modelo real` exige `ANTHROPIC_API_KEY`); custo e latência da decisão 0003 seguem estimativas até lá, e a troca do modelo padrão `claude-opus-5-5` por Sonnet (decisão 0002) depende dele.
 - A chamada real ao modelo com visão (`cliente-visao-anthropic.ts`) não foi exercida: sem chave no ambiente. Primeiro uso: enviar 3 fotos de `fixtures/notas/` e conferir `execucao_agente`.
 - Extração de nota que falha não avisa o dono: `ProcessadorExtracao.falhar` só grava `documento.statusExtracao` e `erro` e registra a execução, e o `ConversaService` envia só o aviso inicial de leitura. Fica pendente até o worker enviar a mensagem fixa de falha (detalhe em `src/ingestao/README.md`).
+- O alerta ainda não grava os status `enviado` e `descartado`, então a supressão por status não funciona de ponta a ponta (#155).
+- `get_product_margin` não trata alias confirmado nem produtos com o mesmo nome (#156).
 - Planilha importada com linha rejeitada fica em `revisao` e as vendas dela entram nas métricas com confiança 0,5 sem caminho para voltar (#142).
 - O intervalo de extrato é um só para todas as contas; com duas contas, o gasto pode sair subestimado (#143).
 - A exclusão em cascata de um comerciante com a planilha da demo importada (cerca de 15 mil linhas) leva cerca de 6 s; considerar ao implementar a exclusão LGPD (#85).

@@ -71,6 +71,7 @@ Regras da comparação:
 - Os itens casam pela descrição igual e, os que sobram, pela ordem; assim um nome mal lido é um erro de `descricao`, não um item omitido mais um a mais.
 - O gabarito traz a confiança como marcador (1 ou 0,5); compara-se o lado do limite, não o valor. Item e documento saem do Extrator já com a confiança reduzida pelo código (soma, CNPJ, data, conta do item).
 - Erro sinalizado: erro de campo de item com o item abaixo do limite, ou qualquer erro com o documento abaixo do limite (o dono confirma a nota inteira). Erro silencioso: o resto. Nota que o Extrator não devolveu (`ilegivel`, `json_invalido`, recusa, erro de API) conta como um erro sinalizado, porque o documento fica com status de erro.
+- Primeira rodada real (2026-10-21, `claude-sonnet-5-5`, prompt `extrator-v1`, relatório em `docs/avaliacoes/2026-10-21-extrator-v1-claude-sonnet-5-5.md`): total correto em 17 de 17 notas, 521 de 523 campos, nenhum erro silencioso. Os 2 campos errados são o unitário e o total do item borrado da nota 11, que saiu com confiança 0,2. Limite de confiança: fica em 0,8. A amostra tem um único erro de leitura, que cai abaixo de qualquer limite entre 0,5 e 0,95, então os dados não distinguem esses limites; reavaliar quando houver fotos reais com mais erros.
 - Metas (especificação dos agentes, seção 8): total correto em pelo menos 90% das notas e nenhum erro silencioso. A tabela de calibração relê a rodada com outros limites; o limite certo é o menor que deixa zero erro silencioso.
 
 ## Fora do harness

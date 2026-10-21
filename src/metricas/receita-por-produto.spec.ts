@@ -78,15 +78,32 @@ describe("calcularReceitaPorProduto", () => {
     expect(r.valor.maior_receita.map((p) => p.nome)).toEqual(["Arroz"]);
   });
 
-  it("desempata pelo nome em ordem alfabética do português e depois pelo id", () => {
+  it("desempata pelo nome em ordem alfabética do português, com o cadastro em ordem inversa", () => {
+    const cadastro = [
+      { id: "p-3", nome: "Zebra", margemMetaBps: null },
+      { id: "p-2", nome: "Água", margemMetaBps: null },
+      { id: "p-1", nome: "Arroz", margemMetaBps: null },
+    ];
     const r = calcular(
-      entrada([
-        venda("p-feijao", "2026-10-19", 300),
-        venda("p-cafe", "2026-10-19", 300),
-        venda("p-arroz", "2026-10-19", 300),
-      ]),
+      entrada(
+        [venda("p-3", "2026-10-19", 300), venda("p-2", "2026-10-19", 300), venda("p-1", "2026-10-19", 300)],
+        { produtos: cadastro },
+      ),
     );
-    expect(r.valor.maior_receita.map((p) => p.nome)).toEqual(["Arroz", "Café", "Feijão"]);
+    // "Água" vem depois de "Arroz" no português (a acentuação não manda para depois do Z).
+    expect(r.valor.maior_receita.map((p) => p.nome)).toEqual(["Água", "Arroz", "Zebra"]);
+    expect(r.valor.por_produto.map((p) => p.nome)).toEqual(["Água", "Arroz", "Zebra"]);
+  });
+
+  it("nomes iguais desempatam pelo id", () => {
+    const cadastro = [
+      { id: "p-b", nome: "Arroz", margemMetaBps: null },
+      { id: "p-a", nome: "Arroz", margemMetaBps: null },
+    ];
+    const r = calcular(
+      entrada([venda("p-b", "2026-10-19", 300), venda("p-a", "2026-10-19", 300)], { produtos: cadastro }),
+    );
+    expect(r.valor.maior_receita.map((p) => p.produto_id)).toEqual(["p-a", "p-b"]);
   });
 
   it("limita o ranking ao topN", () => {

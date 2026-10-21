@@ -102,7 +102,7 @@ describe("AgenteService", () => {
     expect(exec).toMatchObject({
       resultado: "aprovada",
       iteracoes: 2,
-      versaoPrompt: "sistema-v2",
+      versaoPrompt: "sistema-v3",
       tokensEntrada: 2000,
       tokensSaida: 200,
       custoEstimadoMicrodolares: 2000 * 4 + 200 * 20,

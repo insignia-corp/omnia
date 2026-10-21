@@ -125,7 +125,7 @@ Decisões do orquestrador:
 
 `send_message`, que está na tabela do guia, **não é ferramenta** nesta arquitetura: o envio é feito pelo canal depois do verificador, e o `AgenteService` já devolve a mensagem pronta (`RespostaAgente`). Deixar o modelo enviar abriria um caminho que pula o verificador.
 
-**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` (padrão desde o #55) acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado. Falta no v2: pedir confirmação só por `propose_target_price` (#104). A versão fica gravada em cada execução.
+**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado, e número dito antes não vale sem buscar de novo. A `sistema-v3.md` (padrão) acrescenta: o preço-meta só muda por `propose_target_price` e pelo "sim" do dono (#104), e `ask_owner` e `save_owner_answer` cobrem o dado que só o dono sabe (#53). Cada versão é imutável depois de usada: mudar o comportamento é criar a seguinte, e a versão fica gravada em cada execução.
 
 **Falhas e comportamento.**
 
@@ -190,7 +190,7 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 | `propose_target_price`, tabela `confirmacao_pendente` e resolução do "sim" em código | `src/agente/`, `src/infra/database/schema.ts` | #104 |
 | Motor de alertas com impacto mensal em centavos e prioridade | `src/alertas/` | #43, #44 |
 | Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
-| Prompt `sistema-v2.md` (feito, sem a regra do `propose_target_price`) | `src/agente/prompts/` | #54, #55 |
+| Prompts `sistema-v2.md` e `sistema-v3.md` (feitos) | `src/agente/prompts/` | #54, #55, #104 |
 | Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |
 
 ## 10. Caminho de evolução: especialistas como ferramentas

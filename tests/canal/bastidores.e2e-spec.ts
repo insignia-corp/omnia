@@ -176,6 +176,23 @@ describe("bastidores (e2e)", () => {
       .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
   });
 
+  it("a versão do painel muda quando só as métricas de apoio do alerta mudam", async () => {
+    const antes = await painel(a);
+    const [linha] = await db
+      .select({ metricasApoio: schema.alerta.metricasApoio })
+      .from(schema.alerta)
+      .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+    await db
+      .update(schema.alerta)
+      .set({ metricasApoio: { variacao_bps: 12345 } })
+      .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+    expect((await painel(a)).versao).not.toBe(antes.versao);
+    await db
+      .update(schema.alerta)
+      .set({ metricasApoio: linha!.metricasApoio })
+      .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+  });
+
   it("um comerciante não vê as execuções, nem os alertas do outro", async () => {
     const p = await painel(b);
     expect(p.execucoes).toEqual([]);

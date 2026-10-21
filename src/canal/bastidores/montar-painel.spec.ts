@@ -49,6 +49,42 @@ describe("versaoDoPainel", () => {
     expect(versaoDoPainel(instantes, [])).not.toBe(antes);
   });
 
+  it("muda quando qualquer campo exibido da decisão muda", () => {
+    const decisao: DecisaoAlerta = {
+      alerta_id: "a1",
+      tipo: "reajuste_de_custo",
+      prioridade: 1,
+      status: "candidato",
+      data_referencia: "2026-10-20",
+      chave: "p1",
+      metricas_apoio: { variacao_bps: 300 },
+      justificativa: null,
+      execucao_id: null,
+    };
+    const instantes = [new Date(5000)];
+    const antes = versaoDoPainel(instantes, [decisao]);
+    const alteracoes: Partial<DecisaoAlerta>[] = [
+      { metricas_apoio: { variacao_bps: 500 } },
+      { tipo: "margem_baixa" },
+      { data_referencia: "2026-10-21" },
+      { chave: "p2" },
+      { prioridade: 2 },
+      { execucao_id: "e1" },
+    ];
+    for (const alteracao of alteracoes)
+      expect(versaoDoPainel(instantes, [{ ...decisao, ...alteracao }])).not.toBe(antes);
+  });
+
+  it("não depende da ordem das chaves das métricas", () => {
+    const base = {
+      alerta_id: "a1",
+      status: "candidato",
+    } as DecisaoAlerta;
+    const um = { ...base, metricas_apoio: { a: 1, b: { c: 2, d: 3 } } };
+    const dois = { ...base, metricas_apoio: { b: { d: 3, c: 2 }, a: 1 } };
+    expect(versaoDoPainel([null], [um])).toBe(versaoDoPainel([null], [dois]));
+  });
+
   it("não depende da ordem das decisões", () => {
     const a = { alerta_id: "a", status: "candidato" } as DecisaoAlerta;
     const b = { alerta_id: "b", status: "enviado" } as DecisaoAlerta;

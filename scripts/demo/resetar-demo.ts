@@ -20,9 +20,10 @@ export interface ResumoReset {
 /**
  * Leva a demo ao estado inicial em um comando, sem tocar em outros comerciantes (regra inviolável 10:
  * o histórico de quem não é da demo nunca é apagado). Idempotente: duas execuções seguidas dão o
- * mesmo estado. Aplica as migrações, limpa os jobs e os arquivos da demo e recarrega o seed. Se um job
- * da demo estiver em execução, espera ele terminar; se não terminar a tempo, o reset falha antes de
- * mexer no banco e nos arquivos.
+ * mesmo estado. Aplica as migrações, limpa os jobs e os arquivos da demo e recarrega o seed. Pausa as
+ * filas durante todo o reset; se um job da demo estiver em execução, espera ele terminar; se não
+ * terminar a tempo, o reset falha antes de mexer no banco, nos arquivos e nos jobs pendentes, e as
+ * filas voltam a andar.
  */
 export async function resetarDemo(
   env: Env,
@@ -35,16 +36,17 @@ export async function resetarDemo(
   );
 
   await migrar(env.DATABASE_URL);
-  const jobsRemovidos = await limparFilasDaDemo(redis, ids, opcoesFilas);
-
-  const pool = new Pool({ connectionString: env.DATABASE_URL, max: 2 });
-  try {
-    const comerciantes = await semear(drizzle(pool, { schema }), fix);
-    for (const id of ids) await rm(join(env.ARMAZENAMENTO_DIR, id), { recursive: true, force: true });
-    return { comerciantes, jobsRemovidos };
-  } finally {
-    await pool.end();
-  }
+  let comerciantes: ResumoSeed[] = [];
+  const jobsRemovidos = await limparFilasDaDemo(redis, ids, opcoesFilas, async () => {
+    const pool = new Pool({ connectionString: env.DATABASE_URL, max: 2 });
+    try {
+      comerciantes = await semear(drizzle(pool, { schema }), fix);
+      for (const id of ids) await rm(join(env.ARMAZENAMENTO_DIR, id), { recursive: true, force: true });
+    } finally {
+      await pool.end();
+    }
+  });
+  return { comerciantes, jobsRemovidos };
 }
 
 if (require.main === module) {

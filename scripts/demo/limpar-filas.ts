@@ -7,7 +7,7 @@ import { FILA_EXTRACAO } from "../../src/ingestao/fila/fila-extracao";
 const ESTADOS = ["completed", "failed", "delayed", "waiting", "prioritized"] as const;
 
 export interface OpcoesLimpeza {
-  /** Quanto esperar um job da demo em execução terminar antes de desistir do reset. */
+  /** Quanto esperar os jobs ativos da demo terminarem (com as filas pausadas) antes de desistir do reset. */
   esperaMaximaMs?: number;
   intervaloMs?: number;
 }
@@ -17,14 +17,19 @@ export interface OpcoesLimpeza {
  * data, então sem isto o job de hoje, já concluído, impediria um novo envio depois do reset.
  * Não usa `obliterate`: jobs de outros comerciantes ficam.
  *
- * Job em execução não sai (BullMQ recusa) e, se o seed rodasse por cima dele, ele gravaria dado velho
- * ou mandaria relatório na demo recém-zerada. Por isso a limpeza espera os jobs ativos da demo
- * terminarem (e remove o que sobrar deles) e, se não terminarem a tempo, lança erro antes do seed.
+ * Pausa as duas filas (pausa global: worker não pega job novo, produtor ainda enfileira) durante todo o
+ * reset. Espera os jobs ativos da demo terminarem sem remover nada; se não terminarem a tempo, lança
+ * erro e as filas voltam como estavam. Depois remove os jobs da demo, roda `durante` (o seed) com as
+ * filas paradas e remove de novo o que foi enfileirado nesse meio tempo. Retoma as filas sempre no
+ * `finally`; nada no app pausa fila de propósito, então retomar não desfaz pausa de ninguém, e rodar o
+ * reset de novo destrava uma pausa deixada por um processo morto. Resta uma janela: produtor que grava
+ * depois do seed e enfileira depois da última varredura.
  */
 export async function limparFilasDaDemo(
   redis: Redis,
   comercianteIds: string[],
   { esperaMaximaMs = 120_000, intervaloMs = 250 }: OpcoesLimpeza = {},
+  durante: () => Promise<void> = async () => {},
 ): Promise<number> {
   const alvo = new Set(comercianteIds);
   const daDemo = (job: Job) => {
@@ -32,22 +37,27 @@ export async function limparFilasDaDemo(
     return dono !== undefined && alvo.has(dono);
   };
   const filas = [FILA_RELATORIO_DIARIO, FILA_EXTRACAO].map((nome) => new Queue(nome, { connection: redis }));
+  const remover = async () => {
+    let n = 0;
+    for (const fila of filas) {
+      for (const job of (await fila.getJobs([...ESTADOS])).filter(daDemo)) {
+        await job.remove().then(
+          () => n++,
+          () => undefined,
+        );
+      }
+    }
+    return n;
+  };
   const limite = Date.now() + esperaMaximaMs;
-  let removidos = 0;
+  await Promise.all(filas.map((f) => f.pause()));
   try {
     for (;;) {
       const ativos: string[] = [];
       for (const fila of filas) {
-        for (const job of (await fila.getJobs([...ESTADOS])).filter(daDemo)) {
-          await job.remove().then(
-            () => removidos++,
-            () => undefined,
-          );
-        }
-        for (const job of (await fila.getJobs(["active"])).filter(daDemo))
-          ativos.push(`${fila.name}:${job.id}`);
+        for (const job of (await fila.getJobs(["active"])).filter(daDemo)) ativos.push(`${fila.name}:${job.id}`);
       }
-      if (ativos.length === 0) return removidos;
+      if (ativos.length === 0) break;
       if (Date.now() >= limite) {
         throw new Error(
           `Jobs da demo ainda em execução (${ativos.join(", ")}); o reset foi cancelado antes do seed. Tente de novo.`,
@@ -55,7 +65,13 @@ export async function limparFilasDaDemo(
       }
       await esperar(intervaloMs);
     }
+    let removidos = await remover();
+    await durante();
+    removidos += await remover();
+    return removidos;
   } finally {
+    // a retomada não pode impedir o fechamento das conexões
+    await Promise.allSettled(filas.map((f) => f.resume()));
     await Promise.all(filas.map((f) => f.close()));
   }
 }

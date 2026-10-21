@@ -153,7 +153,7 @@ Regras:
 6. Se a pergunta não puder ser respondida com as ferramentas, diga que não sabe.
 ```
  
-O prompt sozinho não garante nada, então adicione um verificador em código antes do envio. Ele extrai todos os números da mensagem e confere se cada um aparece nos resultados das ferramentas daquela execução. Se algum não aparecer, a mensagem é bloqueada e o agente gera de novo. Esse verificador é a prova técnica de que o modelo não inventa número, e vale mostrá-lo na demo.
+O prompt sozinho não garante nada, então adicione um verificador em código antes do envio. Ele extrai todos os números da mensagem e confere se cada um aparece nos resultados das ferramentas daquela execução. Se algum não aparecer, a mensagem é bloqueada e o agente gera de novo. Esse verificador é a prova técnica de que o modelo não inventa número, e vale mostrá-lo na demo. O que vale como número nos resultados das ferramentas (centavos, percentual, identificadores ignorados) está no cabeçalho de `src/lib/verificador-numeros/verificador-numeros.ts`.
  
 ## WhatsApp e jobs
  

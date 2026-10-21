@@ -38,13 +38,14 @@ Gerados em 2026-10-21 sobre a `develop` em `eec578c`, com Node 24 (via `npx`), P
 - PR 152: guardas de CI (variáveis de ambiente contra `.env.example`, deriva de migrações e `comerciante_id` por tabela).
 - PR 153: motor de regras de alertas com prioridade e supressão (#43, #44).
 - PR 154: sobras da revisão do PR 134 (reset com job ativo, versão do painel, data da demo).
+- PR 163: aviso ao dono quando a leitura da nota falha de vez (#158) e id de correlação entre requisição e jobs (#10).
 - O PR 139 foi fechado: a `develop` já tem a correção do PR 140.
 
 ## Pendências
 
 - Eval com modelo real ainda não rodou (`npm run eval -- --modelo real` exige `ANTHROPIC_API_KEY`); custo e latência da decisão 0003 seguem estimativas até lá, e a troca do modelo padrão `claude-opus-5-5` por Sonnet (decisão 0002) depende dele.
 - A chamada real ao modelo com visão (`cliente-visao-anthropic.ts`) não foi exercida: sem chave no ambiente. Primeiro uso: enviar 3 fotos de `fixtures/notas/` e conferir `execucao_agente`.
-- Extração de nota que falha não avisa o dono: `ProcessadorExtracao.falhar` só grava `documento.statusExtracao` e `erro` e registra a execução, e o `ConversaService` envia só o aviso inicial de leitura. Fica pendente até o worker enviar a mensagem fixa de falha (#158; detalhe em `src/ingestao/README.md`).
+- Extração de nota que falha não avisa o dono: `ProcessadorExtracao.falhar` só grava `documento.statusExtracao` e `erro` e registra a execução, e o `ConversaService` envia só o aviso inicial de leitura. Fica pendente até o worker enviar a mensagem fixa de falha (#158, em PR 163; detalhe em `src/ingestao/README.md`).
 - O relatório diário com modelo real ainda não fecha na `develop`: o `AgenteService` exige um `select_alerts` bem-sucedido ou um `list_alert_candidates` sem candidato, o catálogo real não tem `list_alert_candidates` (#52) e nada chama o motor de alertas até #45 e #52, então um relatório real termina no fallback de erro. Só os testes usam dublês.
 - Alertas: o candidato do dia pode ficar velho quando o dado muda (#157). Higiene de documentação (`send_message`, status de PRs, label do Pluggy) em #159.
 - A CLI do eval e a rodada usam por padrão o prompt `sistema-v2`, e o `AgenteModule` carrega o `v3`: alinhar antes da primeira rodada com `--modelo real`.

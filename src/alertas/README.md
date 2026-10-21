@@ -10,7 +10,7 @@ Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara c
 
 | Tipo | Vira candidato quando | Chave |
 | --- | --- | --- |
-| `reajuste_de_custo` | variação de custo acima de 5% e compra de no máximo 7 dias | produto, fornecedor e data da compra |
+| `reajuste_de_custo` | variação de custo acima de 5% e compra de no máximo 7 dias | produto, fornecedor e id da compra atual |
 | `margem_abaixo_da_meta` | margem do produto abaixo da meta | produto |
 | `espaco_para_subir_preco` | giro alto e margem abaixo da meta | produto |
 | `giro_em_alta` | entre os de maior alta do giro, com alta acima de 0 | produto |
@@ -40,7 +40,7 @@ Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave
 
 ## Supressão (#44)
 
-Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. Como a chave do reajuste inclui a data da compra, uma nota nova com outro reajuste do mesmo produto é um alerta novo.
+Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. Como a chave do reajuste inclui o id da compra atual (duas compras do mesmo produto e fornecedor no mesmo dia são alertas distintos), uma nota nova com outro reajuste do mesmo produto é um alerta novo.
 
 ## Limites conhecidos
 

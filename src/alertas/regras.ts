@@ -64,7 +64,7 @@ export const regraReajusteDeCusto: RegraDeAlerta = {
       const usaGiro = !ehDadoAusente(giro) && doGiro !== undefined;
       candidatos.push({
         tipo: "reajuste_de_custo",
-        chave: `${v.produto_id}:${v.fornecedor_id}:${v.compra_atual_data}`,
+        chave: `${v.produto_id}:${v.fornecedor_id}:${v.compra_atual_id}`,
         produtoId: v.produto_id,
         fornecedorId: v.fornecedor_id,
         // Quanto a semana de venda passa a custar a mais com o custo novo.
@@ -81,6 +81,7 @@ export const regraReajusteDeCusto: RegraDeAlerta = {
           custo_atual_centavos: v.custo_atual_centavos,
           compra_anterior_data: v.compra_anterior_data,
           compra_atual_data: v.compra_atual_data,
+          compra_atual_id: v.compra_atual_id,
           fonte: fonteDe(variacoes),
           ...(usaGiro ? { unidades_7_dias: doGiro.unidades_7_dias, giro_fonte: fonteDe(giro) } : {}),
         },

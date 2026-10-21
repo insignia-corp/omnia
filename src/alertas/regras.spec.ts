@@ -106,13 +106,21 @@ describe("regra de reajuste de custo", () => {
     expect(candidatos).toHaveLength(1);
     expect(candidatos[0]).toMatchObject({
       tipo: "reajuste_de_custo",
-      chave: "p1:f1:2026-10-16",
+      chave: "p1:f1:compra-16",
       produtoId: "p1",
       fornecedorId: "f1",
       // 300 centavos a mais por unidade, 36 unidades na semana
       impactoCentavos: 10_800,
       metricasApoio: { variacao_bps: 1205, custo_anterior_centavos: 2490, custo_atual_centavos: 2790 },
     });
+  });
+
+  it("duas compras do mesmo produto e fornecedor no mesmo dia têm chaves diferentes", async () => {
+    const a = await rodar(regraReajusteDeCusto, servicoCom([variacao({ compra_atual_id: "compra-a" })]));
+    const b = await rodar(regraReajusteDeCusto, servicoCom([variacao({ compra_atual_id: "compra-b" })]));
+    expect(a.candidatos[0]?.chave).toBe("p1:f1:compra-a");
+    expect(b.candidatos[0]?.chave).toBe("p1:f1:compra-b");
+    expect(a.candidatos[0]?.metricasApoio).toMatchObject({ compra_atual_id: "compra-a" });
   });
 
   it("não gera abaixo do limite, em queda ou com a compra fora da janela", async () => {

@@ -51,7 +51,7 @@ Decisões do orquestrador:
 
 - **Mensagem em resposta ao dono não conta como proativa.** O limite de 1 por dia vale para jobs. Isso permite, na demo, o alerta de reajuste logo depois de o dono mandar a foto.
 - **Fora de conversa, alerta de nota vai para o próximo relatório.** Uma nota processada por upload sem janela aberta grava o candidato (`alerta.status = candidato`) e não envia nada na hora.
-- **Confirmação "sim" sem LLM.** O Analista propõe, o código grava uma `pergunta_dono` do tipo `confirmar_acao` pendente (sem tabela nova) e o "sim" seguinte é resolvido em código (`ConfirmacaoDoDono`, antes do modelo). Só a mensagem inteira igual a uma frase explícita ("sim", "pode", "isso mesmo") confirma; casos ambíguos ("sim, mas com 15,90") vão ao Analista como pergunta comum e a proposta continua pendente. A confirmação expira em 24 horas (`ACAO_EXPIRA_MINUTOS`) e uma proposta nova cancela a anterior.
+- **Confirmação "sim" sem LLM.** O Analista propõe, o código grava uma linha em `confirmacao_pendente` (**novo**) e o "sim" seguinte é resolvido em código. Casos ambíguos ("acho que sim, mas...") vão ao Analista como pergunta comum. A confirmação expira em 24 horas.
 - **Pergunta por item de baixa confiança é montada pelo código** a partir de um modelo de texto ("Não consegui ler o item X da nota Y. Qual a quantidade e o valor?"). Não gasta chamada de modelo e não passa texto da nota por um LLM de novo.
 
 ## 3. Agente 1: Extrator
@@ -119,7 +119,7 @@ Decisões do orquestrador:
 | `select_alerts` | nenhum | P0 | **Novo.** Recebe até 3 `alerta_id` com justificativa curta. Valida os ids contra a tabela `alerta` do comerciante e da data. Existe para que a decisão fique registrada em `chamada_ferramenta`, na ordem, e apareça na tela de bastidores |
 | `ask_owner` | pergunta_dono | P0 | Registra a pergunta e aguarda a resposta pelo canal (#53) |
 | `save_owner_answer` | escreve_config | P0 | Grava o dado informado com origem "dono" (#53) |
-| `propose_target_price` | escreve_config | P0 | Feita (#104). Registra a proposta (`confirmar_acao`) com produto e preço-meta e devolve a pergunta ao dono, montada em código. Não altera a configuração; só o código, ao ver o "sim", grava o preço em `produto` e uma linha em `historico_preco_meta`. O valor vem da mensagem do dono ou de `simulate_price_change` |
+| `propose_target_price` | escreve_config | P0 | **Novo.** Grava uma `confirmacao_pendente` com produto e preço-meta. Não altera a configuração; só o código, ao ver o "sim", grava (#104). O valor vem da mensagem do dono ou de `simulate_price_change` |
 | `simulate_price_change` | nenhum | P1 | **Novo.** Margem nova e ponto de equilíbrio de volume (quanto o volume pode cair sem reduzir o lucro bruto). Não prevê a reação das vendas: não há dado de elasticidade |
 | `compare_suppliers` | nenhum | P2 | **Novo.** Custo mais recente do mesmo produto por fornecedor, com data e confiança |
 
@@ -162,7 +162,7 @@ Limite conhecido: o verificador confere se o número aparece nos resultados das 
 
 ## 7. Estado compartilhado
 
-PostgreSQL guarda dados, histórico e execuções. Redis e BullMQ guardam filas, jobs e chaves de idempotência. Tabelas novas além das da Etapa 2 (#21): `historico_preco_meta` (preço-meta confirmado, append-only; a proposta pendente reaproveita `pergunta_dono`, tipo `confirmar_acao`, em vez de uma `confirmacao_pendente`) e, se confirmadas, `alerta` com status `candidato`, `enviado` ou `descartado`. Os agentes não guardam nada entre execuções: o histórico de cada execução é montado a partir do banco.
+PostgreSQL guarda dados, histórico e execuções. Redis e BullMQ guardam filas, jobs e chaves de idempotência. Tabelas novas além das da Etapa 2 (#21): `confirmacao_pendente` (comerciante, tipo, payload, status, `expira_em`) e, se confirmadas, `alerta` com status `candidato`, `enviado` ou `descartado`. Os agentes não guardam nada entre execuções: o histórico de cada execução é montado a partir do banco.
 
 ## 8. Avaliação por agente
 
@@ -187,7 +187,7 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 | Padrão do modelo para `claude-sonnet-5-5` e esforço por gatilho | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
 | Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
 | Ferramentas P0 e `select_alerts` | `src/agente/ferramentas/` | #50 a #53 |
-| `propose_target_price`, `historico_preco_meta` (migração 0009) e resolução do "sim" em código (feito) | `src/agente/confirmacao/`, `src/agente/ferramentas/`, `src/infra/database/schema.ts` | #104 |
+| `propose_target_price`, tabela `confirmacao_pendente` e resolução do "sim" em código | `src/agente/`, `src/infra/database/schema.ts` | #104 |
 | Motor de alertas com impacto mensal em centavos e prioridade | `src/alertas/` | #43, #44 |
 | Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
 | Prompt `sistema-v2.md` | `src/agente/prompts/` | #54 |

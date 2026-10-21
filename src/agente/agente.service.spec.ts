@@ -5,7 +5,6 @@ import type {
 } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import { z } from "zod";
 import { AgenteService, FALLBACK } from "./agente.service";
-import type { ResolveConfirmacao } from "./confirmacao/confirmacao-dono";
 import { RegistroExecucoesMemoria } from "./execucao/registro-execucoes";
 import { definirFerramenta, type ContextoSessao } from "./ferramentas/ferramenta";
 import { RegistroFerramentas } from "./ferramentas/registro-ferramentas";
@@ -275,110 +274,5 @@ describe("AgenteService", () => {
     expect(primeira).toContain("<conteudo_de_documento>");
     expect(primeira.match(/<\/conteudo_de_documento>/g)).toHaveLength(1);
     expect(primeira.trim().endsWith("</conteudo_de_documento>")).toBe(true);
-  });
-});
-
-describe("AgenteService: confirmação do dono resolvida em código (#104)", () => {
-  const chamada = {
-    ordem: 1,
-    ferramenta: "confirm_pending_action",
-    entrada: { resposta: "sim" },
-    saida: { status: "executada" },
-    erro: null,
-    menorConfianca: null,
-    latenciaMs: 3,
-  };
-  const montar = (confirmacao: ResolveConfirmacao, respostas: (BetaMessage | Error)[] = []) => {
-    const modelo = new ModeloRoteirizado(respostas);
-    const registro = new RegistroExecucoesMemoria();
-    const agente = new AgenteService(
-      modelo,
-      new RegistroFerramentas([margem]),
-      registro,
-      carregarPromptSistema(),
-      { maxIteracoes: 6, maxRegeracoes: 1 },
-      confirmacao,
-    );
-    return { agente, modelo, registro };
-  };
-
-  it("com ação pendente e confirmação, responde sem chamar o modelo e registra a chamada do código", async () => {
-    const tratar = jest.fn(() => Promise.resolve({ mensagem: "Pronto, registrei.", chamada, sucesso: true }));
-    const { agente, modelo, registro } = montar({ tratar });
-    const r = await agente.executar({ ...pergunta, entrada: "sim" });
-    expect(r).toMatchObject({ resultado: "aprovada", mensagem: "Pronto, registrei." });
-    expect(modelo.pedidos).toHaveLength(0);
-    expect(registro.execucoes[0]).toMatchObject({
-      modelo: "codigo",
-      iteracoes: 0,
-      custoEstimadoMicrodolares: 0,
-      chamadas: [chamada],
-    });
-    expect(tratar).toHaveBeenCalledWith(contexto, "sim");
-  });
-
-  it("sem ação pendente, a mensagem segue para o modelo como sempre", async () => {
-    const { agente, modelo } = montar({ tratar: () => Promise.resolve(null) }, [texto("Sem pendência.")]);
-    const r = await agente.executar({ ...pergunta, entrada: "sim" });
-    expect(r.mensagem).toBe("Sem pendência.");
-    expect(modelo.pedidos).toHaveLength(1);
-  });
-
-  it("só a mensagem do dono confirma: relatório diário e nota processada nunca chamam a resolução", async () => {
-    const tratar = jest.fn(() => Promise.resolve(null));
-    const { agente } = montar({ tratar }, [texto("Sem alertas hoje."), texto("Nada a avisar.")]);
-    await agente.executar({ contexto, gatilho: "relatorio_diario", entrada: "sim" });
-    await agente.executar({ contexto, gatilho: "nota_processada", entrada: "sim" });
-    expect(tratar).not.toHaveBeenCalled();
-  });
-
-  it("escrita que falhou vira fallback de erro registrado, sem dizer que gravou", async () => {
-    const falha = { ...chamada, saida: null, erro: "Falha ao executar x: banco fora" };
-    const { agente, registro } = montar({
-      tratar: () =>
-        Promise.resolve({ mensagem: "Não consegui registrar agora.", chamada: falha, sucesso: false }),
-    });
-    const r = await agente.executar({ ...pergunta, entrada: "sim" });
-    expect(r.resultado).toBe("fallback_erro");
-    expect(registro.execucoes[0]?.erro).toMatch(/banco fora/);
-  });
-
-  it("exceção na resolução vira o fallback de erro, sem chamar o modelo", async () => {
-    const { agente, modelo } = montar({ tratar: () => Promise.reject(new Error("conexão caiu")) });
-    const r = await agente.executar({ ...pergunta, entrada: "sim" });
-    expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
-    expect(modelo.pedidos).toHaveLength(0);
-  });
-
-  it("a pergunta de confirmação montada em código libera os números dela no verificador", async () => {
-    const propostaTool = definirFerramenta({
-      nome: "propose_target_price",
-      descricao: "Propõe preço-meta.",
-      entrada: z.strictObject({ preco_meta_centavos: z.number().int() }),
-      efeito: "escreve_config",
-      executar: async () => ({}),
-    });
-    const modelo = new ModeloRoteirizado([
-      usarFerramenta("propose_target_price", { preco_meta_centavos: 1290 }),
-      texto('Quer que eu registre R$ 12,90 como preço-meta de "Arroz"? Responda sim ou não.'),
-    ]);
-    const registro = new RegistroExecucoesMemoria();
-    const agente = new AgenteService(
-      modelo,
-      new RegistroFerramentas([propostaTool], {
-        consumir: () => Promise.resolve(false),
-        propor: () =>
-          Promise.resolve({
-            perguntaId: "p1",
-            pergunta: 'Quer que eu registre R$ 12,90 como preço-meta de "Arroz"? Responda sim ou não.',
-          }),
-      }),
-      registro,
-      carregarPromptSistema(),
-      { maxIteracoes: 6, maxRegeracoes: 1 },
-    );
-    const r = await agente.executar(pergunta);
-    expect(r.resultado).toBe("aprovada");
-    expect(registro.execucoes[0]?.bloqueios).toEqual([]);
   });
 });

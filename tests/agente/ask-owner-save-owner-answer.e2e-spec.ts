@@ -204,7 +204,6 @@ describe("ask_owner e save_owner_answer (e2e)", () => {
           pergunta_id,
           campo: "custo_unitario_produto",
           produto_id: loja.produtoId,
-          produto_nome: "Arroz Tipo 1 5kg",
           valor_centavos: 1290,
           gravado: true,
         },

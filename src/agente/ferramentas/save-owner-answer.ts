@@ -1,9 +1,9 @@
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db, Tx } from "../../infra/database/database.module";
-import { historicoCusto, perguntaDono, produto } from "../../infra/database/schema";
-import { centavos, formatarBRL } from "../../lib/dinheiro/dinheiro";
-import { CAMPOS_DO_DONO, contextoPerguntaSchema, nomeSeguro } from "./ask-owner";
+import { historicoCusto, perguntaDono } from "../../infra/database/schema";
+import { centavos } from "../../lib/dinheiro/dinheiro";
+import { CAMPOS_DO_DONO, contextoPerguntaSchema } from "./ask-owner";
 import { definirFerramenta } from "./ferramenta";
 
 /**
@@ -54,33 +54,6 @@ export function criarSaveOwnerAnswer(db: Db) {
       valor_centavos: z.number().int().nonnegative().describe("Valor em centavos, inteiro."),
     }),
     efeito: "escreve_config",
-    async descreverConfirmacao(contexto, entrada) {
-      // Produto e campo vêm da pergunta gravada em código; o dono vê o valor que o modelo entendeu.
-      const [pergunta] = await db
-        .select({ contexto: perguntaDono.contexto })
-        .from(perguntaDono)
-        .where(
-          and(
-            eq(perguntaDono.id, entrada.pergunta_id),
-            eq(perguntaDono.comercianteId, contexto.comercianteId),
-          ),
-        )
-        .limit(1);
-      const alvo = contextoPerguntaSchema.safeParse(pergunta?.contexto);
-      if (!alvo.success) throw new Error("Pergunta não encontrada ou sem dado que o agente possa gravar");
-      const [prod] = await db
-        .select({ nome: produto.nome })
-        .from(produto)
-        .where(and(eq(produto.id, alvo.data.produto_id), eq(produto.comercianteId, contexto.comercianteId)))
-        .limit(1);
-      if (!prod) throw new Error("Produto não encontrado no cadastro");
-      const valor = formatarBRL(centavos(entrada.valor_centavos));
-      const nome = nomeSeguro(prod.nome);
-      return {
-        pergunta: `Confirma que o custo unitário atual de "${nome}" é ${valor}? Responda sim ou não.`,
-        resumo: `Anotei ${valor} como custo unitário atual de "${nome}".`,
-      };
-    },
     async executar(contexto, entrada) {
       const { comercianteId } = contexto;
       return db.transaction(async (tx) => {
@@ -112,17 +85,10 @@ export function criarSaveOwnerAnswer(db: Db) {
             respondidaEm: new Date(),
           })
           .where(and(eq(perguntaDono.id, pergunta.id), eq(perguntaDono.comercianteId, comercianteId)));
-        const [prod] = await tx
-          .select({ nome: produto.nome })
-          .from(produto)
-          .where(and(eq(produto.id, alvo.data.produto_id), eq(produto.comercianteId, comercianteId)))
-          .limit(1);
         return {
           pergunta_id: pergunta.id,
           campo: entrada.campo,
           produto_id: alvo.data.produto_id,
-          // O nome pode ter número ("Arroz 5kg"): ele precisa estar na saída para o aviso passar no verificador.
-          produto_nome: prod ? nomeSeguro(prod.nome) : null,
           valor_centavos: entrada.valor_centavos,
           gravado: true as const,
         };

@@ -18,18 +18,13 @@ export const contextoPerguntaSchema = z.strictObject({
 
 const NOME_MAXIMO = 80;
 
-/** Nome de cadastro pronto para entrar num texto montado em código: sem controle nem aspas, com teto. */
-export function nomeSeguro(nomeProduto: string): string {
-  return nomeProduto
+/** Texto da pergunta ao dono, montado em código. O nome do produto é cadastro, não instrução. */
+export function montarTextoPergunta(nomeProduto: string): string {
+  const nome = nomeProduto
     .replace(/[\p{Cc}"]/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, NOME_MAXIMO);
-}
-
-/** Texto da pergunta ao dono, montado em código. O nome do produto é cadastro, não instrução. */
-export function montarTextoPergunta(nomeProduto: string): string {
-  const nome = nomeSeguro(nomeProduto);
   return `Qual é o custo unitário atual de "${nome}"? Pode responder em reais, por exemplo 12,90.`;
 }
 

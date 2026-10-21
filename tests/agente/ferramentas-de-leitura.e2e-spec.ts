@@ -235,6 +235,10 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
           { ...base, nome: "Arroz Integral 1kg", sku: "AR-2" },
           { ...base, nome: "Suco de Uva 1L", sku: "SU-1" },
           { ...base, nome: "Suco de Uva 300ml", sku: "SU-2" },
+          // Produtos com nome e apelido ao mesmo tempo: o apelido de MG-1 e MG-2 é pior que o nome, o de MG-3 empata.
+          { ...base, nome: "Margarina Cremosa 500g", sku: "MG-1" },
+          { ...base, nome: "Margarina Cremosa 500g", sku: "MG-2" },
+          { ...base, nome: "Margarina Cremosa 500g", sku: "MG-3" },
           // 01:30 UTC de 02/10 ainda é 01/10 em Brasília: a data mostrada ao dono é a do fuso dele.
           { ...base, nome: "Pão Francês 50g", sku: "PF-1", criadoEm: new Date("2026-10-02T01:30:00Z") },
           { ...base, nome: "Pão Francês 50g", sku: "PF-2", criadoEm: new Date("2026-10-02T12:00:00Z") },
@@ -250,11 +254,18 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
         { ...vinculo, produtoId: arrozBranco, descricaoNormalizada: "ARROZ", confirmadoPeloDono: true },
       ]);
       // Dois produtos com o mesmo apelido confirmado: a busca pelo apelido empata e mostra a descrição que casou.
-      for (const sku of ["SU-1", "SU-2"]) {
+      const apelidos: Record<string, string> = {
+        "SU-1": "SUCO UVA INTEGRAL",
+        "SU-2": "SUCO UVA INTEGRAL",
+        "MG-1": "MARG QUALY CREMOSA",
+        "MG-2": "MARG QUALY CREMOSA",
+        "MG-3": "MARGARINA CREMOSA 500G",
+      };
+      for (const [sku, apelido] of Object.entries(apelidos)) {
         await db.insert(schema.vinculoDescricaoProduto).values({
           ...vinculo,
           produtoId: produtos.find((p) => p.sku === sku)!.id,
-          descricaoNormalizada: "SUCO UVA INTEGRAL",
+          descricaoNormalizada: apelido,
           confirmadoPeloDono: true,
         });
       }
@@ -290,6 +301,15 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       const doNome = (porNome.candidatos ?? []) as unknown as Array<{ descricao_de_nota: string | null }>;
       expect(doNome).toHaveLength(2);
       expect(doNome.every((c) => c.descricao_de_nota === null)).toBe(true);
+
+      // Nome e apelido no mesmo produto: o nome vence (apelido pior) ou empata (apelido igual ao nome).
+      const comApelido = await chamar(loja, "get_product_margin", { produto: "Margarina Cremosa 500g" });
+      const margarinas = (comApelido.candidatos ?? []) as unknown as Array<{
+        sku: string;
+        descricao_de_nota: string | null;
+      }>;
+      expect(margarinas.map((c) => c.sku).sort()).toEqual(["MG-1", "MG-2", "MG-3"]);
+      expect(margarinas.every((c) => c.descricao_de_nota === null)).toBe(true);
     });
 
     it("a data de cadastro do candidato é a do fuso do dono, não a UTC", async () => {

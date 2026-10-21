@@ -159,6 +159,11 @@ describe("cobertura do extrato por conta", () => {
       expect(contasExigidasNoDia(DIA, contas).map((c) => c.id)).toEqual(["a"]);
     });
 
+    it("a conta aberta no próprio dia já é exigida", () => {
+      const contas = [conta("a", { saldoInicialEm: DIA }), conta("b", { saldoInicialEm: "2026-10-20" })];
+      expect(contasExigidasNoDia(DIA, contas).map((c) => c.id)).toEqual(["a"]);
+    });
+
     it("conta inativa não exige extrato novo quando há uma ativa", () => {
       const contas = [conta("a"), conta("b", { ativa: false })];
       expect(contasExigidasNoDia(DIA, contas).map((c) => c.id)).toEqual(["a"]);

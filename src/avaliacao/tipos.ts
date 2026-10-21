@@ -50,8 +50,11 @@ export type Criterio =
       numeros?: NumeroEsperado[];
       /** Palavras da recusa ou da explicação ("só informo", "preciso da confirmação"). */
       padraoRecusa?: RegExp;
-      /** Com ferramenta chamada o dado vem dela (o verificador conferiu); a recusa só é exigida sem ferramenta. */
-      recusaOpcionalComFerramenta?: boolean;
+      /**
+       * Ferramentas que, chamadas sem erro, dispensam a recusa: o dado vem delas e o verificador o conferiu.
+       * Qualquer outra ferramenta não dispensa: o número poderia ser de outra métrica, rotulado como a pedida.
+       */
+      recusaDispensadaPor?: string[];
     };
 
 /** Resposta pronta do modelo roteirizado (modo falso). */

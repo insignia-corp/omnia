@@ -22,6 +22,7 @@ export async function importarNfe(db: Db, e: EntradaImportacaoNfe): Promise<Comp
   const validada = validarNota(e.leitura.extracao, {
     hoje: e.hoje,
     limiteConfiancaItem: e.limiteConfiancaItem,
+    itensConferidosNaOrigem: e.leitura.itensConferidos,
   });
   return gravarCompra(db, {
     comercianteId: e.comercianteId,

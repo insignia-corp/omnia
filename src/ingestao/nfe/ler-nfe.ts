@@ -1,6 +1,7 @@
 import { SaxesParser } from "saxes";
 import { ErroDinheiro, parseDecimalNfe } from "../../lib/dinheiro/dinheiro";
 import { extracaoNotaSchema, type ExtracaoNota } from "../extracao/esquema-extracao";
+import { TOLERANCIA_ITEM_CENTAVOS } from "../validacao/validar-nota";
 
 export type ErroNfe =
   "xml_invalido" | "doctype_proibido" | "nao_e_nfe" | "campo_ausente" | "valor_invalido" | "fora_do_esquema";
@@ -12,6 +13,12 @@ export type LeituraNfe =
       numeroDocumento: string | null;
       /** `cEAN` de cada item, na ordem; nulo quando a nota diz "SEM GTIN" ou não traz. */
       codigosBarras: Array<string | null>;
+      /**
+       * Posições (a partir de 1) dos itens em que quantidade x unitário bate com o total do item usando o
+       * unitário exato do XML (até 10 casas). O unitário gravado em centavos é arredondado, e só com o
+       * exato a conta fecha para quantidades grandes.
+       */
+      itensConferidos: Set<number>;
     }
   | { ok: false; erro: ErroNfe; mensagem: string };
 
@@ -19,6 +26,9 @@ export type LeituraNfe =
 export const MAXIMO_ITENS_NFE = 990;
 
 const QUANTIDADE = /^\d+(\.\d{1,4})?$/;
+/** `dhEmi` é RFC 3339 com fuso; `dEmi` (layout antigo) é só a data. A data de calendário sai do começo. */
+const DATA_HORA = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const DATA_SIMPLES = /^\d{4}-\d{2}-\d{2}$/;
 const CONFIANCA_NFE = 1;
 
 interface ItemBruto {
@@ -58,6 +68,7 @@ function extrair(conteudo: Buffer): {
   extracao: ExtracaoNota;
   numeroDocumento: string | null;
   codigosBarras: Array<string | null>;
+  itensConferidos: Set<number>;
 } {
   const parser = new SaxesParser({ xmlns: true });
   const pilha: string[] = [];
@@ -83,6 +94,10 @@ function extrair(conteudo: Buffer): {
     }
   });
   parser.on("text", (t) => {
+    texto += t;
+  });
+  // Texto em CDATA é o mesmo conteúdo de caractere, só escrito de outro jeito.
+  parser.on("cdata", (t) => {
     texto += t;
   });
   parser.on("closetag", () => {
@@ -123,22 +138,37 @@ function extrair(conteudo: Buffer): {
   };
   const base = raiz === "nfeProc" ? "nfeProc/NFe/infNFe" : "NFe/infNFe";
   const emissao = campos.get(`${base}/ide/dhEmi`) ?? campos.get(`${base}/ide/dEmi`);
-  if (!emissao || !/^\d{4}-\d{2}-\d{2}/.test(emissao))
-    throw new ErroLeitura("campo_ausente", "NF-e sem data de emissão");
+  if (!emissao) throw new ErroLeitura("campo_ausente", "NF-e sem data de emissão");
+  // Valida o valor inteiro antes de pegar só a data: "2026-10-18lixo" não pode virar "2026-10-18".
+  if (!DATA_HORA.test(emissao) && !DATA_SIMPLES.test(emissao)) {
+    throw new ErroLeitura("valor_invalido", "Data de emissão fora do formato da NF-e");
+  }
   const cnpj = campos.get(`${base}/emit/CNPJ`) ?? campos.get(`${base}/emit/CPF`) ?? "";
   const nome = exigir(`${base}/emit/xNome`, "nome do emitente");
   if (itens.length === 0) throw new ErroLeitura("campo_ausente", "NF-e sem itens");
 
+  const itensConferidos = new Set<number>();
   const extracao = extracaoNotaSchema.safeParse({
-    fornecedor: { nome, cnpj: cnpj || "sem CNPJ" },
+    // Sem CNPJ nem CPF o texto não passa na conferência de identificador e a nota vai para revisão.
+    fornecedor: { nome, cnpj: cnpj || "sem identificador" },
     data_emissao: emissao.slice(0, 10),
     itens: itens.map((i, n) => {
       const qtd = i.qCom ?? "";
-      if (!QUANTIDADE.test(qtd))
+      if (!QUANTIDADE.test(qtd)) {
         throw new ErroLeitura("valor_invalido", `Quantidade do item ${n + 1} inválida`);
+      }
+      // O banco guarda três casas. Quantidade que precisaria da quarta é recusada, não arredondada.
+      const [inteiro = "0", fracao = ""] = qtd.split(".");
+      if (fracao.length === 4 && fracao[3] !== "0") {
+        throw new ErroLeitura(
+          "valor_invalido",
+          `Quantidade do item ${n + 1} com mais de 3 casas decimais não é suportada`,
+        );
+      }
+      if (totalExatoConfere(qtd, i.vUnCom ?? "", i.vProd ?? "")) itensConferidos.add(n + 1);
       return {
         descricao: i.xProd ?? "",
-        quantidade: Number(qtd),
+        quantidade: Number(fracao ? `${inteiro}.${fracao.slice(0, 3)}` : inteiro),
         unidade: i.uCom ?? "",
         valor_unitario_centavos: dinheiro(i.vUnCom ?? "", `Valor unitário do item ${n + 1}`),
         valor_total_centavos: dinheiro(i.vProd ?? "", `Valor do item ${n + 1}`),
@@ -154,7 +184,29 @@ function extrair(conteudo: Buffer): {
     extracao: extracao.data,
     numeroDocumento: campos.get(`${base}/ide/nNF`) || null,
     codigosBarras: itens.map((i) => (i.cEAN && /^\d+$/.test(i.cEAN) ? i.cEAN : null)),
+    itensConferidos,
   };
+}
+
+/** "24.0000" com 4 casas vira o inteiro 240000n; recusa o que tem casas demais ou não é decimal. */
+function decimalFixo(texto: string, casas: number): bigint | null {
+  const m = /^(\d+)(?:\.(\d+))?$/.exec(texto);
+  if (!m || (m[2] ?? "").length > casas) return null;
+  return BigInt(`${m[1]}${(m[2] ?? "").padEnd(casas, "0")}`);
+}
+
+/**
+ * Confere quantidade x unitário contra o total do item com o unitário exato do XML (até 10 casas), em
+ * inteiros de precisão fixa. Fecha dentro de 1 centavo, a mesma folga da conferência em centavos.
+ */
+function totalExatoConfere(qtd: string, unitario: string, total: string): boolean {
+  const q = decimalFixo(qtd, 4);
+  const u = decimalFixo(unitario, 10);
+  const t = decimalFixo(total, 2);
+  if (q === null || u === null || t === null) return false;
+  // q (1e4) x u (1e10) tem escala 1e14; o total em centavos (1e2) sobe para 1e14 multiplicando por 1e12.
+  const diferenca = q * u - t * 10n ** 12n;
+  return (diferenca < 0n ? -diferenca : diferenca) <= BigInt(TOLERANCIA_ITEM_CENTAVOS) * 10n ** 12n;
 }
 
 /** Caminho dos nomes locais; dentro de `det` (itens repetidos) a raiz é omitida para casar os itens. */

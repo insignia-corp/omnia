@@ -18,6 +18,12 @@ import { FilaExtracao } from "./fila/fila-extracao";
 import { importarNfe } from "./nfe/importar-nfe";
 import { lerNfe } from "./nfe/ler-nfe";
 
+/** Violação de restrição única do PostgreSQL (23505), direta ou embrulhada pelo driver. */
+function ehViolacaoUnica(e: unknown): boolean {
+  const codigo = (x: unknown) => (x as { code?: unknown } | null)?.code;
+  return codigo(e) === "23505" || codigo((e as { cause?: unknown } | null)?.cause) === "23505";
+}
+
 export interface NotaRecebida {
   documentoId: string;
   status: string;
@@ -110,20 +116,28 @@ export class DocumentosService {
 
     // `gravarCompra` é idempotente por documento: reenviar o arquivo, ou retomar um envio que caiu
     // entre o insert e a gravação, não duplica a compra.
-    await importarNfe(this.db, {
-      comercianteId,
-      documentoId: doc.id,
-      leitura,
-      hoje: new Date().toISOString().slice(0, 10),
-      limiteConfiancaItem: this.env.LIMITE_CONFIANCA_ITEM,
-      limiteSimilaridade: this.env.LIMITE_SIMILARIDADE,
-    });
+    let concorrente = false;
+    try {
+      await importarNfe(this.db, {
+        comercianteId,
+        documentoId: doc.id,
+        leitura,
+        hoje: new Date().toISOString().slice(0, 10),
+        limiteConfiancaItem: this.env.LIMITE_CONFIANCA_ITEM,
+        limiteSimilaridade: this.env.LIMITE_SIMILARIDADE,
+      });
+    } catch (e) {
+      // Dois envios simultâneos do mesmo arquivo: o outro gravou a compra primeiro (única por
+      // documento). Este é só uma repetição, não um erro.
+      if (!ehViolacaoUnica(e)) throw e;
+      concorrente = true;
+    }
     const [atual] = await this.db
       .select({ status: documento.statusExtracao })
       .from(documento)
       .where(and(eq(documento.id, doc.id), eq(documento.comercianteId, comercianteId)))
       .limit(1);
-    return { documentoId: doc.id, status: atual?.status ?? "extraido", duplicado: !criado };
+    return { documentoId: doc.id, status: atual?.status ?? "extraido", duplicado: !criado || concorrente };
   }
 
   /** Estado do documento, com a compra e os itens quando a extração terminou. */

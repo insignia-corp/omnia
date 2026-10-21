@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import { somenteDigitos } from "../lib/cnpj/cnpj";
+import { identificadorDoFornecedor } from "../lib/cnpj/cnpj";
 import type { Db, Tx } from "../infra/database/database.module";
 import {
   compra,
@@ -39,9 +39,6 @@ export interface CompraGravada {
   /** Verdadeiro quando um job repetido encontrou a compra já gravada. */
   jaExistia: boolean;
 }
-
-/** CNPJ numérico tem 14 dígitos. Menos que isso é leitura ruim, e não serve de identificador. */
-const DIGITOS_CNPJ = 14;
 
 /**
  * Acha ou cria o fornecedor da nota. Com CNPJ legível a chave é o CNPJ. Sem ele (ilegível, "N/A")
@@ -128,12 +125,11 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
       };
     }
 
-    const digitos = somenteDigitos(extracao.fornecedor.cnpj);
     const fornecedorId = await obterFornecedor(
       tx,
       e,
       extracao.fornecedor.nome,
-      digitos.length === DIGITOS_CNPJ ? digitos : null,
+      identificadorDoFornecedor(extracao.fornecedor.cnpj),
       confiancaDocumento,
     );
 

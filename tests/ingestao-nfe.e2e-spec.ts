@@ -219,4 +219,85 @@ describe("ingestão de NF-e em XML (e2e)", () => {
     expect(perguntas.some((p) => p.tipo === "confirmar_documento")).toBe(true);
     expect(chamadasAoModelo).toBe(0);
   });
+
+  /** NF-e mínima com emitente, itens e total à escolha; `nNF` diferente dá hash diferente. */
+  const nfe = (o: { nNF: string; emitente?: string; itens: string; total: string }) =>
+    Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe>
+<ide><nNF>${o.nNF}</nNF><dhEmi>2026-10-18T10:30:00-03:00</dhEmi></ide>
+<emit>${o.emitente ?? "<CNPJ>22786541000120</CNPJ>"}<xNome>Fornecedor E2E NF-e</xNome></emit>
+${o.itens}
+<total><ICMSTot><vNF>${o.total}</vNF></ICMSTot></total>
+</infNFe></NFe></nfeProc>`);
+  const item = (qCom: string, vUnCom: string, vProd: string) =>
+    `<det><prod><xProd>ITEM ${qCom} ${vUnCom}</xProd><uCom>UN</uCom><qCom>${qCom}</qCom><vUnCom>${vUnCom}</vUnCom><vProd>${vProd}</vProd></prod></det>`;
+
+  it("item cujo unitário tem mais de 2 casas fecha a conta com o valor exato e não vai para revisão", async () => {
+    // 12 x 2,4575 = 29,49; com o unitário arredondado (2,46) daria 29,52.
+    const r = (
+      await enviar(a, nfe({ nNF: "9001", itens: item("12.0000", "2.4575", "29.49"), total: "29.49" })).expect(
+        202,
+      )
+    ).body as Envio;
+    const doc = await consultar(a, r.documento_id);
+    expect(r.status).toBe("extraido");
+    expect(doc.motivos.map((m) => m.codigo)).not.toContain("item_nao_confere");
+    expect(doc.compra!.itens[0]!.valor_unitario_centavos).toBe(246);
+    expect(doc.compra!.itens[0]!.valor_total_centavos).toBe(2949);
+  });
+
+  it("emitente com CNPJ alfanumérico ou CPF é guardado como fornecedor e não vai para revisão", async () => {
+    const alfa = (
+      await enviar(
+        a,
+        nfe({
+          nNF: "9002",
+          emitente: "<CNPJ>12ABC34501DE35</CNPJ>",
+          itens: item("1.0000", "5.00", "5.00"),
+          total: "5.00",
+        }),
+      ).expect(202)
+    ).body as Envio;
+    expect(alfa.status).toBe("extraido");
+    const cpf = (
+      await enviar(
+        a,
+        nfe({
+          nNF: "9003",
+          emitente: "<CPF>52998224725</CPF>",
+          itens: item("1.0000", "5.00", "5.00"),
+          total: "5.00",
+        }),
+      ).expect(202)
+    ).body as Envio;
+    expect(cpf.status).toBe("extraido");
+    expect((await consultar(a, alfa.documento_id)).motivos.map((m) => m.codigo)).not.toContain(
+      "cnpj_invalido",
+    );
+    const ids = (
+      await db
+        .select({ cnpj: schema.fornecedor.cnpj })
+        .from(schema.fornecedor)
+        .where(eq(schema.fornecedor.comercianteId, a))
+    ).map((f) => f.cnpj);
+    expect(ids).toEqual(expect.arrayContaining(["12ABC34501DE35", "52998224725"]));
+  });
+
+  it("quantidade que precisa de 4 casas é recusada com 422, sem deixar documento", async () => {
+    const antes = await db.select().from(schema.documento).where(eq(schema.documento.comercianteId, a));
+    await enviar(a, nfe({ nNF: "9004", itens: item("0.0004", "2.00", "0.00"), total: "0.00" })).expect(422);
+    const depois = await db.select().from(schema.documento).where(eq(schema.documento.comercianteId, a));
+    expect(depois).toHaveLength(antes.length);
+  });
+
+  it("dois envios simultâneos do mesmo XML dão uma compra só e nenhum erro", async () => {
+    const xmlNovo = nfe({ nNF: "9005", itens: item("2.0000", "3.00", "6.00"), total: "6.00" });
+    const [r1, r2] = await Promise.all([enviar(a, xmlNovo), enviar(a, xmlNovo)]);
+    expect([r1.status, r2.status]).toEqual([202, 202]);
+    const ids = new Set([(r1.body as Envio).documento_id, (r2.body as Envio).documento_id]);
+    expect(ids.size).toBe(1);
+    const [id] = [...ids];
+    const compras = await db.select().from(schema.compra).where(eq(schema.compra.documentoId, id!));
+    expect(compras).toHaveLength(1);
+  });
 });

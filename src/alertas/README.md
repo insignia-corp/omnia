@@ -45,4 +45,4 @@ Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado 
 ## Limites conhecidos
 
 - As sobreposições por comerciante ainda não têm onde ser guardadas: não há coluna ou tabela de configuração no modelo de dados, então só a fonte padrão existe. Guardar exige migração.
-- O motor ainda não é chamado por nenhum job nem pelo relatório diário (#45 e `list_alert_candidates`).
+- O motor é chamado pela ferramenta `list_alert_candidates` do agente (#52), que o roda para o comerciante e a data da sessão; ainda falta o job que o roda sem o agente (#45).

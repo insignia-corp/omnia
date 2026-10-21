@@ -126,6 +126,25 @@ describe("chat web (e2e)", () => {
     expect(modelo.chamadas - antes).toBe(1);
   });
 
+  it("reentrega simultânea do mesmo id_externo espera a primeira e não roda o agente duas vezes", async () => {
+    const id = randomUUID();
+    const antes = modelo.chamadas;
+    modelo.atrasoMs = 600;
+    try {
+      const envia = () =>
+        request(servidor())
+          .post("/chat/mensagens")
+          .set(como(a))
+          .send({ id_externo: id, texto: "Ao mesmo tempo" });
+      const [r1, r2] = await Promise.all([envia(), envia()]);
+      expect([r1.status, r2.status]).toEqual([200, 200]);
+      expect((r1.body as MensagemApi).id).toBe((r2.body as MensagemApi).id);
+    } finally {
+      modelo.atrasoMs = 0;
+    }
+    expect(modelo.chamadas - antes).toBe(1);
+  });
+
   it("um comerciante não vê as mensagens do outro", async () => {
     const lista = (await request(servidor()).get("/chat/mensagens").set(como(b)).expect(200))
       .body as MensagemApi[];

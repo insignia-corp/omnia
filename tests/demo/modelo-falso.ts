@@ -5,12 +5,18 @@ import type { ModeloLinguagem } from "../../src/agente/llm/modelo-linguagem";
 export class ModeloFalso implements ModeloLinguagem {
   readonly nome = "claude-opus-5-5";
   chamadas = 0;
+  /** Simula um modelo lento (ms); o teste pode ligar e desligar. */
+  atrasoMs = 0;
+  /** Roda no meio de cada chamada, por exemplo para mover um relógio falso. */
+  aoGerar: (() => void) | undefined;
 
   constructor(private readonly texto = "Tudo certo por aqui. Sigo de olho no seu negócio.") {}
 
-  gerar(): Promise<BetaMessage> {
+  async gerar(): Promise<BetaMessage> {
     this.chamadas++;
-    return Promise.resolve({
+    if (this.atrasoMs > 0) await new Promise((r) => setTimeout(r, this.atrasoMs));
+    this.aoGerar?.();
+    return {
       id: `msg_falsa_${this.chamadas}`,
       type: "message",
       role: "assistant",
@@ -23,6 +29,6 @@ export class ModeloFalso implements ModeloLinguagem {
         cache_read_input_tokens: 0,
         cache_creation_input_tokens: 0,
       },
-    } as unknown as BetaMessage);
+    } as unknown as BetaMessage;
   }
 }

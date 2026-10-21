@@ -330,6 +330,16 @@ describe("motor de alertas: opções do job pós-nota", () => {
     expect(repositorio.gravados).toEqual([]);
   });
 
+  it("semRepetirGravados só considera o mesmo tipo: outra regra com a mesma chave não barra", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    // Mesma chave do candidato de reajuste, mas de outro tipo (o repositório devolve só os tipos pedidos).
+    repositorio.existentes = [{ tipo: "estoque_parado", chave: "p1:f1:compra-16" }];
+    repositorio.jaGravados = () =>
+      Promise.resolve([{ tipo: "estoque_parado" as const, chave: "p1:f1:compra-16" }]);
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { semRepetirGravados: true });
+    expect(repositorio.gravados).toHaveLength(1);
+  });
+
   it("sem a opção, o motor diário grava de novo: o candidato de ontem volta a ser candidato de hoje", async () => {
     const { motor, repositorio } = motorCom([variacao()], giro(10));
     repositorio.existentes = [{ tipo: "reajuste_de_custo", chave: "p1:f1:compra-16" }];

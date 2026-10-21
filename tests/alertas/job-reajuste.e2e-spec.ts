@@ -147,7 +147,10 @@ describe("job de reajuste após cada nota (e2e)", () => {
         .from(schema.compra)
         .where(eq(schema.compra.comercianteId, vilaNova))
     ).flatMap((c) => (c.documentoId ? [{ ...c, documentoId: c.documentoId }] : []));
-    await redis.flushdb();
+    // Só as filas deste teste, não o Redis inteiro (REDIS_URL pode apontar para um Redis de desenvolvimento).
+    for (const nome of [FILA_REAJUSTE, FILA_EXTRACAO]) {
+      await new Queue(nome, { connection: redis }).obliterate({ force: true });
+    }
     filaReajuste.onModuleInit();
   });
 
@@ -187,7 +190,7 @@ describe("job de reajuste após cada nota (e2e)", () => {
       expect(espiao).toHaveBeenCalledTimes(1);
       expect(espiao).toHaveBeenCalledWith({ documentoId, comercianteId: vilaNova });
       expect((await reajustes(vilaNova)).map(chaveDe).sort()).toEqual(["P01|AUR", "P03|AUR"]);
-      // Rodar o verificador de novo, direto, também não duplica: a unique do banco segura.
+      // Rodar o verificador de novo, direto, também não duplica: semRepetirGravados barra o que já existe.
       const outra = await verificador.verificar({ documentoId, comercianteId: vilaNova });
       expect(outra.gravados).toBe(0);
       expect(await reajustes(vilaNova)).toHaveLength(2);

@@ -75,10 +75,16 @@ export const fonteDeLimitesPadrao: FonteDeLimites = {
   limitesDoComerciante: () => Promise.resolve({}),
 };
 
+/** Tira as chaves com valor indefinido: um `undefined` na sobreposição não pode apagar o padrão. */
+function definidos<T extends object>(valores: T | undefined): Partial<T> {
+  return Object.fromEntries(Object.entries(valores ?? {}).filter(([, v]) => v !== undefined)) as Partial<T>;
+}
+
 export function mesclarLimites(sobreposicao: SobreposicaoDeLimites): LimitesDeAlerta {
+  const { janelaSupressaoDias, ...resto } = sobreposicao;
   return {
     ...LIMITES_PADRAO,
-    ...sobreposicao,
-    janelaSupressaoDias: { ...LIMITES_PADRAO.janelaSupressaoDias, ...sobreposicao.janelaSupressaoDias },
+    ...definidos(resto),
+    janelaSupressaoDias: { ...LIMITES_PADRAO.janelaSupressaoDias, ...definidos(janelaSupressaoDias) },
   };
 }

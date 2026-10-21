@@ -4,6 +4,7 @@ import type { MetricasService } from "../metricas/metricas.service";
 import { dadoAusente, type ResultadoMetrica } from "../metricas/resultado-metrica";
 import type { VariacaoDeCusto } from "../metricas/variacao-de-custo";
 import { LIMITES_PADRAO, mesclarLimites, type SobreposicaoDeLimites } from "./limites";
+import { prioridadeDe } from "./prioridade";
 import { MetricasDaExecucao, type ContextoDasRegras, type RegraDeAlerta } from "./regra";
 import {
   regraEspacoParaSubirPreco,
@@ -67,7 +68,11 @@ const giroDoProduto = (id: string, extra: Partial<GiroDoProduto> = {}): GiroDoPr
   ...extra,
 });
 
-const giro = (produtos: GiroDoProduto[], altas = produtos, confianca = 1): ResultadoMetrica<Giro> =>
+const giro = (
+  produtos: GiroDoProduto[],
+  altas = produtos,
+  confianca: number | null = 1,
+): ResultadoMetrica<Giro> =>
   resultado(
     {
       periodos: { ultimos_7_dias: periodo, anteriores_28_dias: periodo },
@@ -139,6 +144,14 @@ describe("regra de reajuste de custo", () => {
     expect(candidatos).toEqual([]);
   });
 
+  it("compra com data depois da data de referência não conta", async () => {
+    const { candidatos } = await rodar(
+      regraReajusteDeCusto,
+      servicoCom([variacao({ compra_atual_data: "2026-10-20" })]),
+    );
+    expect(candidatos).toEqual([]);
+  });
+
   it("a compra de exatamente 7 dias ainda conta", async () => {
     const { candidatos } = await rodar(
       regraReajusteDeCusto,
@@ -181,6 +194,14 @@ describe("regra de margem abaixo da meta", () => {
     });
   });
 
+  it("confiança do giro desconhecida vale como baixa quando o impacto depende dele", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: () => Promise.resolve(giro([giroDoProduto("p1")], undefined, null)),
+      margensDosProdutos: () => Promise.resolve([{ produto_id: "p1", resultado: resultado(margem(), 0.95) }]),
+    });
+    expect(candidatos[0]?.confianca).toBeNull();
+  });
+
   it("sem giro o candidato sai sem impacto em reais (nunca zero) e com a confiança da margem", async () => {
     const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
       giro: () => Promise.resolve(dadoAusente("historico_insuficiente", "Faltam vendas.")),
@@ -195,6 +216,15 @@ describe("regra de margem abaixo da meta", () => {
       margensDosProdutos: () => Promise.resolve([{ produto_id: "p1", resultado: resultado(margem(), 0.9) }]),
     });
     expect(candidatos[0]?.confianca).toBe(0.5);
+  });
+
+  it("sem nenhuma margem (comerciante sem meta de margem), informa o motivo em vez de calar", async () => {
+    const r = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () => Promise.resolve([]),
+    });
+    expect(r.candidatos).toEqual([]);
+    expect(r.ausentes.map((a) => a.codigo)).toEqual(["sem_meta_de_margem"]);
   });
 
   it("dado ausente não vira candidato nem zero, e o motivo sai uma vez só", async () => {
@@ -215,6 +245,27 @@ describe("regra de margem abaixo da meta", () => {
 });
 
 describe("impacto até a meta de margem", () => {
+  it("preço já no preço-alvo (ou acima, por arredondamento da margem) não dá impacto negativo", async () => {
+    // Custo 2790 e meta 25%: preço-alvo 3720. Margem marcada abaixo da meta, mas o preço já é 3720.
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () =>
+        Promise.resolve([
+          { produto_id: "p1", resultado: resultado(margem({ preco_medio_venda_centavos: 3800 })) },
+        ]),
+    });
+    expect(candidatos[0]?.impactoCentavos).toBe(0);
+  });
+
+  it("meta acima de 100% não tem preço que a atinja: sem impacto", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () =>
+        Promise.resolve([{ produto_id: "p1", resultado: resultado(margem({ meta_bps: 12_000 })) }]),
+    });
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
+  });
+
   it("o preço-alvo arredonda para cima, para a meta de margem ficar garantida", async () => {
     // Custo 101 e meta 30%: 101 / 0,7 = 144,29. Com 144 a margem é 29,86%; só 145 atinge a meta.
     const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
@@ -249,6 +300,32 @@ describe("impacto até a meta de margem", () => {
   });
 });
 
+describe("valores que não cabem em centavos seguros", () => {
+  it("reajuste com volume absurdo não derruba o motor: candidato sem impacto", async () => {
+    const { candidatos } = await rodar(regraReajusteDeCusto, {
+      variacoesDeCusto: () => Promise.resolve(resultado([variacao()])),
+      giro: () => Promise.resolve(giro([giroDoProduto("p1", { unidades_7_dias: 1e18 })])),
+    });
+    expect(candidatos).toHaveLength(1);
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
+  });
+
+  it("preço-alvo cuja conta estoura os inteiros seguros: candidato sem impacto", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: () => Promise.resolve(giro([giroDoProduto("p1")])),
+      margensDosProdutos: () =>
+        Promise.resolve([
+          {
+            produto_id: "p1",
+            resultado: resultado(margem({ custo_compra_mais_recente_centavos: 10 ** 14 })),
+          },
+        ]),
+    });
+    expect(candidatos).toHaveLength(1);
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
+  });
+});
+
 describe("regra de giro em alta", () => {
   it("gera candidato para os de maior alta, sem impacto em reais", async () => {
     const { candidatos } = await rodar(regraGiroEmAlta, {
@@ -260,6 +337,12 @@ describe("regra de giro em alta", () => {
       impactoCentavos: null,
       metricasApoio: { alta_bps: 4400, unidades_7_dias: 36 },
     });
+  });
+
+  it("a fronteira do mínimo de alta: 1 ponto-base gera, e o limite do comerciante a desloca", async () => {
+    const servico = { giro: () => Promise.resolve(giro([giroDoProduto("p1", { alta_bps: 1 })])) };
+    expect((await rodar(regraGiroEmAlta, servico)).candidatos).toHaveLength(1);
+    expect((await rodar(regraGiroEmAlta, servico, { giroAltaMinimaBps: 1 })).candidatos).toEqual([]);
   });
 
   it("alta nula ou que não passa do mínimo não gera", async () => {
@@ -306,6 +389,20 @@ describe("regra de espaço para subir preço", () => {
     });
   });
 
+  it("a confiança é a menor entre a do giro e a da margem do próprio produto, e rebaixa a prioridade", async () => {
+    const dois = giro([giroDoProduto("p1", { unidades_7_dias: 400 })]);
+    const { candidatos } = await rodar(regraEspacoParaSubirPreco, {
+      giro: () => Promise.resolve({ ...dois, valor: { ...dois.valor, giro_alto: ["p1"] } }),
+      margensDosProdutos: () => Promise.resolve([{ produto_id: "p1", resultado: resultado(margem(), 0.5) }]),
+    });
+    const candidato = candidatos[0];
+    // 221 centavos a mais x 400 unidades = R$ 884: pediria prioridade 1 com confiança plena.
+    expect(candidato?.impactoCentavos).toBe(88_400);
+    expect(candidato?.confianca).toBe(0.5);
+    expect(candidato && prioridadeDe(candidato, LIMITES_PADRAO)).toBe(2);
+    expect(prioridadeDe({ impactoCentavos: 88_400, confianca: 1 }, LIMITES_PADRAO)).toBe(1);
+  });
+
   it("giro ausente não gera candidato", async () => {
     const r = await rodar(regraEspacoParaSubirPreco, {
       giro: () => Promise.resolve(dadoAusente("vendas_incompletas", "Faltam vendas.")),
@@ -339,12 +436,12 @@ describe("regra de estoque parado", () => {
 });
 
 describe("regra de ticket médio em queda", () => {
-  const ticket = (queda_bps: number) =>
+  const ticket = (queda_bps: number, extra: { cupons?: number; media?: number } = {}) =>
     resultado({
       data: REF,
-      cupons: 78,
+      cupons: extra.cupons ?? 78,
       ticket_medio_centavos: 1566,
-      media_28_dias_centavos: 2753,
+      media_28_dias_centavos: extra.media ?? 2753,
       queda_bps,
       queda_percentual: queda_bps / 100,
       queda_relevante: queda_bps >= 3000,
@@ -363,6 +460,14 @@ describe("regra de ticket médio em queda", () => {
     expect(
       (await rodar(regraTicketMedioEmQueda, { ticketMedio: () => Promise.resolve(ticket(3000)) })).candidatos,
     ).toHaveLength(1);
+  });
+
+  it("soma enorme que não cabe em centavos seguros: candidato sem impacto, nunca um número inventado", async () => {
+    const { candidatos } = await rodar(regraTicketMedioEmQueda, {
+      ticketMedio: () => Promise.resolve(ticket(4312, { cupons: 4_000_000, media: 4_000_000_000_000 })),
+    });
+    expect(candidatos).toHaveLength(1);
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
   });
 
   it("não gera abaixo do limite e respeita o limite do comerciante", async () => {
@@ -385,16 +490,40 @@ describe("regra de ticket médio em queda", () => {
 });
 
 describe("regra de gasto fora do padrão", () => {
-  const gasto = (desvio: number | null) =>
+  const gasto = (
+    desvio: number | null,
+    extra: { valor?: number; mediana?: number; diferenca?: number } = {},
+  ) =>
     resultado({
       data: REF,
-      valor_centavos: 101_534,
-      mediana_centavos: 6093,
+      valor_centavos: extra.valor ?? 101_534,
+      mediana_centavos: extra.mediana ?? 6093,
+      diferenca_para_mediana_centavos: extra.diferenca ?? 101_534 - 6093,
       desvio_absoluto_mediano_centavos: 1747,
       desvio,
       dias_de_historico: 60,
       acima_do_limite: desvio !== null && desvio > 3,
     });
+
+  it("o impacto arredonda a diferença uma vez só: 15000 menos a mediana 5000,5 é 10000, não 9999", async () => {
+    const { candidatos } = await rodar(regraGastoForaDoPadrao, {
+      // mediana_centavos 5001 já veio arredondada; a diferença exata é 9999,5.
+      gastoForaDoPadrao: () =>
+        Promise.resolve(gasto(54, { valor: 15_000, mediana: 5001, diferenca: 10_000 })),
+    });
+    expect(candidatos[0]?.impactoCentavos).toBe(10_000);
+  });
+
+  it("valor que não cabe em centavos seguros: candidato sem impacto", async () => {
+    for (const valor of [1e16, 5e15]) {
+      const { candidatos } = await rodar(regraGastoForaDoPadrao, {
+        gastoForaDoPadrao: () =>
+          Promise.resolve(gasto(54, { valor, mediana: 6093, diferenca: valor - 6093 })),
+      });
+      expect(candidatos).toHaveLength(1);
+      expect(candidatos[0]?.impactoCentavos).toBeNull();
+    }
+  });
 
   it("gera candidato com desvio acima do limite", async () => {
     const { candidatos } = await rodar(regraGastoForaDoPadrao, {
@@ -425,6 +554,22 @@ describe("regra de gasto fora do padrão", () => {
 });
 
 describe("limites padrão", () => {
+  it("sobreposição com valor indefinido não apaga o padrão", () => {
+    const limites = mesclarLimites({
+      reajusteLimiteBps: undefined,
+      janelaSupressaoDias: { giro_em_alta: undefined, estoque_parado: 14 },
+    });
+    expect(limites.reajusteLimiteBps).toBe(LIMITES_PADRAO.reajusteLimiteBps);
+    expect(limites.janelaSupressaoDias.giro_em_alta).toBe(7);
+    expect(limites.janelaSupressaoDias.estoque_parado).toBe(14);
+  });
+
+  it("zero e nulo são valores válidos de sobreposição", () => {
+    const limites = mesclarLimites({ giroAltaMinimaBps: 0, janelaSupressaoDias: { reajuste_de_custo: 0 } });
+    expect(limites.giroAltaMinimaBps).toBe(0);
+    expect(limites.janelaSupressaoDias.reajuste_de_custo).toBe(0);
+  });
+
   it("sobreposição parcial mantém o resto", () => {
     const limites = mesclarLimites({ reajusteLimiteBps: 900, janelaSupressaoDias: { estoque_parado: 14 } });
     expect(limites.reajusteLimiteBps).toBe(900);

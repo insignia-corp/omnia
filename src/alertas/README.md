@@ -6,7 +6,7 @@ Quem decide o que vai na mensagem do dia é o agente (`select_alerts`, no máxim
 
 ## Regras (#43)
 
-Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara com o limite do comerciante; o motor roda as sete em `motor-de-alertas.ts` e é idempotente (`comerciante + tipo + chave + data` é único).
+Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara com o limite do comerciante; o motor roda as sete em `motor-de-alertas.ts` e é idempotente (`comerciante + tipo + chave + data` é único). Repetir no mesmo dia com os mesmos dados não cria nem altera nada. Se os dados mudarem entre duas execuções do mesmo dia, o candidato que deixou de qualificar continua gravado como `candidato` (o motor só acrescenta); acompanhado em #157.
 
 | Tipo | Vira candidato quando | Chave |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ Nível de 1 (mais importante) a 3, por critério em `prioridade.ts`:
    - reajuste (semana): diferença de custo por unidade vezes as unidades vendidas nos últimos 7 dias;
    - margem abaixo da meta (semana): (preço-alvo menos preço médio) vezes as unidades dos últimos 7 dias, com preço-alvo = custo / (1 menos a meta), arredondado para cima para a meta ficar garantida;
    - espaço para subir preço (semana): o mesmo ganho por unidade vezes as unidades dos últimos 7 dias;
-   - ticket médio (dia): (média de 28 dias menos ticket do dia) vezes os cupons do dia;
+   - ticket médio (dia): (média de 28 dias menos ticket do dia) vezes os cupons do dia; é uma **estimativa aproximada**: subtrai dois valores já arredondados em centavos e multiplica pelos cupons, então o erro chega a meio centavo por cupom (cerca de R$ 2 com 400 cupons), o que pode mudar o nível perto dos limites;
    - gasto fora do padrão (dia): valor do dia menos a mediana.
 2. Impacto de R$ 500 ou mais é prioridade 1; de R$ 100 a R$ 499,99, prioridade 2; abaixo disso, 3.
 3. Sem impacto em reais (giro em alta, estoque parado, ou reajuste e margem sem giro) o candidato fica em 3: sem número, sem urgência.

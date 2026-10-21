@@ -175,6 +175,20 @@ describe("modelo de dados e seed (e2e)", () => {
       expect(erro?.code).toBe("23503");
     });
 
+    // Lê o banco já migrado: vale para a imagem do banco de teste, que é recriada a cada execução da CI.
+    // Num banco local antigo, uma tabela de outra branch pode aparecer na lista; rode `npm run db:reset`.
+    it("toda tabela do lojista tem comerciante_id obrigatório (regra inviolável 3)", async () => {
+      const semComerciante = await consultar<{ table_name: string }>(
+        `select t.table_name from information_schema.tables t
+         where t.table_schema = 'public' and t.table_type = 'BASE TABLE' and t.table_name <> 'comerciante'
+           and not exists (
+             select 1 from information_schema.columns c
+             where c.table_schema = 'public' and c.table_name = t.table_name
+               and c.column_name = 'comerciante_id' and c.is_nullable = 'NO')`,
+      );
+      expect(semComerciante.map((t) => t.table_name)).toEqual([]);
+    });
+
     it("consultas filtradas por comerciante_id nunca devolvem linhas do outro", async () => {
       for (const tabela of ["produto", "venda", "compra", "transacao", "fornecedor", "historico_custo"]) {
         const linhas = await consultar<{ comerciante_id: string }>(

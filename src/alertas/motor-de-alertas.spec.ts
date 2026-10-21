@@ -231,3 +231,36 @@ describe("motor de alertas: limite da janela de supressão", () => {
     expect(repositorio.gravados).toHaveLength(1);
   });
 });
+
+describe("motor de alertas: a supressão discrimina o tipo", () => {
+  it("alerta tratado de um tipo não suprime outro tipo com a mesma chave (o produto)", async () => {
+    const regra = (tipo: TipoAlerta): RegraDeAlerta => ({
+      tipo,
+      avaliar: () =>
+        Promise.resolve({
+          ausentes: [],
+          candidatos: [
+            {
+              tipo,
+              chave: "p1",
+              produtoId: null,
+              fornecedorId: null,
+              metricasApoio: {},
+              impactoCentavos: 0,
+              confianca: 1,
+            },
+          ],
+        }),
+    });
+    const repositorio = new RepositorioFalso();
+    // Giro em alta do produto p1 enviado ontem, dentro da janela: a margem do mesmo p1 é outro alerta.
+    repositorio.tratados = [{ tipo: "giro_em_alta", chave: "p1", dataReferencia: "2026-10-18" }];
+    const motor = new MotorDeAlertas({} as MetricasService, repositorio, semLimites, [
+      regra("giro_em_alta"),
+      regra("margem_abaixo_da_meta"),
+    ]);
+    const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(r.suprimidos.map((c) => c.tipo)).toEqual(["giro_em_alta"]);
+    expect(repositorio.gravados.map((g) => g.tipo)).toEqual(["margem_abaixo_da_meta"]);
+  });
+});

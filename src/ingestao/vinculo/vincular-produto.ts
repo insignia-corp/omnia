@@ -95,7 +95,9 @@ export async function buscarDescricaoConfirmada(
 /**
  * Textos que identificam cada produto do comerciante: o nome do catálogo (com o recorte de
  * `normalizarDescricao`) e as descrições que o dono já confirmou. Base da similaridade do vínculo de
- * nota e da busca por nome das ferramentas do agente.
+ * nota e da busca por nome das ferramentas do agente. A correção do dono entra como linha nova
+ * (histórico nunca é sobrescrito): só o vínculo mais recente de cada fornecedor e descrição entra
+ * na busca, e os anteriores ficam na tabela como histórico.
  */
 export function textosDosProdutos(comercianteId: string): SQL {
   return sql`
@@ -104,9 +106,13 @@ export function textosDosProdutos(comercianteId: string): SQL {
      where p.comerciante_id = ${comercianteId}
     union all
     select v.produto_id, p.nome, p.codigo_barras, v.descricao_normalizada as texto
-      from vinculo_descricao_produto v
-      join produto p on p.id = v.produto_id and p.comerciante_id = v.comerciante_id
-     where v.comerciante_id = ${comercianteId} and v.confirmado_pelo_dono`;
+      from (
+        select distinct on (fornecedor_id, descricao_normalizada) produto_id, descricao_normalizada
+          from vinculo_descricao_produto
+         where comerciante_id = ${comercianteId} and confirmado_pelo_dono
+         order by fornecedor_id, descricao_normalizada, criado_em desc
+      ) v
+      join produto p on p.id = v.produto_id and p.comerciante_id = ${comercianteId}`;
 }
 
 /**

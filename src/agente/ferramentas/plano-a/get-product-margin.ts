@@ -38,22 +38,22 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
       "aproximada. Sem certeza, devolve ambiguo: true com candidatos (produto_id, nome e codigo_barras, que pode ser nulo) " +
       "e um motivo: com mais de um, pergunte ao dono qual; com um só, confirme com o dono se é esse (sem adivinhar). " +
       "Se houver nomes iguais, cite o código de barras para o dono distinguir. Depois que o dono escolher, chame de novo " +
-      "com o produto_id do candidato escolhido no lugar de produto (informe só um dos dois); nunca escolha pelo dono. Pode vir como dado ausente " +
+      "com o mesmo produto e o produto_id do candidato escolhido (o produto_id decide); nunca escolha pelo dono. Pode vir como dado ausente " +
       "(ausente: true) sem venda na janela, sem custo ou produto não encontrado: diga isso ao dono. " +
       "Confira o campo nome do resultado: a busca é aproximada, então cite o produto que foi de fato achado. " +
       "menor_confianca já considera quanto o nome combina com o produto (confianca_da_busca): se for baixa, confirme com o dono. " +
       "Quando o produto foi achado mas falta dado (ausente: true), o resultado traz produto_id e nome: use esse produto_id em ask_owner.",
-    entrada: z
-      .strictObject({
-        produto: z.string().trim().min(2).max(120).optional().describe("Nome do produto, como o dono falou."),
-        produto_id: z
-          .uuid()
-          .optional()
-          .describe("Id do candidato que o dono escolheu, como veio em candidatos."),
-      })
-      .refine((e) => (e.produto === undefined) !== (e.produto_id === undefined), {
-        message: "Informe produto (o nome) ou produto_id (o candidato escolhido), só um dos dois.",
-      }),
+    // O nome é sempre obrigatório e o produto_id, quando vem, decide: assim o esquema que o modelo recebe
+    // (JSON Schema) diz tudo o que a validação exige, sem regra que só o Zod conhece.
+    entrada: z.strictObject({
+      produto: z.string().trim().min(2).max(120).describe("Nome do produto, como o dono falou."),
+      produto_id: z
+        .uuid()
+        .optional()
+        .describe(
+          "Id do candidato que o dono escolheu, como veio em candidatos. Quando vem, é ele que vale.",
+        ),
+    }),
     efeito: "nenhum",
     async executar(
       contexto,
@@ -63,7 +63,7 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
       const achado =
         entrada.produto_id !== undefined
           ? await buscarProdutoPorId(db, contexto.comercianteId, entrada.produto_id)
-          : await buscarProdutoPorNome(db, contexto.comercianteId, entrada.produto ?? "");
+          : await buscarProdutoPorNome(db, contexto.comercianteId, entrada.produto);
       if (achado.tipo === "vinculado") {
         const margem = await metricas.margemDoProduto(contexto, achado.produtoId);
         // O agente precisa do id validado (do comerciante da sessão) para chamar ask_owner no custo ausente.

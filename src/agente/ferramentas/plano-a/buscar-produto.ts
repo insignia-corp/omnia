@@ -1,8 +1,8 @@
-import { sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { LIMITE_SIMILARIDADE_PADRAO } from "../../../config/env";
 import type { Db } from "../../../infra/database/database.module";
+import { vinculoDescricaoProduto } from "../../../infra/database/schema";
 import {
-  buscarDescricaoConfirmada,
   decidirPorSimilaridade,
   textosDosProdutos,
   type CandidatoProduto,
@@ -43,10 +43,66 @@ export async function buscarProdutoPorId(
 }
 
 /**
+ * Produtos que a descrição confirmada pelo dono identifica quando não se sabe o fornecedor. A mesma
+ * descrição pode ser produtos diferentes em fornecedores diferentes (o vínculo guarda o fornecedor), e a
+ * correção do dono entra como linha nova: vale o vínculo mais recente de cada fornecedor.
+ */
+async function produtosDaDescricaoConfirmada(
+  db: Db,
+  comercianteId: string,
+  descricaoNormalizada: string,
+): Promise<string[]> {
+  const linhas = await db
+    .select({
+      produtoId: vinculoDescricaoProduto.produtoId,
+      fornecedorId: vinculoDescricaoProduto.fornecedorId,
+    })
+    .from(vinculoDescricaoProduto)
+    .where(
+      and(
+        eq(vinculoDescricaoProduto.comercianteId, comercianteId),
+        eq(vinculoDescricaoProduto.descricaoNormalizada, descricaoNormalizada),
+        eq(vinculoDescricaoProduto.confirmadoPeloDono, true),
+      ),
+    )
+    .orderBy(desc(vinculoDescricaoProduto.criadoEm));
+  const atualPorFornecedor = new Map<string | null, string>();
+  for (const l of linhas) {
+    if (!atualPorFornecedor.has(l.fornecedorId)) atualPorFornecedor.set(l.fornecedorId, l.produtoId);
+  }
+  return [...new Set(atualPorFornecedor.values())];
+}
+
+/** Os produtos dados, do comerciante da sessão, como candidatos para o dono escolher. */
+async function candidatosPorId(
+  db: Db,
+  comercianteId: string,
+  produtoIds: string[],
+): Promise<CandidatoDaBusca[]> {
+  const resultado = await db.execute<{ produto_id: string; nome: string; codigo_barras: string | null }>(sql`
+    select p.id as produto_id, p.nome, p.codigo_barras
+      from produto p
+     where p.comerciante_id = ${comercianteId}
+       and p.id in (${sql.join(
+         produtoIds.map((id) => sql`${id}`),
+         sql`, `,
+       )})
+     order by p.nome, p.id
+  `);
+  return resultado.rows.map((l) => ({
+    produtoId: l.produto_id,
+    nome: l.nome,
+    codigoBarras: l.codigo_barras,
+    similaridade: 1,
+  }));
+}
+
+/**
  * Procura um produto do comerciante pelo nome aproximado (`pg_trgm`), com o mesmo critério do
  * vínculo de notas: só escolhe sozinho se for claramente o melhor, senão devolve sugestões.
  * Compara também com as descrições que o dono já confirmou nas notas, e uma descrição confirmada
- * igual à digitada liga sozinha, como no vínculo de notas.
+ * igual à digitada liga sozinha, como no vínculo de notas. Se ela aponta para produtos diferentes em
+ * fornecedores diferentes, os produtos voltam como candidatos: sem o fornecedor, ninguém escolhe pelo dono.
  * A nota traz a descrição inteira; o dono digita só uma palavra ("arroz"), que a similaridade pelo
  * nome todo subestima. Quando nenhum nome chega ao limite pela similaridade do nome todo, vale a
  * `word_similarity` (a palavra dentro do nome). Se algum chega, a similaridade do nome todo decide
@@ -59,8 +115,11 @@ export async function buscarProdutoPorNome(
   nome: string,
 ): Promise<ProdutoAchado> {
   const consulta = normalizarDescricao(nome);
-  const confirmado = await buscarDescricaoConfirmada(db, comercianteId, consulta, null);
-  if (confirmado) return buscarProdutoPorId(db, comercianteId, confirmado);
+  const confirmados = await produtosDaDescricaoConfirmada(db, comercianteId, consulta);
+  if (confirmados.length === 1) return buscarProdutoPorId(db, comercianteId, confirmados[0]!);
+  if (confirmados.length > 1) {
+    return { tipo: "sugestao", candidatos: await candidatosPorId(db, comercianteId, confirmados) };
+  }
   const resultado = await db.execute<{
     produto_id: string;
     nome: string;

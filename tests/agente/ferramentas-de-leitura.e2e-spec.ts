@@ -350,7 +350,10 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       expect((ambiguo.candidatos ?? []).map((c) => c.codigo_barras).sort()).toEqual(CODIGOS);
 
       const escolhido = ambiguo.candidatos![0]!;
-      const saida = await chamar(dono, "get_product_margin", { produto_id: escolhido.produto_id });
+      const saida = await chamar(dono, "get_product_margin", {
+        produto: NOME,
+        produto_id: escolhido.produto_id,
+      });
       expect(saida.ambiguo).toBeUndefined();
       expect(saida).toMatchObject({ ausente: true, produto_id: escolhido.produto_id, nome: NOME });
     });
@@ -361,7 +364,10 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
         .from(schema.produto)
         .where(eq(schema.produto.comercianteId, vilaNova.comercianteId))
         .limit(1);
-      const saida = await chamar(esquina, "get_product_margin", { produto_id: deOutro!.id });
+      const saida = await chamar(esquina, "get_product_margin", {
+        produto: "arroz",
+        produto_id: deOutro!.id,
+      });
       expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
       expect(JSON.stringify(saida)).not.toContain(deOutro!.id);
     });
@@ -385,6 +391,84 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       const saida = await chamar(dono, "get_product_margin", { produto: "arroz tipo 1 5kg" });
       expect(saida.ambiguo).toBeUndefined();
       expect(saida).toMatchObject({ ausente: true, produto_id: produtoIds[0], nome: NOME });
+    });
+  });
+
+  describe("vínculos por fornecedor e correção do dono (revisão do Codex no PR 164)", () => {
+    let loja: ContextoSessao;
+    let integral = "";
+    let desnatado = "";
+    let fornecedores: string[] = [];
+
+    beforeAll(async () => {
+      const [c] = await db.insert(schema.comerciante).values({ nome: "E2E Vinculos" }).returning();
+      loja = { comercianteId: c!.id, nomeComercio: "E2E Vinculos", dataReferencia: REF };
+      const produtos = await db
+        .insert(schema.produto)
+        .values(
+          ["Leite integral 1L", "Leite desnatado 1L"].map((nome) => ({
+            comercianteId: c!.id,
+            nome,
+            origem: "planilha" as const,
+          })),
+        )
+        .returning({ id: schema.produto.id, nome: schema.produto.nome });
+      integral = produtos.find((p) => p.nome === "Leite integral 1L")!.id;
+      desnatado = produtos.find((p) => p.nome === "Leite desnatado 1L")!.id;
+      const fs = await db
+        .insert(schema.fornecedor)
+        .values(
+          ["Distribuidora Um", "Distribuidora Dois"].map((nome) => ({
+            comercianteId: c!.id,
+            nome,
+            origem: "dono" as const,
+          })),
+        )
+        .returning({ id: schema.fornecedor.id });
+      fornecedores = fs.map((f) => f.id);
+    });
+
+    afterAll(async () => {
+      await db.delete(schema.comerciante).where(eq(schema.comerciante.id, loja.comercianteId));
+    });
+
+    const vincular = (
+      descricaoNormalizada: string,
+      produtoId: string,
+      fornecedorId: string,
+      criadoEm: string,
+    ) =>
+      db.insert(schema.vinculoDescricaoProduto).values({
+        comercianteId: loja.comercianteId,
+        fornecedorId,
+        descricaoNormalizada,
+        produtoId,
+        metodo: "dono",
+        confianca: 1,
+        confirmadoPeloDono: true,
+        criadoEm: new Date(criadoEm),
+      });
+
+    it("a mesma descrição em fornecedores diferentes para produtos diferentes vira pergunta, não escolha", async () => {
+      await vincular("LEITE UHT CX", integral, fornecedores[0]!, "2026-10-01T10:00:00Z");
+      await vincular("LEITE UHT CX", desnatado, fornecedores[1]!, "2026-10-02T10:00:00Z");
+      const saida = await chamar(loja, "get_product_margin", { produto: "leite uht cx" });
+      expect(saida.ambiguo).toBe(true);
+      expect((saida.candidatos ?? []).map((c) => c.produto_id).sort()).toEqual([integral, desnatado].sort());
+    });
+
+    it("correção do dono vale na busca aproximada: o apelido antigo fica só no histórico", async () => {
+      await vincular("LEITE LONGA VIDA TP", integral, fornecedores[0]!, "2026-10-01T10:00:00Z");
+      await vincular("LEITE LONGA VIDA TP", desnatado, fornecedores[0]!, "2026-10-03T10:00:00Z");
+      const saida = await chamar(loja, "get_product_margin", { produto: "leite longa vida" });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(saida).toMatchObject({ produto_id: desnatado });
+      // O histórico não é apagado (regra 10): as duas linhas continuam na tabela.
+      const linhas = await db
+        .select()
+        .from(schema.vinculoDescricaoProduto)
+        .where(eq(schema.vinculoDescricaoProduto.descricaoNormalizada, "LEITE LONGA VIDA TP"));
+      expect(linhas).toHaveLength(2);
     });
   });
 

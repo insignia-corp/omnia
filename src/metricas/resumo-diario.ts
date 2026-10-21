@@ -89,13 +89,14 @@ function calcularSaldoDaConta(
   let contasNaData = 0;
   const usados: MovimentoDoDia[] = [];
   for (const conta of contas) {
+    // Conta aberta depois da data não existia nela: o saldo dela não importa, falte ou não o inicial.
+    if (conta.saldoInicialEm !== null && data < conta.saldoInicialEm) continue;
     if (conta.saldoInicialCentavos === null || conta.saldoInicialEm === null) {
       return dadoAusente(
         "sem_saldo_inicial",
         "A conta não tem saldo inicial informado, então o saldo é desconhecido.",
       );
     }
-    if (data < conta.saldoInicialEm) continue;
     contasNaData++;
     saldo += conta.saldoInicialCentavos;
     for (const m of movimentos) {

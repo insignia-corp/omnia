@@ -155,6 +155,15 @@ describe("calcularResumoDiario", () => {
       });
     });
 
+    it("conta aberta depois da data sem saldo inicial não bloqueia o saldo das outras", () => {
+      const nova = { id: "conta-2", saldoInicialCentavos: null, saldoInicialEm: "2026-10-25" };
+      expect(resumo({ contas: [conta, nova] }).valor.saldo_da_conta).toEqual({ saldo_centavos: 1_000_000 });
+      expect(resumo({ contas: [nova] }).valor.saldo_da_conta).toMatchObject({
+        ausente: true,
+        codigo: "conta_posterior_a_data",
+      });
+    });
+
     it("sem conta conectada o saldo é ausente, mas o resto do resumo sai", () => {
       const { valor } = resumo({ contas: [] });
       expect(valor.saldo_da_conta).toMatchObject({ ausente: true, codigo: "sem_conta" });

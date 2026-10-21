@@ -41,7 +41,7 @@ Gerados em 2026-10-21 sobre a `develop` em `60c46db`, com Node 24 (via `npx`), P
 
 ## Pendências
 
-- Eval com modelo real ainda não rodou (`npm run eval -- --modelo real` exige `ANTHROPIC_API_KEY`); custo e latência da decisão 0003 seguem estimativas até lá, e a troca do modelo padrão `claude-opus-5-5` por Sonnet (decisão 0002) depende dele.
+- Eval com modelo real ainda não rodou (`npm run eval -- --modelo real` exige `ANTHROPIC_API_KEY`); custo e latência da decisão 0003 seguem estimativas até lá, e o modelo padrão já é `claude-sonnet-5-5` (decisão 0002, trocado em 21/10/2026); o eval diz se o Opus compensa.
 - A chamada real ao modelo com visão (`cliente-visao-anthropic.ts`) não foi exercida: sem chave no ambiente. Primeiro uso: enviar 3 fotos de `fixtures/notas/` e conferir `execucao_agente`.
 - Extração de nota que falha não avisa o dono: `ProcessadorExtracao.falhar` só grava `documento.statusExtracao` e `erro` e registra a execução, e o `ConversaService` envia só o aviso inicial de leitura. Fica pendente até o worker enviar a mensagem fixa de falha (#158, em PR 163; detalhe em `src/ingestao/README.md`).
 - O relatório diário com modelo real ainda não fecha na `develop`: o `AgenteService` exige um `select_alerts` bem-sucedido ou um `list_alert_candidates` sem candidato, o catálogo real não tem `list_alert_candidates` (#52) e nada chama o motor de alertas até #45 e #52, então um relatório real termina no fallback de erro. Só os testes usam dublês.

@@ -83,6 +83,6 @@ export const CLIENTE_VISAO = Symbol("CLIENTE_VISAO");
         }),
     },
   ],
-  exports: [DocumentosService],
+  exports: [DocumentosService, FilaExtracao],
 })
 export class IngestaoModule {}

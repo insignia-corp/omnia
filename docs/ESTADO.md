@@ -8,10 +8,10 @@ Atualizado em: 2026-10-21 · commit base: `358d386` (`develop` após o PR 146) �
 
 - Etapa 0 (base): feita. Resta ligar a CI como status obrigatório na proteção das branches (#7) e o id de correlação por job (#10).
 - Etapa 1 (dados de teste e gabarito): feita. Falta só a revisão do gabarito de métricas por uma segunda pessoa (#16). Detalhe em `fixtures/README.md`.
-- Etapa 2 (ingestão): na `develop`, armazenamento, upload e fila BullMQ, Extrator com Zod, validações em código, revisão de item e pergunta ao dono, vínculo por catálogo, similaridade, código de barras e sugestão do modelo confirmada pelo dono (#27), planilha de vendas CSV e XLSX (#28) e NF-e em XML (#29). Falta a integração Pluggy (#30, P2, fora do escopo regional), o fluxo de resolução de importação parcial de planilha (#142) e a propagação de origem e confiança do produto (#144). Detalhe em `src/ingestao/README.md`.
+- Etapa 2 (ingestão): na `develop`, armazenamento, upload e fila BullMQ, Extrator com Zod, validações em código, revisão de item e pergunta ao dono, vínculo por catálogo, similaridade, código de barras e sugestão do modelo confirmada pelo dono (#27), planilha de vendas CSV e XLSX (#28) e NF-e em XML (#29). Falta a integração Pluggy em sandbox (#30, P2, adiada: só entra se sobrar tempo; o que está fora do escopo é o Open Finance real), o fluxo de resolução de importação parcial de planilha (#142) e a propagação de origem e confiança do produto (#144). Detalhe em `src/ingestao/README.md`.
 - Etapa 3 (métricas): feita, com o épico #31 fechado. Margem, variação de custo, giro, resumo diário, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço batem com o gabarito, e o conjunto de alertas esperados também (#41). Débitos em #143 (extrato por conta) e #148 (critério de receita). Detalhe em `src/metricas/README.md`.
 - Etapa 4 (motor de alertas): não começou na `develop`; `src/alertas` é casca. Em andamento por outra frente: #43, #44, depois #45 e #46.
-- Etapa 5 (agente): na `develop`, núcleo, verificador, registro de execuções, loop diário e modo conversa (#55), `ask_owner`, `save_owner_answer`, `send_message`, ação com confirmação do dono e preço-meta (#104). Aberto em PR 145: `get_daily_summary`, `get_top_products`, `get_product_margin` e `get_cost_changes` (#50, #51). Falta `list_alert_candidates` (#52, depende do motor de alertas).
+- Etapa 5 (agente): na `develop`, núcleo, verificador, registro de execuções, loop diário e modo conversa (#55), `ask_owner`, `save_owner_answer`, `propose_target_price` e `select_alerts` (o envio não é ferramenta: o `AgenteService` devolve o texto verificado e o `MessageChannel` entrega), ação com confirmação do dono e preço-meta (#104). Aberto em PR 145: `get_daily_summary`, `get_top_products`, `get_product_margin` e `get_cost_changes` (#50, #51). Falta `list_alert_candidates` (#52, depende do motor de alertas).
 - Etapa 6 (canal): na `develop`, `MessageChannel`, chat web como plano B, escolha por `CANAL`, relatório diário idempotente com horário de silêncio (#64, #66, #106). WhatsApp (#59 a #63) e áudio (#107) não começaram.
 - Etapa 7 (avaliação): o harness `npm run eval` existe (#68), com 2 casos de exemplo (q01 e q33). Faltam os casos de #69 a #74.
 - Etapa 8 (demo): dataset fixo com reset em um comando (#76) e tela de bastidores (#77) na `develop`. Faltam roteiro, gravação e checklist de congelamento (#78, #79, #111).
@@ -28,20 +28,24 @@ Gerados em 2026-10-21 sobre a `develop` em `358d386`, com Node 24 (via `npx`), P
 | Lint | 0 erros | `npm run lint` | 2026-10-21 |
 | Typecheck | 0 erros | `npm run typecheck` | 2026-10-21 |
 | Build | passa | `npm run build` | 2026-10-21 |
-| Eval (modelo falso) | 2 de 2 casos passam (q01 e q33, só exemplos) | `npm run seed:demo` e `npm run eval` | 2026-10-21 |
+| Eval (modelo falso) | 2 de 2 casos passam (q01 e q33, só exemplos); relatório em `docs/avaliacoes/2026-10-21-sistema-v2-falso.md` | `npm run seed:demo` e `npm run eval` | 2026-10-21 |
 | Vínculo nota-produto sem perguntar | 97,9% (92 de 94 itens das 18 notas), 0 ligações erradas; não reexecutado depois do vínculo por código de barras (#137) | `npm run test:e2e -- tests/vinculo` | 2026-10-20 |
 
 ## Em PR aberto
 
-- PR 145: ferramentas de leitura do agente (#50, #51), sem conflito com a `develop` e com a CI verde, ainda sem revisão.
-- PR 150: correção do verificador para que ids nas saídas das ferramentas não autorizem números, sem conflito e com a CI verde, ainda sem revisão.
-- PR 139: corrige o e2e "o dono confirma a nota"; a `develop` já tem a correção do PR 140, então ele conflita e está superado (decisão do dono).
-- O motor de alertas (#43, #44) e o job de reajuste (#45, #46) estão em andamento e sem PR aberto na data.
+- PR 145: ferramentas de leitura do agente (#50, #51).
+- PR 150: correção do verificador para que ids nas saídas das ferramentas não autorizem números.
+- PR 151: este checkpoint.
+- PR 152: guardas de CI (variáveis de ambiente contra `.env.example`, deriva de migrações e `comerciante_id` por tabela).
+- PR 153: motor de regras de alertas com prioridade e supressão (#43, #44).
+- PR 154: sobras da revisão do PR 134 (reset com job ativo, versão do painel, data da demo).
+- O PR 139 foi fechado: a `develop` já tem a correção do PR 140. O job de reajuste (#45, #46) está em andamento e sem PR aberto na data.
 
 ## Pendências
 
 - Eval com modelo real ainda não rodou (`npm run eval -- --modelo real` exige `ANTHROPIC_API_KEY`); custo e latência da decisão 0003 seguem estimativas até lá, e a troca do modelo padrão `claude-opus-5-5` por Sonnet (decisão 0002) depende dele.
 - A chamada real ao modelo com visão (`cliente-visao-anthropic.ts`) não foi exercida: sem chave no ambiente. Primeiro uso: enviar 3 fotos de `fixtures/notas/` e conferir `execucao_agente`.
+- Extração de nota que falha não avisa o dono: `ProcessadorExtracao.falhar` só grava `documento.statusExtracao` e `erro` e registra a execução, e o `ConversaService` envia só o aviso inicial de leitura. Fica pendente até o worker enviar a mensagem fixa de falha (detalhe em `src/ingestao/README.md`).
 - Planilha importada com linha rejeitada fica em `revisao` e as vendas dela entram nas métricas com confiança 0,5 sem caminho para voltar (#142).
 - O intervalo de extrato é um só para todas as contas; com duas contas, o gasto pode sair subestimado (#143).
 - A exclusão em cascata de um comerciante com a planilha da demo importada (cerca de 15 mil linhas) leva cerca de 6 s; considerar ao implementar a exclusão LGPD (#85).

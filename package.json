@@ -23,6 +23,7 @@
     "pino-http": "11.0.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
+    "saxes": "5.0.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -64,6 +65,7 @@
     "db:seed": "tsx src/infra/database/seed/semear.ts",
     "db:reset": "tsx src/infra/database/resetar.ts && tsx src/infra/database/migrar.ts",
     "demo:reset": "tsx scripts/demo/resetar-demo.ts",
-    "seed:demo": "npm run db:reset && npm run db:seed"
+    "seed:demo": "npm run db:reset && npm run db:seed",
+    "eval": "tsx src/avaliacao/cli.ts"
   }
 }

@@ -80,6 +80,20 @@ export function parseCentavos(texto: string): Centavos {
   return centavos(negativo ? -valor : valor);
 }
 
+/**
+ * Valor decimal com ponto de XML de NF-e, que traz até 10 casas (ex.: vUnCom "5.800000"). Só aceita
+ * dígitos e um ponto, sem sinal nem expoente. Arredonda meio para cima na terceira casa, por texto e
+ * inteiro, sem ponto flutuante.
+ */
+export function parseDecimalNfe(texto: string): Centavos {
+  const limpo = texto.trim();
+  if (!/^\d{1,13}(\.\d{1,10})?$/.test(limpo)) throw new ErroDinheiro(`Valor decimal inválido: "${texto}"`);
+  const [inteiro = "0", fracao = ""] = limpo.split(".");
+  const duas = fracao.padEnd(3, "0");
+  const base = Number(inteiro) * 100 + Number(duas.slice(0, 2));
+  return centavos(duas.charCodeAt(2) >= 53 ? base + 1 : base);
+}
+
 const formatador = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 /** Formata para exibição ao dono, ex.: "R$ 1.234,50". */

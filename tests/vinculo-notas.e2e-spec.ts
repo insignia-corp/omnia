@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { readFileSync } from "node:fs";
@@ -131,5 +132,41 @@ describe("vínculo da descrição da nota com o produto (e2e)", () => {
     expect((t.memoria + t.similaridadeCerto) / t.total).toBeGreaterThanOrEqual(0.9);
     // O que sobra vai ao dono com o produto certo entre as sugestões.
     expect(t.certoEntreSugestoes).toBe(t.perguntados);
+  });
+
+  describe("código de barras (#27)", () => {
+    const busca = (codigoBarras: string | null, comercianteId = comerciante) => ({
+      comercianteId,
+      fornecedorId: [...fornecedorDb.values()][0]!,
+      descricao: "DESCRICAO SEM NENHUMA SEMELHANCA QQQ",
+      limiteSimilaridade: env.LIMITE_SIMILARIDADE,
+      codigoBarras,
+    });
+
+    it("liga pelo GTIN mesmo com descrição sem semelhança", async () => {
+      const r = await buscarVinculo(db, busca(catalogo[0]!.codigo_barras));
+      expect(r).toEqual({
+        tipo: "vinculado",
+        produtoId: produtoDb.get(catalogo[0]!.id),
+        metodo: "codigo_barras",
+        confianca: 1,
+      });
+    });
+
+    it("dígito verificador errado cai na similaridade e não liga", async () => {
+      const errado =
+        catalogo[0]!.codigo_barras.slice(0, -1) + ((Number(catalogo[0]!.codigo_barras.at(-1)) + 1) % 10);
+      expect((await buscarVinculo(db, busca(errado))).tipo).not.toBe("vinculado");
+    });
+
+    it("código de outro comerciante não liga", async () => {
+      const [outro] = await db.insert(schema.comerciante).values({ nome: "E2E Vínculo Outro" }).returning();
+      try {
+        const r = await buscarVinculo(db, busca(catalogo[0]!.codigo_barras, outro!.id));
+        expect(r.tipo).not.toBe("vinculado");
+      } finally {
+        await db.delete(schema.comerciante).where(eq(schema.comerciante.id, outro!.id));
+      }
+    });
   });
 });

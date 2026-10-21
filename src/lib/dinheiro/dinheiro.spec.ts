@@ -4,6 +4,7 @@ import {
   formatarBRL,
   multiplicar,
   parseCentavos,
+  parseDecimalNfe,
   razao,
   somar,
   subtrair,
@@ -63,5 +64,20 @@ describe("dinheiro", () => {
   it("formata em BRL", () => {
     expect(formatarBRL(centavos(123450))).toBe("R$ 1.234,50");
     expect(formatarBRL(centavos(5))).toBe("R$ 0,05");
+  });
+
+  describe("parseDecimalNfe", () => {
+    it.each([
+      ["139.20", 13920],
+      ["5.800000", 580],
+      ["5.805", 581],
+      ["5.804", 580],
+      ["0.0049", 0],
+      ["12", 1200],
+    ])("%p vira %p", (texto, esperado) => expect(parseDecimalNfe(texto)).toBe(esperado));
+
+    it.each(["1e3", "-1", "1,5", "", "abc", "1.2.3", ".5"])("recusa %p", (texto) =>
+      expect(() => parseDecimalNfe(texto)).toThrow(ErroDinheiro),
+    );
   });
 });

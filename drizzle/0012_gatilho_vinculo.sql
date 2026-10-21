@@ -1,0 +1,1 @@
+ALTER TYPE "public"."gatilho_execucao" ADD VALUE 'vinculo_produto';

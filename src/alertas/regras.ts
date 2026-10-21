@@ -4,6 +4,7 @@
  * esses números. Dado ausente não vira candidato nem zero.
  */
 import { diasEntre } from "../lib/datas/datas";
+import { centavos, multiplicar } from "../lib/dinheiro/dinheiro";
 import { ehDadoAusente, type DadoAusente } from "../metricas/resultado-metrica";
 import {
   fonteDe,
@@ -56,7 +57,7 @@ export const regraReajusteDeCusto: RegraDeAlerta = {
         impactoCentavos:
           unidades === undefined
             ? null
-            : Math.round((v.custo_atual_centavos - v.custo_anterior_centavos) * unidades),
+            : multiplicar(centavos(v.custo_atual_centavos - v.custo_anterior_centavos), unidades),
         confianca: v.menor_confianca,
         metricasApoio: {
           produto_nome: v.nome,

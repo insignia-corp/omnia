@@ -13,6 +13,7 @@ import {
 } from "./gasto-fora-do-padrao";
 import { DIAS_DE_HISTORICO_DO_GIRO, calcularGiro, type Giro } from "./giro";
 import { PARAMETROS_MARGEM, calcularMargemDoProduto, type MargemDoProduto } from "./margem-por-produto";
+import { calcularReceitaPorProduto, DIAS_DA_RECEITA, type ReceitaPorProduto } from "./receita-por-produto";
 import type { FonteDeDadosMetricas } from "./repositorio-metricas";
 import { dadoAusente, ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "./resultado-metrica";
 import { DIAS_DE_COMPARACAO_DO_RESUMO, calcularResumoDiario, type ResumoDiario } from "./resumo-diario";
@@ -125,6 +126,20 @@ export class MetricasService {
       this.dados.intervaloDeVendas(comercianteId),
     ]);
     return calcularGiro({ produtos, vendas, intervaloDeVendas, dataReferencia });
+  }
+
+  /** Receita de cada produto nos últimos 7 dias, com o ranking dos de maior receita. */
+  async receitaPorProduto(
+    contexto: ContextoMetricas,
+  ): Promise<ResultadoMetrica<ReceitaPorProduto> | DadoAusente> {
+    const { comercianteId, dataReferencia } = contexto;
+    const desde = somarDias(dataReferencia, -(DIAS_DA_RECEITA - 1));
+    const [produtos, vendas, intervaloDeVendas] = await Promise.all([
+      this.dados.produtos(comercianteId),
+      this.dados.vendasPorProdutoPorDia(comercianteId, desde, dataReferencia),
+      this.dados.intervaloDeVendas(comercianteId),
+    ]);
+    return calcularReceitaPorProduto({ produtos, vendas, intervaloDeVendas, dataReferencia });
   }
 
   /** Resumo de um dia (a data de referência, se não for indicada outra). */

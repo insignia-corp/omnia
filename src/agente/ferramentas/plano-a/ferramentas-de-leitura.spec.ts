@@ -324,7 +324,43 @@ describe("ferramentas de leitura do plano A", () => {
       expect(alta.n_registros).toBe(12);
       expect(alta.menor_confianca).toBe(0.92);
       expect(f.entrada.parse({}).criterio).toBe("volume");
-      expect(f.entrada.safeParse({ criterio: "receita" }).success).toBe(false);
+      expect(f.entrada.safeParse({ criterio: "receita" }).success).toBe(true);
+      expect(f.entrada.safeParse({ criterio: "lucro" }).success).toBe(false);
+    });
+
+    it("receita devolve o ranking de receita da métrica, com a procedência dela", async () => {
+      const ranking = [
+        { produto_id: randomUUID(), nome: "Cerveja Lata", receita_centavos: 125990 },
+        { produto_id: randomUUID(), nome: "Água 500ml", receita_centavos: 80050 },
+      ];
+      const receitaPorProduto = jest.fn(async () =>
+        metrica({ periodo, por_produto: ranking, maior_receita: ranking }),
+      );
+      const f = criarGetTopProducts({ receitaPorProduto } as unknown as MetricasService);
+      const saida = (await f.executar(contexto, { criterio: "receita" })) as ResultadoMetrica<{
+        criterio: string;
+        produtos: typeof ranking;
+      }>;
+      expect(receitaPorProduto).toHaveBeenCalledWith(contexto);
+      expect(saida.valor).toEqual({ criterio: "receita", produtos: ranking });
+      expect([saida.n_registros, saida.menor_confianca, saida.origens, saida.periodo]).toEqual([
+        12,
+        0.92,
+        ["planilha"],
+        periodo,
+      ]);
+      // Regra 8: a receita em centavos autoriza o valor em reais, e só ele.
+      const autorizados = new NumerosAutorizados([saida]);
+      expect(verificarNumeros("Cerveja Lata faturou R$ 1.259,90.", autorizados).aprovado).toBe(true);
+      expect(verificarNumeros("Cerveja Lata faturou R$ 1.300,00.", autorizados).aprovado).toBe(false);
+    });
+
+    it("repassa a receita ausente", async () => {
+      const ausente = dadoAusente("historico_insuficiente", "Sem vendas na semana.");
+      const f = criarGetTopProducts({
+        receitaPorProduto: jest.fn(async () => ausente),
+      } as unknown as MetricasService);
+      expect(await f.executar(contexto, { criterio: "receita" })).toBe(ausente);
     });
 
     it("repassa o giro ausente", async () => {

@@ -513,6 +513,8 @@ export const historicoPrecoMeta = pgTable(
     /** Valor vigente antes desta mudança; nulo na primeira meta do produto. */
     anteriorCentavos: bigint("anterior_centavos", { mode: "number" }),
     origem: origemDado("origem").notNull().default("dono"),
+    /** Valor confirmado pelo dono: confiança 1, como as outras linhas de origem `dono`. */
+    confianca: real("confianca").notNull().default(1),
     criadoEm: criadoEm(),
   },
   (t) => [
@@ -523,6 +525,7 @@ export const historicoPrecoMeta = pgTable(
     }),
     index("historico_preco_meta_busca_idx").on(t.comercianteId, t.produtoId, t.criadoEm),
     check("historico_preco_meta_positivo", sql`${t.precoMetaCentavos} > 0`),
+    confiancaNaFaixa("historico_preco_meta_confianca_faixa", t.confianca),
   ],
 );
 

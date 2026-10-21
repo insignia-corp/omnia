@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { Executor } from "../../infra/database/database.module";
 
 /**
  * Contexto da sessão, montado pelo código a partir de quem está falando (número do WhatsApp,
@@ -10,6 +11,11 @@ export interface ContextoSessao {
   readonly nomeComercio: string;
   /** Data de referência da execução (ISO), para as ferramentas não dependerem do relógio. */
   readonly dataReferencia: string;
+  /**
+   * Só na escrita confirmada pelo "sim" (issue #104): a transação em que a proposta muda de estado. A
+   * ferramenta escreve por ela, então proposta e escrita valem juntas ou nenhuma vale.
+   */
+  readonly executor?: Executor;
 }
 
 /** O que a ferramenta faz no mundo. No MVP só `nenhum` e `escreve_config` (regra 7). */

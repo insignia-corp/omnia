@@ -83,7 +83,7 @@ export function criarSaveOwnerAnswer(db: Db) {
     },
     async executar(contexto, entrada) {
       const { comercianteId } = contexto;
-      return db.transaction(async (tx) => {
+      return (contexto.executor ?? db).transaction(async (tx) => {
         const [pergunta] = await tx
           .select()
           .from(perguntaDono)

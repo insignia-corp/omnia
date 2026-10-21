@@ -56,7 +56,7 @@ export function criarProposeTargetPrice(db: Db) {
     },
     async executar(contexto, entrada) {
       const { comercianteId } = contexto;
-      return db.transaction(async (tx) => {
+      return (contexto.executor ?? db).transaction(async (tx) => {
         const [atual] = await tx
           .select({ precoMeta: produto.precoMetaCentavos, nome: produto.nome })
           .from(produto)
@@ -70,6 +70,7 @@ export function criarProposeTargetPrice(db: Db) {
           precoMetaCentavos: entrada.preco_meta_centavos,
           anteriorCentavos: atual.precoMeta,
           origem: "dono",
+          confianca: 1,
         });
         await tx
           .update(produto)

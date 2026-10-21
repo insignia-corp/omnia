@@ -5,8 +5,10 @@ CREATE TABLE "historico_preco_meta" (
 	"preco_meta_centavos" bigint NOT NULL,
 	"anterior_centavos" bigint,
 	"origem" "origem_dado" DEFAULT 'dono' NOT NULL,
+	"confianca" real DEFAULT 1 NOT NULL,
 	"criado_em" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "historico_preco_meta_positivo" CHECK ("historico_preco_meta"."preco_meta_centavos" > 0)
+	CONSTRAINT "historico_preco_meta_positivo" CHECK ("historico_preco_meta"."preco_meta_centavos" > 0),
+	CONSTRAINT "historico_preco_meta_confianca_faixa" CHECK ("historico_preco_meta"."confianca" between 0 and 1)
 );
 --> statement-breakpoint
 ALTER TABLE "historico_preco_meta" ADD CONSTRAINT "historico_preco_meta_comerciante_id_comerciante_id_fk" FOREIGN KEY ("comerciante_id") REFERENCES "public"."comerciante"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

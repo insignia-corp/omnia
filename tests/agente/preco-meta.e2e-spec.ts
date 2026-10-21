@@ -13,7 +13,10 @@ import { RegistroExecucoesPostgres } from "../../src/agente/execucao/registro-ex
 import { criarAskOwner } from "../../src/agente/ferramentas/ask-owner";
 import type { ContextoSessao } from "../../src/agente/ferramentas/ferramenta";
 import { criarProposeTargetPrice } from "../../src/agente/ferramentas/propose-target-price";
-import { RegistroFerramentas } from "../../src/agente/ferramentas/registro-ferramentas";
+import {
+  RegistroFerramentas,
+  type ResultadoExecucaoFerramenta,
+} from "../../src/agente/ferramentas/registro-ferramentas";
 import { criarSaveOwnerAnswer } from "../../src/agente/ferramentas/save-owner-answer";
 import type { ModeloLinguagem, PedidoModelo } from "../../src/agente/llm/modelo-linguagem";
 import { carregarPromptSistema } from "../../src/agente/prompts/prompt-sistema";
@@ -66,7 +69,7 @@ describe("ação com confirmação do dono: preço-meta (e2e)", () => {
     itemId: string;
   }
 
-  async function criarLoja(nome: string): Promise<Loja> {
+  async function criarLoja(nome: string, nomeProduto = "Arroz Tipo 1 5kg"): Promise<Loja> {
     const [c] = await db.insert(schema.comerciante).values({ nome }).returning();
     comerciantes.push(c!.id);
     const [forn] = await db
@@ -75,7 +78,7 @@ describe("ação com confirmação do dono: preço-meta (e2e)", () => {
       .returning();
     const [prod] = await db
       .insert(schema.produto)
-      .values({ comercianteId: c!.id, nome: "Arroz Tipo 1 5kg", origem: "dono" })
+      .values({ comercianteId: c!.id, nome: nomeProduto, origem: "dono" })
       .returning();
     const [compra] = await db
       .insert(schema.compra)
@@ -201,20 +204,63 @@ describe("ação com confirmação do dono: preço-meta (e2e)", () => {
     });
   });
 
-  it("sem o sim nada muda: outra mensagem segue para o agente e a proposta continua pendente", async () => {
+  it("sem o sim nada muda: outra mensagem segue para o agente, encerra a proposta e o sim tardio não aplica nada", async () => {
     const loja = await criarLoja("Loja Sem Sim");
     await propor(loja, 1290, "R$ 12,90");
 
-    const modelo = new ModeloRoteirizado([texto("Não tenho dados para responder isso.")]);
     for (const fala of ["sim, mas com 15,90", "qual a margem do arroz?", "👍"]) {
-      modelo.respostas.push(texto("Não tenho dados para responder isso."));
+      await propor(loja, 1290, "R$ 12,90");
+      const modelo = new ModeloRoteirizado([texto("Não tenho dados para responder isso.")]);
       const r = await dizer(montar(modelo), loja, fala);
       expect(r.resultado).toBe("aprovada");
+      expect(modelo.pedidos).toHaveLength(1);
+      // A proposta só valia para a resposta imediata.
+      expect((await acoesDe(loja)).at(-1)).toMatchObject({ status: "cancelada", resposta: "superada" });
     }
-    expect(modelo.pedidos.length).toBeGreaterThan(0);
     expect((await produtoDe(loja)).precoMetaCentavos).toBeNull();
     expect(await metasDe(loja)).toHaveLength(0);
-    expect((await acoesDe(loja))[0]!.status).toBe("pendente");
+
+    // Um sim dito depois não encontra proposta e vai ao agente: nada é gravado.
+    const tardio = new ModeloRoteirizado([texto("Não entendi a que você se refere.")]);
+    await dizer(montar(tardio), loja, "sim");
+    expect(tardio.pedidos).toHaveLength(1);
+    expect(await metasDe(loja)).toHaveLength(0);
+  });
+
+  it("proposta, outra conversa no meio e só depois o sim: o sim não aplica a proposta velha", async () => {
+    const loja = await criarLoja("Loja Sim Tardio");
+    await propor(loja, 1290, "R$ 12,90");
+    await dizer(
+      montar(new ModeloRoteirizado([texto("Não tenho esse dado.")])),
+      loja,
+      "e o feijão, quanto custa?",
+    );
+    const r = await dizer(
+      montar(new ModeloRoteirizado([texto("Não sei a que você se refere.")])),
+      loja,
+      "isso mesmo",
+    );
+    expect(r.mensagem).toBe("Não sei a que você se refere.");
+    expect((await produtoDe(loja)).precoMetaCentavos).toBeNull();
+    expect(await metasDe(loja)).toHaveLength(0);
+  });
+
+  it("o relatório diário (mensagem do sistema) também encerra a proposta pendente", async () => {
+    const loja = await criarLoja("Loja Relatorio no Meio");
+    await propor(loja, 1290, "R$ 12,90");
+    await montar(new ModeloRoteirizado([texto("Sem alertas hoje.")])).executar({
+      contexto: loja.sessao,
+      gatilho: "nota_processada",
+      entrada: "Nota processada.",
+    });
+    expect((await acoesDe(loja))[0]).toMatchObject({ status: "cancelada", resposta: "superada" });
+    const r = await dizer(
+      montar(new ModeloRoteirizado([texto("Não sei a que você se refere.")])),
+      loja,
+      "sim",
+    );
+    expect(r.mensagem).toBe("Não sei a que você se refere.");
+    expect(await metasDe(loja)).toHaveLength(0);
   });
 
   it("com o sim, muda uma vez só: grava o preço, o histórico e responde sem chamar o modelo", async () => {
@@ -231,7 +277,13 @@ describe("ação com confirmação do dono: preço-meta (e2e)", () => {
 
     expect((await produtoDe(loja)).precoMetaCentavos).toBe(1290);
     expect(await metasDe(loja)).toMatchObject([
-      { precoMetaCentavos: 1290, anteriorCentavos: null, origem: "dono", produtoId: loja.produtoId },
+      {
+        precoMetaCentavos: 1290,
+        anteriorCentavos: null,
+        origem: "dono",
+        confianca: 1,
+        produtoId: loja.produtoId,
+      },
     ]);
     expect((await acoesDe(loja))[0]).toMatchObject({ status: "respondida", resposta: "sim" });
 
@@ -302,10 +354,19 @@ describe("ação com confirmação do dono: preço-meta (e2e)", () => {
     expect((await produtoDe(loja)).precoMetaCentavos).toBe(1490);
   });
 
-  it("pedir a mesma coisa de novo reaproveita a proposta aberta, sem duplicar", async () => {
+  it("pedir a mesma coisa duas vezes na mesma execução reaproveita a proposta, sem duplicar", async () => {
     const loja = await criarLoja("Loja Repetida");
-    await propor(loja, 1290, "R$ 12,90");
-    await propor(loja, 1290, "R$ 12,90");
+    const entrada = { produto_id: loja.produtoId, preco_meta_centavos: 1290 };
+    const pergunta =
+      'Quer que eu registre R$ 12,90 como preço-meta de "Arroz Tipo 1 5kg"? Responda sim ou não.';
+    const modelo = new ModeloRoteirizado([
+      resposta("tool_use", [
+        { type: "tool_use", id: "t1", name: "propose_target_price", input: entrada },
+        { type: "tool_use", id: "t2", name: "propose_target_price", input: entrada },
+      ]),
+      texto(pergunta),
+    ]);
+    await dizer(montar(modelo), loja, "Quero o arroz a R$ 12,90");
     expect(await acoesDe(loja)).toHaveLength(1);
   });
 
@@ -445,5 +506,73 @@ describe("ação com confirmação do dono: preço-meta (e2e)", () => {
     expect((await acoesDe(loja))[0]!.status).toBe("cancelada");
     expect(await metasDe(loja)).toHaveLength(0);
     expect(FALLBACK.erro).toBeDefined();
+  });
+
+  it("se o processo cai depois de gravar e antes de confirmar, nada fica gravado e o mesmo sim ainda vale", async () => {
+    const loja = await criarLoja("Loja Queda");
+    await propor(loja, 1290, "R$ 12,90");
+
+    class RegistroQueNaoTerminou extends RegistroFerramentas {
+      override async executarConfirmada(
+        ...args: Parameters<RegistroFerramentas["executarConfirmada"]>
+      ): Promise<ResultadoExecucaoFerramenta> {
+        await super.executarConfirmada(...args); // a escrita chegou a rodar...
+        throw new Error("processo caiu"); // ...mas a transação não chegou ao commit
+      }
+    }
+    const frágil = new RegistroQueNaoTerminou(
+      [criarAskOwner(db), criarSaveOwnerAnswer(db), criarProposeTargetPrice(db)],
+      new ConfirmacoesPostgres(db, VALIDADE_MIN, () => agora),
+    );
+    const agenteFragil = new AgenteService(
+      new ModeloRoteirizado(),
+      frágil,
+      registroExec,
+      carregarPromptSistema(),
+      { maxIteracoes: 8, maxRegeracoes: 1 },
+      new ConfirmacaoDoDono(db, frágil, () => agora),
+    );
+    const falhou = await dizer(agenteFragil, loja, "sim");
+    expect(falhou).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
+    expect((await produtoDe(loja)).precoMetaCentavos).toBeNull();
+    expect(await metasDe(loja)).toHaveLength(0);
+    expect((await acoesDe(loja))[0]!.status).toBe("pendente");
+
+    // O dono repete o sim e agora funciona, uma vez só.
+    const ok = await dizer(montar(new ModeloRoteirizado()), loja, "sim");
+    expect(ok.mensagem).toContain("Pronto, registrei R$ 12,90");
+    expect(await metasDe(loja)).toHaveLength(1);
+  });
+
+  it("produto com número por extenso ou número no nome: pergunta e aviso saem completos", async () => {
+    const loja = await criarLoja("Loja Nome Dificil", "Café Três Corações 500g");
+    const pergunta =
+      'Quer que eu registre R$ 18,90 como preço-meta de "Café Três Corações 500g"? Responda sim ou não.';
+    const modelo = new ModeloRoteirizado([
+      chamar("propose_target_price", { produto_id: loja.produtoId, preco_meta_centavos: 1890 }),
+      texto(pergunta),
+    ]);
+    const proposta = await dizer(montar(modelo), loja, "Quero o café a R$ 18,90");
+    expect(proposta).toMatchObject({ resultado: "aprovada", mensagem: pergunta });
+
+    const aviso = await dizer(montar(new ModeloRoteirizado()), loja, "sim");
+    expect(aviso.mensagem).toBe('Pronto, registrei R$ 18,90 como preço-meta de "Café Três Corações 500g".');
+    expect((await produtoDe(loja)).precoMetaCentavos).toBe(1890);
+  });
+
+  it("se o modelo propõe um valor e escreve outro, o dono recebe a pergunta com o valor que de fato vai gravar", async () => {
+    const loja = await criarLoja("Loja Valor Trocado");
+    const modelo = new ModeloRoteirizado([
+      chamar("propose_target_price", { produto_id: loja.produtoId, preco_meta_centavos: 1290 }),
+      // 15,90 é o que o dono escreveu, então o verificador sozinho aceitaria este texto.
+      texto('Quer que eu registre R$ 15,90 como preço-meta de "Arroz Tipo 1 5kg"? Responda sim ou não.'),
+      texto('Quer que eu registre R$ 15,90 como preço-meta de "Arroz Tipo 1 5kg"? Responda sim ou não.'),
+    ]);
+    const r = await dizer(montar(modelo), loja, "Quero o arroz a R$ 15,90");
+    expect(r.mensagem).toBe(
+      'Quer que eu registre R$ 12,90 como preço-meta de "Arroz Tipo 1 5kg"? Responda sim ou não.',
+    );
+    await dizer(montar(new ModeloRoteirizado()), loja, "sim");
+    expect((await produtoDe(loja)).precoMetaCentavos).toBe(1290);
   });
 });

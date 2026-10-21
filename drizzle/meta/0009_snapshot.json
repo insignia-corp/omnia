@@ -1,5 +1,5 @@
 {
-  "id": "9b2535da-80bf-484e-b381-1f14c5bffd9d",
+  "id": "d5aa3293-2c9c-4eac-9071-65cc62948ed0",
   "prevId": "7f6c18af-62b6-4411-b76c-402c1e7884a0",
   "version": "7",
   "dialect": "postgresql",
@@ -1478,6 +1478,13 @@
           "notNull": true,
           "default": "'dono'"
         },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
         "criado_em": {
           "name": "criado_em",
           "type": "timestamp with time zone",
@@ -1552,6 +1559,10 @@
         "historico_preco_meta_positivo": {
           "name": "historico_preco_meta_positivo",
           "value": "\"historico_preco_meta\".\"preco_meta_centavos\" > 0"
+        },
+        "historico_preco_meta_confianca_faixa": {
+          "name": "historico_preco_meta_confianca_faixa",
+          "value": "\"historico_preco_meta\".\"confianca\" between 0 and 1"
         }
       },
       "isRLSEnabled": false

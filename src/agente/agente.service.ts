@@ -80,9 +80,20 @@ export class AgenteService {
   async executar(pedido: PedidoAgente): Promise<RespostaAgente> {
     const inicio = performance.now();
     const { contexto } = pedido;
-    if (pedido.gatilho === "mensagem_dono" && this.confirmacao) {
-      const resolvida = await this.resolverConfirmacao(pedido, inicio);
-      if (resolvida) return resolvida;
+    if (this.confirmacao) {
+      if (pedido.gatilho === "mensagem_dono") {
+        const resolvida = await this.resolverConfirmacao(pedido, inicio);
+        if (resolvida) return resolvida;
+      }
+      // Qualquer outra coisa (outra pergunta do dono, relatório, nota) encerra a proposta pendente: ela só
+      // vale para a resposta imediata, senão um "sim" tardio aplicaria uma configuração velha.
+      try {
+        await this.confirmacao.invalidarPendentes(contexto);
+      } catch (e) {
+        this.logger.error(
+          `Não consegui encerrar a proposta pendente: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
     }
     // Com o fallback do servidor, cada resposta informa o modelo que de fato rodou: cada um tem seu preço.
     const consumoPorModelo = new Map<string, ConsumoTokens>();
@@ -103,6 +114,9 @@ export class AgenteService {
     let iteracoes = 0;
     // Verificador barrou a última resposta e a correção pedida não teve iteração para rodar.
     let correcaoSemIteracao = false;
+    // Perguntas de confirmação montadas em código nesta execução: o dono aprova exatamente esse texto.
+    const propostas: string[] = [];
+    let correcoesProposta = 0;
 
     try {
       while (iteracoes < this.limites.maxIteracoes) {
@@ -117,7 +131,7 @@ export class AgenteService {
         if (resposta.stop_reason === "tool_use") {
           messages.push({
             role: "user",
-            content: await this.rodarFerramentas(contexto, resposta, chamadas, autorizados),
+            content: await this.rodarFerramentas(contexto, resposta, chamadas, autorizados, propostas),
           });
           continue;
         }
@@ -137,7 +151,24 @@ export class AgenteService {
           erro = "Modelo terminou sem texto";
           break;
         }
-        const verificacao = verificarNumeros(texto, autorizados);
+        const proposta = propostas.at(-1);
+        if (proposta && !texto.includes(proposta)) {
+          // O que o dono confirma com o "sim" é o texto montado em código; se o modelo escrever outro valor, o
+          // "sim" aprovaria algo que ele não viu. Pede a pergunta exata e, se insistir, envia só a pergunta.
+          if (++correcoesProposta > this.limites.maxRegeracoes) {
+            resultado = "aprovada";
+            mensagem = proposta;
+            break;
+          }
+          messages.push({
+            role: "user",
+            content: `[sistema] Inclua na mensagem, sem mudar uma palavra, esta pergunta de confirmação: "${proposta}"`,
+          });
+          continue;
+        }
+        // A pergunta vem de código e o dono a aprova por inteiro: fica fora da conferência (o valor dela é o que
+        // ele vai confirmar, e o nome do produto, que pode ter "Três" ou "5kg", é cadastro, não quantidade).
+        const verificacao = verificarNumeros(proposta ? texto.replaceAll(proposta, " ") : texto, autorizados);
         if (verificacao.aprovado) {
           resultado = "aprovada";
           mensagem = texto;
@@ -259,6 +290,7 @@ export class AgenteService {
     resposta: BetaMessage,
     chamadas: ChamadaRegistrada[],
     autorizados: NumerosAutorizados,
+    propostas: string[],
   ): Promise<BetaToolResultBlockParam[]> {
     const pedidos = resposta.content.filter((b): b is BetaToolUseBlock => b.type === "tool_use");
     const execucoes = await Promise.all(
@@ -276,8 +308,7 @@ export class AgenteService {
         latenciaMs: r.latenciaMs,
       });
       if (!r.ok) {
-        // A pergunta de confirmação é montada em código: os números dela valem para a mensagem do dono.
-        if (r.confirmacao) autorizados.adicionarFonte(r.confirmacao.pergunta);
+        if (r.confirmacao) propostas.push(r.confirmacao.pergunta);
         return { type: "tool_result", tool_use_id: p.id, content: r.erro, is_error: true };
       }
       autorizados.adicionarFonte(r.saida);

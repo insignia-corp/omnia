@@ -20,6 +20,8 @@ export interface ResultadoConfirmacao {
 /** Porta usada pelo `AgenteService`; permite dublê nos testes do loop. */
 export interface ResolveConfirmacao {
   tratar(contexto: ContextoSessao, texto: string): Promise<ResultadoConfirmacao | null>;
+  /** Encerra a proposta pendente quando a conversa seguiu para outro assunto (ela só vale para a resposta imediata). */
+  invalidarPendentes(contexto: ContextoSessao): Promise<void>;
 }
 
 export const FALA_CONFIRMACAO = {
@@ -48,9 +50,10 @@ export class ConfirmacaoDoDono implements ResolveConfirmacao {
     const latencia = () => Math.round(performance.now() - inicio);
     const { comercianteId } = contexto;
 
-    // A reivindicação é atômica: o `for update` e a troca de status valem para um "sim" só, mesmo com
-    // duas mensagens ao mesmo tempo. A escrita roda depois, fora desta transação.
-    const decisao = await this.db.transaction(async (tx) => {
+    // Tudo numa transação: o `for update` segura a proposta, a escrita da ferramenta entra na mesma transação
+    // e o status só muda junto com ela. Dois "sim" simultâneos esperam um pelo outro (e o segundo já não
+    // encontra proposta pendente); se o processo cair no meio, nada foi gravado e o mesmo "sim" ainda vale.
+    return this.db.transaction(async (tx) => {
       const [pergunta] = await tx
         .select()
         .from(perguntaDono)
@@ -65,73 +68,86 @@ export class ConfirmacaoDoDono implements ResolveConfirmacao {
         .for("update")
         .limit(1);
       if (!pergunta) return null;
-      const acao = acaoPendenteSchema.safeParse(pergunta.contexto);
-      const quando = new Date();
       const marcar = (status: "respondida" | "cancelada" | "expirada", resp: string) =>
         tx
           .update(perguntaDono)
-          .set({ status, resposta: resp, respondidaEm: quando })
+          .set({ status, resposta: resp, respondidaEm: new Date() })
           .where(and(eq(perguntaDono.id, pergunta.id), eq(perguntaDono.comercianteId, comercianteId)));
+      const acao = acaoPendenteSchema.safeParse(pergunta.contexto);
       if (!acao.success) {
         await marcar("cancelada", "proposta ilegível");
         return null;
       }
+      const chamada = (saida: unknown, erro: string | null): ChamadaRegistrada => ({
+        ordem: 1,
+        ferramenta: "confirm_pending_action",
+        entrada: { pergunta_id: pergunta.id, ferramenta: acao.data.ferramenta, resposta },
+        saida,
+        erro,
+        menorConfianca: null,
+        latenciaMs: latencia(),
+      });
+
       if (new Date(acao.data.expira_em) <= this.agora()) {
         await marcar("expirada", resposta);
-        return { tipo: "expirada" as const, perguntaId: pergunta.id, acao: acao.data };
+        return {
+          mensagem: FALA_CONFIRMACAO.expirada,
+          chamada: chamada({ status: "expirada" }, null),
+          sucesso: true,
+        };
       }
       if (resposta === "nao") {
         await marcar("cancelada", "nao");
-        return { tipo: "cancelada" as const, perguntaId: pergunta.id, acao: acao.data };
+        return {
+          mensagem: FALA_CONFIRMACAO.cancelada,
+          chamada: chamada({ status: "cancelada" }, null),
+          sucesso: true,
+        };
+      }
+
+      const r = await this.ferramentas.executarConfirmada(
+        { ...contexto, executor: tx },
+        acao.data.ferramenta,
+        acao.data.entrada,
+      );
+      if (!r.ok) {
+        // A escrita da ferramenta foi desfeita (ponto de salvamento); a proposta não volta a valer.
+        await marcar("cancelada", `falha: ${r.erro}`.slice(0, 500));
+        return { mensagem: FALA_CONFIRMACAO.falha, chamada: chamada(null, r.erro), sucesso: false };
       }
       await marcar("respondida", "sim");
-      return { tipo: "confirmada" as const, perguntaId: pergunta.id, acao: acao.data };
-    });
-    if (!decisao) return null;
-
-    const chamada = (saida: unknown, erro: string | null): ChamadaRegistrada => ({
-      ordem: 1,
-      ferramenta: "confirm_pending_action",
-      entrada: { pergunta_id: decisao.perguntaId, ferramenta: decisao.acao.ferramenta, resposta },
-      saida,
-      erro,
-      menorConfianca: null,
-      latenciaMs: latencia(),
-    });
-
-    if (decisao.tipo === "expirada") {
       return {
-        mensagem: FALA_CONFIRMACAO.expirada,
-        chamada: chamada({ status: "expirada" }, null),
+        mensagem: this.aviso(acao.data.resumo, r.saida, acao.data.entrada, contexto),
+        chamada: chamada({ status: "executada", resultado: r.saida }, null),
         sucesso: true,
       };
-    }
-    if (decisao.tipo === "cancelada") {
-      return {
-        mensagem: FALA_CONFIRMACAO.cancelada,
-        chamada: chamada({ status: "cancelada" }, null),
-        sucesso: true,
-      };
-    }
+    });
+  }
 
-    const r = await this.ferramentas.executarConfirmada(
-      contexto,
-      decisao.acao.ferramenta,
-      decisao.acao.entrada,
-    );
-    if (!r.ok) {
-      // Uma vez reivindicada, a proposta não volta a ficar pendente: no máximo o dono pede de novo.
-      await this.db
-        .update(perguntaDono)
-        .set({ status: "cancelada", resposta: `falha: ${r.erro}`.slice(0, 500) })
-        .where(and(eq(perguntaDono.id, decisao.perguntaId), eq(perguntaDono.comercianteId, comercianteId)));
-      return { mensagem: FALA_CONFIRMACAO.falha, chamada: chamada(null, r.erro), sucesso: false };
-    }
-    // Mesma regra 8 do resto: o aviso só carrega número que a própria execução devolveu ou que o dono viu.
-    const fontes = new NumerosAutorizados([r.saida, decisao.acao.entrada, contexto.dataReferencia]);
-    const mensagem = verificarNumeros(decisao.acao.resumo, fontes).aprovado
-      ? decisao.acao.resumo
-      : FALA_CONFIRMACAO.generica;
-    return { mensagem, chamada: chamada({ status: "executada", resultado: r.saida }, null), sucesso: true };
+  async invalidarPendentes(contexto: ContextoSessao): Promise<void> {
+    await this.db
+      .update(perguntaDono)
+      .set({ status: "cancelada", resposta: "superada", respondidaEm: new Date() })
+      .where(
+        and(
+          eq(perguntaDono.comercianteId, contexto.comercianteId),
+          eq(perguntaDono.tipo, "confirmar_acao"),
+          eq(perguntaDono.status, "pendente"),
+        ),
+      );
+  }
+
+  /**
+   * Mesma regra 8 do resto: o aviso só carrega número que a própria execução devolveu ou que o dono viu.
+   * O nome do produto (cadastro, pode ter "5kg" ou "Três") fica fora da conferência.
+   */
+  private aviso(resumo: string, saida: unknown, entrada: unknown, contexto: ContextoSessao): string {
+    const nome =
+      saida && typeof saida === "object" && "produto_nome" in saida && typeof saida.produto_nome === "string"
+        ? saida.produto_nome
+        : "";
+    const conferido = nome ? resumo.replaceAll(nome, " ") : resumo;
+    const fontes = new NumerosAutorizados([saida, entrada, contexto.dataReferencia]);
+    return verificarNumeros(conferido, fontes).aprovado ? resumo : FALA_CONFIRMACAO.generica;
   }
 }

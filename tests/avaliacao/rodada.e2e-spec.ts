@@ -6,7 +6,7 @@ import { Logger } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { casosDeExemplo } from "../../src/avaliacao/casos/exemplos";
+import { todosOsCasos } from "../../src/avaliacao/casos/index";
 import { chamar, texto } from "../../src/avaliacao/modelo-roteirizado";
 import { gravarRodada } from "../../src/avaliacao/relatorio";
 import { ErroAvaliacao, rodarAvaliacao } from "../../src/avaliacao/rodada";
@@ -71,7 +71,11 @@ describe("rodada de avaliação com banco real (e2e)", () => {
       env,
       modo: "falso",
       comercianteId,
-      catalogoDeCasos: [...casosDeExemplo(), casoDoVerificador, casoQueFalha],
+      catalogoDeCasos: [
+        ...todosOsCasos().filter((c) => c.id === "q01" || c.id === "q33"),
+        casoDoVerificador,
+        casoQueFalha,
+      ],
     });
 
     expect(rodada).toMatchObject({ modo: "falso", versaoPrompt: "sistema-v2", comerciante: "E2E Avaliação" });

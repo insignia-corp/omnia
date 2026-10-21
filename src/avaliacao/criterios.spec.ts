@@ -67,6 +67,20 @@ describe("numero_correto", () => {
     expect(motivos).toEqual([expect.stringContaining("n1 (78 cupons)")]);
   });
 
+  it("com `textos`, o nome do produto tem de aparecer, sem diferenciar maiúscula nem acento", () => {
+    const criterio: Criterio = {
+      tipo: "numero_correto",
+      numeros: [{ rotulo: "margem", valor: 5181, unidade: "percentual" }],
+      textos: ["Água mineral sem gás 1,5L"],
+    };
+    const com = execucao({ mensagemFinal: "A maior margem é de agua mineral sem gas 1,5l: 5181%." });
+    expect(avaliarCriterios(caso(criterio), com)).toEqual([]);
+    const sem = execucao({ mensagemFinal: "A maior margem é de 5181%." });
+    expect(avaliarCriterios(caso(criterio), sem)).toEqual([
+      "Nome ausente na mensagem: Água mineral sem gás 1,5L",
+    ]);
+  });
+
   it("valor em centavos escrito como se fosse reais não conta", () => {
     const c = caso(numeros([122151, "centavos"]));
     expect(avaliarCriterios(c, execucao({ mensagemFinal: "Vendeu R$ 122.151,00." }))).toHaveLength(1);

@@ -6,7 +6,13 @@ const REF = "2026-10-19";
 /** Vendas importadas de 15/09 a 19/10: as duas janelas inteiras. */
 const COBERTURA = { primeira: "2026-09-15", ultima: REF };
 
-const produto = (id: string, nome = id): ProdutoParaMetrica => ({ id, nome, margemMetaBps: null });
+const produto = (id: string, nome = id): ProdutoParaMetrica => ({
+  id,
+  nome,
+  margemMetaBps: null,
+  origem: "dono",
+  confianca: 1,
+});
 
 const venda = (
   produtoId: string,
@@ -264,7 +270,18 @@ describe("calcularGiro", () => {
       });
       expect(r.n_registros).toBe(5);
       expect(r.menor_confianca).toBe(0.9);
-      expect(r.origens).toEqual(["planilha"]);
+      expect(r.origens).toEqual(["dono", "planilha"]);
+    });
+
+    it("produto de catálogo sem venda informa a origem e a confiança do cadastro", () => {
+      const r = calcular({
+        produtos: [{ ...produto("a"), origem: "foto_nota", confianca: 0.6 }, produto("b")],
+        vendas: [venda("b", "2026-10-15", 5)],
+      });
+      expect(doProduto(r, "a").unidades_7_dias).toBe(0);
+      expect(r.menor_confianca).toBe(0.6);
+      expect(r.origens).toEqual(["dono", "foto_nota", "planilha"]);
+      expect(r.n_registros).toBe(1);
     });
 
     it("ignora venda de produto que não está na lista", () => {

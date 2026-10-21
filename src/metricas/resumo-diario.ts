@@ -178,8 +178,9 @@ export function calcularResumoDiario(
     : [];
   const gastos = saidasDoDia.reduce((soma, m) => soma + m.totalCentavos, 0);
   const saldoCalculado = calcularSaldoDaConta(data, entrada.contas, entrada.movimentos);
-  // Extrato que termina antes do dia não traz os movimentos dele: o saldo calculado estaria defasado.
-  const saldoDefasado = intervaloDoExtrato !== null && data > intervaloDoExtrato.ultima;
+  // Dia fora do período em que todas as contas exigidas têm extrato (termina antes dele, ou só
+  // começa depois): faltam movimentos de alguma conta e o saldo calculado estaria errado.
+  const saldoDefasado = intervaloDoExtrato !== null && !extratoCobreODia;
   const saldoDaConta = !("ausente" in saldoCalculado) && saldoDefasado ? semExtrato : saldoCalculado;
   for (const m of saidasDoDia) fontes.add(m);
   if (!("ausente" in saldoDaConta)) for (const m of saldoDaConta.usados) fontes.add(m);

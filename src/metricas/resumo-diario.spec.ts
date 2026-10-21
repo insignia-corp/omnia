@@ -128,6 +128,13 @@ describe("calcularResumoDiario", () => {
       expect(valor.faturamento_centavos).toBe(100_000);
     });
 
+    it("extrato que só começa depois do dia também deixa o saldo da conta ausente", () => {
+      const { valor } = resumo({
+        intervaloDeMovimentos: { primeira: "2026-10-20", ultima: "2026-10-25" },
+      });
+      expect(valor.saldo_da_conta).toMatchObject({ ausente: true, codigo: "dia_sem_extrato" });
+    });
+
     it("extrato que termina antes do dia também deixa o saldo da conta ausente, não defasado", () => {
       const { valor } = resumo({
         movimentos: [movimento("2026-10-18", "saida", 50_000)],

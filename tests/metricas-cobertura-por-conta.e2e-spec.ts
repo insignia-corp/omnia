@@ -64,7 +64,7 @@ describe("métricas e extrato por conta (e2e)", () => {
     comercianteId = c.id;
 
     await db.insert(schema.venda).values(
-      [FIM_DA_CONTA_A, DIA_SO_DA_CONTA_B].map((data) => ({
+      ["2026-09-05", FIM_DA_CONTA_A, DIA_SO_DA_CONTA_B].map((data) => ({
         comercianteId,
         data,
         numeroCupom: `cupom-${data}`,
@@ -101,6 +101,16 @@ describe("métricas e extrato por conta (e2e)", () => {
     const ausente = { ausente: true, codigo: "dia_sem_extrato" };
     expect(r.valor.gastos_centavos).toMatchObject(ausente);
     expect(r.valor.saldo_do_dia_centavos).toMatchObject(ausente);
+    expect(r.valor.saldo_da_conta).toMatchObject(ausente);
+  });
+
+  it("dia anterior ao primeiro extrato da conta B: gastos, saldo do dia e saldo da conta ausentes", async () => {
+    const r = await servico.resumoDiario(contexto("2026-09-05"), "2026-09-05");
+    if (ehDadoAusente(r)) throw new Error(`Esperava resumo, veio ausente: ${r.codigo}`);
+    const ausente = { ausente: true, codigo: "dia_sem_extrato" };
+    expect(r.valor.gastos_centavos).toMatchObject(ausente);
+    expect(r.valor.saldo_do_dia_centavos).toMatchObject(ausente);
+    // Sem o extrato da conta B, o saldo somaria o saldo inicial dela e só os movimentos da A.
     expect(r.valor.saldo_da_conta).toMatchObject(ausente);
   });
 

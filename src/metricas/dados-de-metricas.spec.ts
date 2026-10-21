@@ -204,5 +204,24 @@ describe("cobertura do extrato por conta", () => {
     it("sem conta exigida o intervalo é nulo", () => {
       expect(intervaloComumDeMovimentos(DIA, [], [])).toBeNull();
     });
+
+    it("conta sem data de abertura conta como aberta e exige extrato", () => {
+      const contas = [conta("a"), conta("b", { saldoInicialEm: null })];
+      expect(contasExigidasNoDia(DIA, contas).map((c) => c.id)).toEqual(["a", "b"]);
+      expect(intervaloComumDeMovimentos(DIA, contas, [intervalo("a", "2026-09-01", DIA)])).toBeNull();
+    });
+
+    it("extratos que não se cruzam dão um intervalo vazio, em que nenhum dia cabe", () => {
+      const contas = [conta("a"), conta("b")];
+      const intervalos = [
+        intervalo("a", "2026-09-01", "2026-09-05"),
+        intervalo("b", "2026-09-10", "2026-09-20"),
+      ];
+      const comum = intervaloComumDeMovimentos("2026-09-12", contas, intervalos);
+      expect(comum).toEqual({ primeira: "2026-09-10", ultima: "2026-09-05" });
+      for (const dia of ["2026-09-03", "2026-09-07", "2026-09-12"]) {
+        expect(dia >= comum!.primeira && dia <= comum!.ultima).toBe(false);
+      }
+    });
   });
 });

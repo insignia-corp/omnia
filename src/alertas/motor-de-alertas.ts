@@ -11,11 +11,19 @@ import { compararCandidatos, ordenarGravados, prioridadeDe } from "./prioridade"
 import { MetricasDaExecucao, type CandidatoDeAlerta, type MotivoAusente, type RegraDeAlerta } from "./regra";
 import type { AlertaGravado, RepositorioAlertas } from "./repositorio-alertas";
 import { REGRAS_DE_ALERTA } from "./regras";
+import type { TipoAlerta } from "./tipos";
 
 export interface ContextoDoMotor {
   /** Vem da sessão, nunca do modelo. */
   comercianteId: string;
   dataReferencia: string;
+}
+
+export interface OpcoesDoMotor {
+  /** Roda só as regras destes tipos (o job de reajuste roda só a de reajuste). */
+  tipos?: readonly TipoAlerta[];
+  /** Grava só candidatos destes produtos (os itens da nota que acabou de ser processada). */
+  produtoIds?: ReadonlySet<string>;
 }
 
 export interface ResultadoDoMotor {
@@ -37,15 +45,19 @@ export class MotorDeAlertas {
     private readonly regras: readonly RegraDeAlerta[] = REGRAS_DE_ALERTA,
   ) {}
 
-  async executar(contexto: ContextoDoMotor): Promise<ResultadoDoMotor> {
+  async executar(contexto: ContextoDoMotor, opcoes: OpcoesDoMotor = {}): Promise<ResultadoDoMotor> {
     const { comercianteId, dataReferencia } = contexto;
     const limites = mesclarLimites(await this.limites.limitesDoComerciante(comercianteId));
     const metricas = new MetricasDaExecucao(this.metricas, { comercianteId, dataReferencia });
 
+    const { tipos, produtoIds } = opcoes;
+    const regras = tipos ? this.regras.filter((r) => tipos.includes(r.tipo)) : this.regras;
     const resultados = await Promise.all(
-      this.regras.map((regra) => regra.avaliar({ comercianteId, dataReferencia, limites, metricas })),
+      regras.map((regra) => regra.avaliar({ comercianteId, dataReferencia, limites, metricas })),
     );
-    const achados = resultados.flatMap((r) => r.candidatos);
+    const achados = resultados
+      .flatMap((r) => r.candidatos)
+      .filter((c) => !produtoIds || (c.produtoId !== null && produtoIds.has(c.produtoId)));
     const ausentes = resultados.flatMap((r) => r.ausentes);
 
     const maiorJanela = Math.max(0, ...Object.values(limites.janelaSupressaoDias));

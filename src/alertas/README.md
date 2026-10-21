@@ -42,7 +42,16 @@ Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave
 
 Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. Como a chave do reajuste inclui a data da compra, uma nota nova com outro reajuste do mesmo produto é um alerta novo.
 
+## Job de reajuste após cada nota (#45)
+
+Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-nota` chama o gancho `APOS_EXTRACAO`, que enfileira o job `reajuste-pos-nota` (`jobs/fila-reajuste.ts`). O job (`jobs/verificar-reajuste.ts`) pega os produtos dos itens da nota, sempre com o `comerciante_id` do job, e roda no motor só a regra de reajuste restrita a eles, com a data de hoje.
+
+- Idempotência: o `jobId` é comerciante + documento, e a unique de `alerta` segura qualquer repetição.
+- O job só grava o candidato. O envio fica no relatório diário, que respeita no máximo 1 mensagem proativa por dia.
+- Falha do gancho é registrada com o id do documento e não falha nem repete a extração: o relatório diário pega o mesmo reajuste de qualquer forma.
+- Nota confirmada depois pelo dono (`revisao` para `extraido`) não reenfileira o job.
+
 ## Limites conhecidos
 
 - As sobreposições por comerciante ainda não têm onde ser guardadas: não há coluna ou tabela de configuração no modelo de dados, então só a fonte padrão existe. Guardar exige migração.
-- O motor ainda não é chamado por nenhum job nem pelo relatório diário (#45 e `list_alert_candidates`).
+- O relatório diário e `list_alert_candidates` ainda não leem os candidatos (#52).

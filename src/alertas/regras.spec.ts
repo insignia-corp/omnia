@@ -339,12 +339,12 @@ describe("regra de estoque parado", () => {
 });
 
 describe("regra de ticket médio em queda", () => {
-  const ticket = (queda_bps: number) =>
+  const ticket = (queda_bps: number, extra: { cupons?: number; media?: number } = {}) =>
     resultado({
       data: REF,
-      cupons: 78,
+      cupons: extra.cupons ?? 78,
       ticket_medio_centavos: 1566,
-      media_28_dias_centavos: 2753,
+      media_28_dias_centavos: extra.media ?? 2753,
       queda_bps,
       queda_percentual: queda_bps / 100,
       queda_relevante: queda_bps >= 3000,
@@ -385,16 +385,29 @@ describe("regra de ticket médio em queda", () => {
 });
 
 describe("regra de gasto fora do padrão", () => {
-  const gasto = (desvio: number | null) =>
+  const gasto = (
+    desvio: number | null,
+    extra: { valor?: number; mediana?: number; diferenca?: number } = {},
+  ) =>
     resultado({
       data: REF,
-      valor_centavos: 101_534,
-      mediana_centavos: 6093,
+      valor_centavos: extra.valor ?? 101_534,
+      mediana_centavos: extra.mediana ?? 6093,
+      diferenca_para_mediana_centavos: extra.diferenca ?? 101_534 - 6093,
       desvio_absoluto_mediano_centavos: 1747,
       desvio,
       dias_de_historico: 60,
       acima_do_limite: desvio !== null && desvio > 3,
     });
+
+  it("o impacto arredonda a diferença uma vez só: 15000 menos a mediana 5000,5 é 10000, não 9999", async () => {
+    const { candidatos } = await rodar(regraGastoForaDoPadrao, {
+      // mediana_centavos 5001 já veio arredondada; a diferença exata é 9999,5.
+      gastoForaDoPadrao: () =>
+        Promise.resolve(gasto(54, { valor: 15_000, mediana: 5001, diferenca: 10_000 })),
+    });
+    expect(candidatos[0]?.impactoCentavos).toBe(10_000);
+  });
 
   it("gera candidato com desvio acima do limite", async () => {
     const { candidatos } = await rodar(regraGastoForaDoPadrao, {

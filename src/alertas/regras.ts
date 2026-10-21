@@ -303,8 +303,8 @@ export const regraGastoForaDoPadrao: RegraDeAlerta = {
           chave: g.data,
           produtoId: null,
           fornecedorId: null,
-          // O que o dia gastou acima da mediana.
-          impactoCentavos: g.valor_centavos - g.mediana_centavos,
+          // O que o dia gastou acima da mediana, já arredondado uma vez só pela métrica.
+          impactoCentavos: g.diferenca_para_mediana_centavos,
           confianca: gasto.menor_confianca,
           metricasApoio: {
             data: g.data,

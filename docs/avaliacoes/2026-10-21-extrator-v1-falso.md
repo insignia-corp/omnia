@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Rodada | 2026-10-21T20:39:20.675Z |
+| Rodada | 2026-10-21T22:07:29.829Z |
 | Modo | falso (cliente de visão falso, sem custo) |
 | Modelo | extrator-falso |
 | Versão do prompt | extrator-v1 |
@@ -19,6 +19,7 @@
 | --- | --- | --- |
 | Total correto em pelo menos 90% das notas | 17 de 17 (100%) | atingida |
 | Todo erro com confiança baixa (nenhum erro silencioso) | 0 de 0 erros sinalizados, 0 silenciosos | atingida |
+| Resultados exigidos por nota (item borrado abaixo do limite, soma divergente acusada pelo código) | todos cumpridos | atingida |
 
 Erro sinalizado: o item sai abaixo do limite, ou o documento sai abaixo do limite (o dono confirma a nota). Nota que o Extrator não devolveu conta como um erro sinalizado, porque o documento fica com status de erro.
 

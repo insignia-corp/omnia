@@ -65,7 +65,9 @@ async function principal(): Promise<number> {
   );
   console.log(`Relatório: ${path.relative(process.cwd(), arquivos.relatorio)}`);
   console.log(`Saída bruta: ${path.relative(process.cwd(), arquivos.evidencia)}`);
-  return resumo.metas.totalCorreto && resumo.metas.errosComConfiancaBaixa ? 0 : 1;
+  const { totalCorreto, errosComConfiancaBaixa, exigenciasPorNota } = resumo.metas;
+  for (const f of resumo.exigenciasNaoCumpridas) console.log(`Exigência não cumprida: ${f}`);
+  return totalCorreto && errosComConfiancaBaixa && exigenciasPorNota ? 0 : 1;
 }
 
 principal()

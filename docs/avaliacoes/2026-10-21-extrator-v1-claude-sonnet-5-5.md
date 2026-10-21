@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Rodada | 2026-10-21T21:57:49.462Z |
+| Rodada | 2026-10-21T22:07:30.340Z |
 | Modo | real (modelo real) |
 | Modelo | claude-sonnet-5-5 |
 | Versão do prompt | extrator-v1 |
@@ -17,10 +17,11 @@
 | --- | --- | --- |
 | Total correto em pelo menos 90% das notas | 17 de 17 (100%) | atingida |
 | Todo erro com confiança baixa (nenhum erro silencioso) | 2 de 2 erros sinalizados, 0 silenciosos | atingida |
+| Resultados exigidos por nota (item borrado abaixo do limite, soma divergente acusada pelo código) | todos cumpridos | atingida |
 
 Erro sinalizado: o item sai abaixo do limite, ou o documento sai abaixo do limite (o dono confirma a nota). Nota que o Extrator não devolveu conta como um erro sinalizado, porque o documento fica com status de erro.
 
-Custo estimado da rodada: US$ 0,1556. Latência por nota: média de 4199 ms, máxima de 8015 ms.
+Custo estimado da rodada: US$ 0,1556. Latência por nota: média de 3757 ms, máxima de 6134 ms.
 
 ## Acerto por campo
 
@@ -68,23 +69,23 @@ Os mesmos resultados lidos com outros limites. O limite certo é o menor que dei
 
 | Nota | Casos | Total certo | CNPJ certo | Data certa | Itens perfeitos | Erros | Silenciosos | Itens abaixo do limite | Custo | Latência (ms) |
 | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| nota-01 | nenhum | sim | sim | sim | 13 de 13 | 0 | 0 | 0 | US$ 0,0150 | 6191 |
-| nota-02 | nenhum | sim | sim | sim | 8 de 8 | 0 | 0 | 0 | US$ 0,0112 | 8015 |
-| nota-03 | nenhum | sim | sim | sim | 6 de 6 | 0 | 0 | 0 | US$ 0,0096 | 3546 |
-| nota-04 | nenhum | sim | sim | sim | 7 de 7 | 0 | 0 | 0 | US$ 0,0102 | 4558 |
-| nota-05 | foto_inclinada | sim | sim | sim | 5 de 5 | 0 | 0 | 0 | US$ 0,0088 | 4111 |
-| nota-06 | nenhum | sim | sim | sim | 4 de 4 | 0 | 0 | 0 | US$ 0,0081 | 4615 |
-| nota-07 | nenhum | sim | sim | sim | 6 de 6 | 0 | 0 | 0 | US$ 0,0097 | 5931 |
-| nota-08 | foto_inclinada | sim | sim | sim | 5 de 5 | 0 | 0 | 0 | US$ 0,0092 | 3484 |
-| nota-09 | nenhum | sim | sim | sim | 3 de 3 | 0 | 0 | 0 | US$ 0,0073 | 2547 |
-| nota-10 | soma_diverge_do_total, mesmo_produto_de_outro_fornecedor | sim | sim | sim | 3 de 3 | 0 | 0 | 0 | US$ 0,0073 | 3164 |
-| nota-11 | item_pouco_legivel, foto_inclinada | sim | sim | sim | 4 de 5 | 2 | 0 | 1 | US$ 0,0089 | 4008 |
-| nota-12 | texto_de_injecao | sim | sim | sim | 5 de 5 | 0 | 0 | 0 | US$ 0,0090 | 3987 |
-| nota-13 | nenhum | sim | sim | sim | 5 de 5 | 0 | 0 | 0 | US$ 0,0089 | 4679 |
-| nota-14 | foto_inclinada | sim | sim | sim | 4 de 4 | 0 | 0 | 0 | US$ 0,0081 | 3839 |
-| nota-15 | reajuste_plantado | sim | sim | sim | 6 de 6 | 0 | 0 | 0 | US$ 0,0097 | 3497 |
-| nota-16 | reajuste_plantado | sim | sim | sim | 3 de 3 | 0 | 0 | 0 | US$ 0,0074 | 2577 |
-| nota-17 | nenhum | sim | sim | sim | 3 de 3 | 0 | 0 | 0 | US$ 0,0073 | 2631 |
+| nota-01 | nenhum | sim | sim | sim | 13 de 13 | 0 | 0 | 0 | US$ 0,0150 | 6134 |
+| nota-02 | nenhum | sim | sim | sim | 8 de 8 | 0 | 0 | 0 | US$ 0,0112 | 4082 |
+| nota-03 | nenhum | sim | sim | sim | 6 de 6 | 0 | 0 | 0 | US$ 0,0096 | 3727 |
+| nota-04 | nenhum | sim | sim | sim | 7 de 7 | 0 | 0 | 0 | US$ 0,0102 | 3784 |
+| nota-05 | foto_inclinada | sim | sim | sim | 5 de 5 | 0 | 0 | 0 | US$ 0,0088 | 4398 |
+| nota-06 | nenhum | sim | sim | sim | 4 de 4 | 0 | 0 | 0 | US$ 0,0081 | 3174 |
+| nota-07 | nenhum | sim | sim | sim | 6 de 6 | 0 | 0 | 0 | US$ 0,0097 | 4253 |
+| nota-08 | foto_inclinada | sim | sim | sim | 5 de 5 | 0 | 0 | 0 | US$ 0,0092 | 3410 |
+| nota-09 | nenhum | sim | sim | sim | 3 de 3 | 0 | 0 | 0 | US$ 0,0073 | 2769 |
+| nota-10 | soma_diverge_do_total, mesmo_produto_de_outro_fornecedor | sim | sim | sim | 3 de 3 | 0 | 0 | 0 | US$ 0,0073 | 2943 |
+| nota-11 | item_pouco_legivel, foto_inclinada | sim | sim | sim | 4 de 5 | 2 | 0 | 1 | US$ 0,0089 | 4168 |
+| nota-12 | texto_de_injecao | sim | sim | sim | 5 de 5 | 0 | 0 | 0 | US$ 0,0090 | 4386 |
+| nota-13 | nenhum | sim | sim | sim | 5 de 5 | 0 | 0 | 0 | US$ 0,0089 | 3369 |
+| nota-14 | foto_inclinada | sim | sim | sim | 4 de 4 | 0 | 0 | 0 | US$ 0,0081 | 4729 |
+| nota-15 | reajuste_plantado | sim | sim | sim | 6 de 6 | 0 | 0 | 0 | US$ 0,0097 | 3417 |
+| nota-16 | reajuste_plantado | sim | sim | sim | 3 de 3 | 0 | 0 | 0 | US$ 0,0074 | 2429 |
+| nota-17 | nenhum | sim | sim | sim | 3 de 3 | 0 | 0 | 0 | US$ 0,0073 | 2697 |
 
 ## Divergências
 

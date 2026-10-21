@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { custoMicrodolares } from "../../agente/llm/modelo-linguagem";
-import type {
-  ClienteVisao,
-  ConsumoExtracao,
-  ImagemNota,
-  TipoImagem,
+import { custoMicrodolares, temPreco } from "../../agente/llm/modelo-linguagem";
+import {
+  ErroClienteVisao,
+  type ClienteVisao,
+  type ConsumoExtracao,
+  type ImagemNota,
+  type TipoImagem,
 } from "../../ingestao/extracao/cliente-visao";
 import {
   extracaoNotaSchema,
@@ -33,6 +34,11 @@ export interface ResultadoNota {
   casos: string[];
   /** `null` quando o Extrator não devolveu nota (falha). */
   comparacao: ComparacaoNota | null;
+  /**
+   * O que a especificação exige desta nota, vindo do gabarito e do manifesto: item borrado abaixo do limite,
+   * documento em dúvida abaixo do limite, soma divergente detectada em código. Vale mesmo quando a nota não saiu.
+   */
+  exigencias: ExigenciasNota;
   /** Campos e itens do gabarito, para contar como errada a nota que não saiu. */
   camposEsperados: number;
   itensEsperados: number;
@@ -42,11 +48,20 @@ export interface ResultadoNota {
   /** Conferências em código que reduziram a confiança (soma, CNPJ, data, item). */
   motivosValidacao: CodigoMotivo[];
   consumo: ConsumoExtracao;
-  custoEstimadoMicrodolares: number;
+  /** `null`: modelo sem preço cadastrado, custo indisponível (nunca zero). */
+  custoEstimadoMicrodolares: number | null;
   latenciaMs: number;
   tentativas: number;
   modelo: string;
   versaoPrompt: string;
+}
+
+export interface ExigenciasNota {
+  /** Posições (a partir de 1) de itens que o gabarito marca como pouco legíveis e têm de sair abaixo do limite. */
+  itensAbaixoDoLimite: number[];
+  documentoAbaixoDoLimite: boolean;
+  /** Caso `soma_diverge_do_total` do manifesto: o código tem de acusá-lo em `motivosValidacao`. */
+  somaDivergente: boolean;
 }
 
 export interface RodadaExtracao {
@@ -116,6 +131,17 @@ export const NOME_MODELO_FALSO = "extrator-falso";
 
 const SEM_CONSUMO: ConsumoExtracao = { entrada: 0, saida: 0, cacheLeitura: 0, cacheEscrita: 0 };
 
+/**
+ * Custo da nota. No modo falso não há custo. No real, modelo sem preço em `PRECOS` (ou o modelo de um
+ * fallback do servidor) daria zero em `custoMicrodolares`: aqui vira `null`, para o relatório não
+ * registrar uma avaliação paga como US$ 0. Sem token gasto, o custo é zero de verdade.
+ */
+function custoDaNota(modo: "falso" | "real", modelo: string, consumo: ConsumoExtracao): number | null {
+  if (modo === "falso") return 0;
+  if (consumo.entrada + consumo.saida + consumo.cacheLeitura + consumo.cacheEscrita === 0) return 0;
+  return temPreco(modelo) ? custoMicrodolares(modelo, consumo) : null;
+}
+
 export interface OpcoesAvaliacaoExtracao {
   extrator: ExtratorNotas;
   notas: NotaDeTeste[];
@@ -142,10 +168,17 @@ export async function avaliarExtracao(opcoes: OpcoesAvaliacaoExtracao): Promise<
       versaoPrompt: opcoes.versaoPrompt,
       camposEsperados: CAMPOS_DOCUMENTO.length + nota.esperado.itens.length * CAMPOS_ITEM.length,
       itensEsperados: nota.esperado.itens.length,
+      exigencias: {
+        itensAbaixoDoLimite: nota.esperado.itens.flatMap((i, k) => (i.confianca < limite ? [k + 1] : [])),
+        documentoAbaixoDoLimite: nota.esperado.confianca_documento < limite,
+        somaDivergente: nota.casos.includes("soma_diverge_do_total"),
+      },
     };
+    // Fora do try: foto ausente ou ilegível é falha do avaliador e derruba a rodada, não vira falha da nota.
+    const imagem = imagemDaNota(nota);
     try {
-      const r = await opcoes.extrator.extrair(imagemDaNota(nota));
-      const custo = custoMicrodolares(r.modelo, r.consumo);
+      const r = await opcoes.extrator.extrair(imagem);
+      const custo = custoDaNota(opcoes.modo, r.modelo, r.consumo);
       if (!r.ok) {
         resultados.push({
           ...base,
@@ -177,12 +210,14 @@ export async function avaliarExtracao(opcoes: OpcoesAvaliacaoExtracao): Promise<
         versaoPrompt: r.versaoPrompt,
       });
     } catch (e) {
-      // Erro transitório (timeout, 429, 5xx) sobe do Extrator para o job tentar de novo; aqui conta como falha da nota.
+      // Só o erro transitório do cliente de visão (timeout, 429, 5xx) sobe do Extrator para o job tentar de novo;
+      // aqui conta como falha da nota. Qualquer outra exceção é do avaliador e não pode certificar a rodada.
+      if (!(e instanceof ErroClienteVisao)) throw e;
       resultados.push({
         ...base,
         comparacao: null,
         extracao: null,
-        falha: { tipo: "erro_transitorio", mensagem: e instanceof Error ? e.message : String(e) },
+        falha: { tipo: "erro_transitorio", mensagem: e.message },
         motivosValidacao: [],
         consumo: { ...SEM_CONSUMO },
         custoEstimadoMicrodolares: 0,

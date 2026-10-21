@@ -60,10 +60,16 @@ export interface ResumoExtracao {
   };
   erros: { total: number; sinalizados: number; silenciosos: number };
   calibracao: LinhaCalibracao[];
-  custoTotalMicrodolares: number;
+  /** `null`: alguma nota usou modelo sem preço cadastrado, custo indisponível (nunca zero). */
+  custoTotalMicrodolares: number | null;
   latenciaMediaMs: number;
   latenciaMaximaMs: number;
-  metas: { totalCorreto: boolean; errosComConfiancaBaixa: boolean };
+  /**
+   * Resultados que a especificação exige de notas específicas e que a meta agregada não enxerga: item borrado
+   * abaixo do limite (nota 11), documento em dúvida abaixo do limite, soma divergente acusada pelo código (nota 10).
+   */
+  exigenciasNaoCumpridas: string[];
+  metas: { totalCorreto: boolean; errosComConfiancaBaixa: boolean; exigenciasPorNota: boolean };
 }
 
 const taxa = (): Taxa => ({ certos: 0, total: 0 });
@@ -71,6 +77,28 @@ const contar = (t: Taxa, certo: boolean, n = 1) => {
   t.total += n;
   if (certo) t.certos += n;
 };
+
+const quando = (n: number) => String(n).replace(".", ",");
+
+function exigenciasNaoCumpridas(x: ResultadoNota, limite: number): string[] {
+  const faltas: string[] = [];
+  const c = x.comparacao;
+  for (const pos of x.exigencias.itensAbaixoDoLimite) {
+    const confianca = c?.itens[pos - 1]?.obtido?.confianca;
+    if (confianca === undefined || confianca >= limite) {
+      faltas.push(
+        `${x.id}: o item ${pos} (pouco legível no gabarito) deveria sair abaixo de ${quando(limite)}`,
+      );
+    }
+  }
+  if (x.exigencias.documentoAbaixoDoLimite && !(c && c.confiancaDocumentoObtida < limite)) {
+    faltas.push(`${x.id}: o documento (em dúvida no gabarito) deveria sair abaixo de ${quando(limite)}`);
+  }
+  if (x.exigencias.somaDivergente && !x.motivosValidacao.includes("soma_diverge_do_total")) {
+    faltas.push(`${x.id}: o código deveria acusar soma_diverge_do_total`);
+  }
+  return faltas;
+}
 
 export function resumir(rodada: RodadaExtracao): ResumoExtracao {
   const limite = rodada.limiteConfianca;
@@ -103,10 +131,13 @@ export function resumir(rodada: RodadaExtracao): ResumoExtracao {
     },
     erros: { total: 0, sinalizados: 0, silenciosos: 0 },
     calibracao: [],
-    custoTotalMicrodolares: r.reduce((s, x) => s + x.custoEstimadoMicrodolares, 0),
+    custoTotalMicrodolares: r.some((x) => x.custoEstimadoMicrodolares === null)
+      ? null
+      : r.reduce((s, x) => s + (x.custoEstimadoMicrodolares ?? 0), 0),
+    exigenciasNaoCumpridas: r.flatMap((x) => exigenciasNaoCumpridas(x, limite)),
     latenciaMediaMs: r.length ? Math.round(r.reduce((s, x) => s + x.latenciaMs, 0) / r.length) : 0,
     latenciaMaximaMs: r.length ? Math.max(...r.map((x) => x.latenciaMs)) : 0,
-    metas: { totalCorreto: false, errosComConfiancaBaixa: false },
+    metas: { totalCorreto: false, errosComConfiancaBaixa: false, exigenciasPorNota: false },
   };
 
   for (const x of r) {
@@ -188,6 +219,7 @@ export function resumir(rodada: RodadaExtracao): ResumoExtracao {
     totalCorreto:
       resumo.notas > 0 && resumo.totalCorreto.certos / resumo.totalCorreto.total >= META_TOTAL_CORRETO,
     errosComConfiancaBaixa: resumo.notas > 0 && resumo.erros.silenciosos === 0,
+    exigenciasPorNota: resumo.exigenciasNaoCumpridas.length === 0,
   };
   return resumo;
 }
@@ -196,6 +228,8 @@ const percentual = ({ certos, total }: Taxa) =>
   total === 0 ? "0%" : `${String(Math.round((certos / total) * 1000) / 10).replace(".", ",")}%`;
 const fracao = (t: Taxa) => `${t.certos} de ${t.total} (${percentual(t)})`;
 const casas2 = (n: number) => String(n).replace(".", ",");
+
+const custo = (micro: number | null) => (micro === null ? "indisponível" : formatarMicrodolares(micro));
 
 /** Tabelas em Markdown não aceitam `|` nem quebra de linha dentro da célula. */
 const celula = (texto: string) =>
@@ -220,7 +254,7 @@ function descreverErro(e: ErroDaNota): string {
 function linhaDaNota(x: ResultadoNota, limite: number): string {
   const casos = celula(x.casos.join(", ") || "nenhum");
   if (!x.comparacao) {
-    return `| ${x.id} | ${casos} | falhou (${x.falha?.tipo ?? "?"}) | | | | | | | ${formatarMicrodolares(x.custoEstimadoMicrodolares)} | ${x.latenciaMs} |`;
+    return `| ${x.id} | ${casos} | falhou (${x.falha?.tipo ?? "?"}) | | | | | | | ${custo(x.custoEstimadoMicrodolares)} | ${x.latenciaMs} |`;
   }
   const c = x.comparacao;
   const conf = classificarConfianca(c, limite);
@@ -229,7 +263,7 @@ function linhaDaNota(x: ResultadoNota, limite: number): string {
   return (
     `| ${x.id} | ${casos} | ${sim(c.camposDocumento.total_centavos)} | ${sim(c.camposDocumento.fornecedor_cnpj)} | ` +
     `${sim(c.camposDocumento.data_emissao)} | ${perfeitos} de ${c.itens.length} | ${conf.errosSinalizados.length + conf.errosSilenciosos.length} | ` +
-    `${conf.errosSilenciosos.length} | ${conf.itensAbaixoDoLimite.length} | ${formatarMicrodolares(x.custoEstimadoMicrodolares)} | ${x.latenciaMs} |`
+    `${conf.errosSilenciosos.length} | ${conf.itensAbaixoDoLimite.length} | ${custo(x.custoEstimadoMicrodolares)} | ${x.latenciaMs} |`
   );
 }
 
@@ -267,10 +301,13 @@ export function renderizarRelatorio(rodada: RodadaExtracao): string {
     "| --- | --- | --- |",
     `| Total correto em pelo menos ${Math.round(META_TOTAL_CORRETO * 100)}% das notas | ${fracao(resumo.totalCorreto)} | ${ok(resumo.metas.totalCorreto)} |`,
     `| Todo erro com confiança baixa (nenhum erro silencioso) | ${resumo.erros.sinalizados} de ${resumo.erros.total} erros sinalizados, ${resumo.erros.silenciosos} silenciosos | ${ok(resumo.metas.errosComConfiancaBaixa)} |`,
+    `| Resultados exigidos por nota (item borrado abaixo do limite, soma divergente acusada pelo código) | ${resumo.exigenciasNaoCumpridas.length === 0 ? "todos cumpridos" : `${resumo.exigenciasNaoCumpridas.length} não cumpridos`} | ${ok(resumo.metas.exigenciasPorNota)} |`,
     "",
+    ...resumo.exigenciasNaoCumpridas.map((f) => `- ${f}`),
+    ...(resumo.exigenciasNaoCumpridas.length > 0 ? [""] : []),
     "Erro sinalizado: o item sai abaixo do limite, ou o documento sai abaixo do limite (o dono confirma a nota). Nota que o Extrator não devolveu conta como um erro sinalizado, porque o documento fica com status de erro.",
     "",
-    `Custo estimado da rodada: ${formatarMicrodolares(resumo.custoTotalMicrodolares)}. Latência por nota: média de ${resumo.latenciaMediaMs} ms, máxima de ${resumo.latenciaMaximaMs} ms.`,
+    `Custo estimado da rodada: ${custo(resumo.custoTotalMicrodolares)}${resumo.custoTotalMicrodolares === null ? " (modelo sem preço cadastrado em `PRECOS`)" : ""}. Latência por nota: média de ${resumo.latenciaMediaMs} ms, máxima de ${resumo.latenciaMaximaMs} ms.`,
     "",
     "## Acerto por campo",
     "",

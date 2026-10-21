@@ -4,9 +4,11 @@ import {
   type RespostaVisao,
 } from "../../ingestao/extracao/cliente-visao";
 import type { ExtracaoNota } from "../../ingestao/extracao/esquema-extracao";
-import { resumir } from "./relatorio";
+import { ExtratorNotas } from "../../ingestao/extracao/extrator-notas";
+import { carregarPromptExtrator } from "../../ingestao/extracao/prompt-extrator";
+import { renderizarRelatorio, resumir } from "./relatorio";
 import { ErroAvaliacaoExtracao, lerEnvExtracao, rodarAvaliacaoExtracao } from "./rodada";
-import { carregarNotas, hojeDoGabarito, imagemDaNota } from "./runner";
+import { avaliarExtracao, carregarNotas, hojeDoGabarito, imagemDaNota } from "./runner";
 
 const notas = carregarNotas();
 const env = lerEnvExtracao({});
@@ -14,6 +16,7 @@ const env = lerEnvExtracao({});
 /** Cliente que "lê" cada foto pelo gabarito, depois de `alterar` mexer na cópia (ou lançar/devolver lixo). */
 function clienteComDefeito(
   alterar: (id: string, nota: ExtracaoNota) => ExtracaoNota | string | Error,
+  modelo = "claude-sonnet-5-5",
 ): ClienteVisao {
   const porImagem = new Map(notas.map((n) => [imagemDaNota(n).base64, n]));
   return {
@@ -26,18 +29,18 @@ function clienteComDefeito(
         texto: typeof r === "string" ? r : JSON.stringify(r),
         recusou: false,
         consumo: { entrada: 2000, saida: 800, cacheLeitura: 0, cacheEscrita: 0 },
-        modelo: "claude-sonnet-5-5",
+        modelo,
       };
       return Promise.resolve(resposta);
     },
   };
 }
 
-const rodar = (alterar: Parameters<typeof clienteComDefeito>[0], ids?: string[]) =>
+const rodar = (alterar: Parameters<typeof clienteComDefeito>[0], ids?: string[], modelo?: string) =>
   rodarAvaliacaoExtracao({
     modo: "real",
     env,
-    cliente: clienteComDefeito(alterar),
+    cliente: clienteComDefeito(alterar, modelo),
     ...(ids ? { notas: ids } : {}),
   });
 
@@ -60,7 +63,8 @@ describe("avaliação da extração", () => {
     expect(r.totalCorreto).toEqual({ certos: 17, total: 17 });
     expect(r.erros).toEqual({ total: 0, sinalizados: 0, silenciosos: 0 });
     expect(r.campos.certos).toBe(r.campos.total);
-    expect(r.metas).toEqual({ totalCorreto: true, errosComConfiancaBaixa: true });
+    expect(r.metas).toEqual({ totalCorreto: true, errosComConfiancaBaixa: true, exigenciasPorNota: true });
+    expect(r.exigenciasNaoCumpridas).toEqual([]);
     // O código reduz a confiança onde o gabarito já a marca baixa: nota 10 (soma) e nota 11 (item borrado).
     const n10 = rodada.resultados.find((x) => x.id === "nota-10");
     expect(n10?.motivosValidacao).toContain("soma_diverge_do_total");
@@ -89,7 +93,7 @@ describe("avaliação da extração", () => {
     const r = resumir(rodada);
     expect(r.totalCorreto).toEqual({ certos: 16, total: 17 });
     expect(r.erros.silenciosos).toBe(3);
-    expect(r.metas).toEqual({ totalCorreto: true, errosComConfiancaBaixa: false });
+    expect(r.metas).toMatchObject({ totalCorreto: true, errosComConfiancaBaixa: false });
     expect(rodada.resultados.find((x) => x.id === "nota-01")?.motivosValidacao).toEqual([]);
   });
 
@@ -171,5 +175,100 @@ describe("rodarAvaliacaoExtracao", () => {
     expect(env.LIMITE_CONFIANCA_ITEM).toBe(0.8);
     const rodada = await rodarAvaliacaoExtracao({ modo: "falso", env, limiteConfianca: 0.6 });
     expect(rodada.limiteConfianca).toBe(0.6);
+  });
+});
+
+describe("falha do avaliador não certifica a rodada", () => {
+  it("exceção que não é erro transitório do cliente sobe, em vez de virar falha da nota", async () => {
+    await expect(
+      rodar((id, n) => (id === "nota-04" ? new TypeError("bug do avaliador") : n)),
+    ).rejects.toThrow("bug do avaliador");
+  });
+
+  it("foto ausente derruba a rodada, em vez de virar erro_transitorio e passar com 16 de 17", async () => {
+    const [primeira, ...resto] = notas;
+    if (!primeira) throw new Error("fixtures vazias");
+    const semFoto = { ...primeira, arquivoImagem: "fixtures/notas/nao-existe.jpg" };
+    const extrator = new ExtratorNotas(
+      clienteComDefeito((_, n) => n),
+      carregarPromptExtrator(),
+    );
+    await expect(
+      avaliarExtracao({
+        extrator,
+        notas: [semFoto, ...resto],
+        hoje: hojeDoGabarito(),
+        modo: "real",
+        modelo: "claude-sonnet-5-5",
+        versaoPrompt: "extrator-v1",
+      }),
+    ).rejects.toThrow(/ENOENT/);
+  });
+});
+
+describe("resultados exigidos por nota", () => {
+  it("nota 11 lida certa com confiança 1 no item borrado: passa nas metas agregadas, mas reprova na exigência", async () => {
+    const rodada = await rodar((id, n) => {
+      if (id !== "nota-11") return n;
+      return { ...n, itens: n.itens.map((i) => ({ ...i, confianca: 1 })) };
+    });
+    const r = resumir(rodada);
+    expect(r.metas).toEqual({ totalCorreto: true, errosComConfiancaBaixa: true, exigenciasPorNota: false });
+    expect(r.exigenciasNaoCumpridas).toEqual([
+      "nota-11: o item 3 (pouco legível no gabarito) deveria sair abaixo de 0,8",
+    ]);
+    expect(renderizarRelatorio(rodada)).toContain("1 não cumpridos");
+  });
+
+  it("nota 10 com um item alterado para a soma bater: o código não acusa a divergência e a exigência falha", async () => {
+    const rodada = await rodar((id, n) => {
+      if (id !== "nota-10") return n;
+      const soma = n.itens.reduce((s, i) => s + i.valor_total_centavos, 0);
+      const ultimo = n.itens.at(-1);
+      if (!ultimo) return n;
+      const itens = [
+        ...n.itens.slice(0, -1),
+        { ...ultimo, valor_total_centavos: ultimo.valor_total_centavos + (n.total_centavos - soma) },
+      ];
+      return { ...n, itens };
+    });
+    const r = resumir(rodada);
+    const n10 = rodada.resultados.find((x) => x.id === "nota-10");
+    expect(n10?.motivosValidacao).not.toContain("soma_diverge_do_total");
+    // O total impresso está certo e o erro do item é coberto pelo documento em dúvida: sem a exigência, passaria.
+    expect(r.metas).toMatchObject({ totalCorreto: true, errosComConfiancaBaixa: true });
+    expect(r.metas.exigenciasPorNota).toBe(false);
+    expect(r.exigenciasNaoCumpridas).toEqual(["nota-10: o código deveria acusar soma_diverge_do_total"]);
+  });
+
+  it("nota que não saiu também não cumpre a exigência dela", async () => {
+    const r = resumir(await rodar((id, n) => (id === "nota-11" ? "isto não é JSON" : n)));
+    expect(r.metas.exigenciasPorNota).toBe(false);
+    expect(r.exigenciasNaoCumpridas.length).toBeGreaterThan(0);
+  });
+});
+
+describe("custo", () => {
+  it("modelo sem preço (por exemplo o de um fallback do servidor) deixa o custo indisponível, não zero", async () => {
+    const rodada = await rodar((_, n) => n, ["nota-01"], "modelo-sem-preco");
+    expect(rodada.resultados[0]?.custoEstimadoMicrodolares).toBeNull();
+    const r = resumir(rodada);
+    expect(r.custoTotalMicrodolares).toBeNull();
+    const md = renderizarRelatorio(rodada);
+    expect(md).toContain("Custo estimado da rodada: indisponível");
+    expect(md).not.toContain("US$ 0,0000");
+  });
+
+  it("modelo com preço tem custo calculado", async () => {
+    const rodada = await rodar((_, n) => n, ["nota-01"]);
+    expect(rodada.resultados[0]?.custoEstimadoMicrodolares).toBeGreaterThan(0);
+  });
+
+  it("EXTRATOR_MODELO sem preço cadastrado recusa a rodada real antes de chamar a API", async () => {
+    const semPreco = lerEnvExtracao({
+      ANTHROPIC_API_KEY: "chave-de-teste",
+      EXTRATOR_MODELO: "modelo-sem-preco",
+    });
+    await expect(rodarAvaliacaoExtracao({ modo: "real", env: semPreco })).rejects.toThrow(/preço/);
   });
 });

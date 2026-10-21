@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { temPreco } from "../../agente/llm/modelo-linguagem";
 import { ClienteVisaoAnthropic } from "../../ingestao/extracao/cliente-visao-anthropic";
 import type { ClienteVisao } from "../../ingestao/extracao/cliente-visao";
 import { LIMITE_CONFIANCA_ITEM } from "../../ingestao/extracao/esquema-extracao";
@@ -68,6 +69,12 @@ export async function rodarAvaliacaoExtracao(opcoes: OpcoesRodadaExtracao): Prom
   if (opcoes.modo === "real" && !opcoes.cliente && !opcoes.env.ANTHROPIC_API_KEY) {
     throw new ErroAvaliacaoExtracao(
       "--modelo real exige ANTHROPIC_API_KEY (no .env ou no ambiente). Sem chave, use --modelo falso.",
+    );
+  }
+  // Sem preço cadastrado o custo da rodada paga sairia como US$ 0; melhor recusar antes de gastar.
+  if (opcoes.modo === "real" && !opcoes.cliente && !temPreco(opcoes.env.EXTRATOR_MODELO)) {
+    throw new ErroAvaliacaoExtracao(
+      `EXTRATOR_MODELO "${opcoes.env.EXTRATOR_MODELO}" não tem preço cadastrado em PRECOS (src/agente/llm/modelo-linguagem.ts): o custo da avaliação sairia como zero. Cadastre o preço antes de rodar.`,
     );
   }
   const notas = escolherNotas(carregarNotas(raiz), opcoes.notas);

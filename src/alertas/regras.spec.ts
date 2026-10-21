@@ -67,14 +67,17 @@ const giroDoProduto = (id: string, extra: Partial<GiroDoProduto> = {}): GiroDoPr
   ...extra,
 });
 
-const giro = (produtos: GiroDoProduto[], altas = produtos): ResultadoMetrica<Giro> =>
-  resultado({
-    periodos: { ultimos_7_dias: periodo, anteriores_28_dias: periodo },
-    por_produto: produtos,
-    maior_alta: altas,
-    maior_volume: [],
-    giro_alto: [],
-  });
+const giro = (produtos: GiroDoProduto[], altas = produtos, confianca = 1): ResultadoMetrica<Giro> =>
+  resultado(
+    {
+      periodos: { ultimos_7_dias: periodo, anteriores_28_dias: periodo },
+      por_produto: produtos,
+      maior_alta: altas,
+      maior_volume: [],
+      giro_alto: [],
+    },
+    confianca,
+  );
 
 const margem = (extra: Partial<MargemDoProduto> = {}): MargemDoProduto => ({
   produto_id: "p1",
@@ -159,9 +162,12 @@ describe("regra de reajuste de custo", () => {
   });
 });
 
+const giroDe36 = () => Promise.resolve(giro([giroDoProduto("p1")]));
+
 describe("regra de margem abaixo da meta", () => {
-  it("gera candidato só para margem abaixo da meta", async () => {
+  it("gera candidato só para margem abaixo da meta, com o impacto da semana (7 dias, como as outras regras)", async () => {
     const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
       margensDosProdutos: () =>
         Promise.resolve([
           { produto_id: "p1", resultado: resultado(margem()) },
@@ -170,14 +176,31 @@ describe("regra de margem abaixo da meta", () => {
     });
     expect(candidatos.map((c) => c.chave)).toEqual(["p1"]);
     expect(candidatos[0]).toMatchObject({
-      impactoCentavos: 33_150, // preço-alvo 3720 (custo 2790 / 0,75), 221 centavos a mais x 150 unidades
+      impactoCentavos: 7956, // preço-alvo 3720 (custo 2790 / 0,75), 221 centavos a mais x 36 unidades da semana
       metricasApoio: { margem_bps: 2026, meta_bps: 2500 },
     });
+  });
+
+  it("sem giro o candidato sai sem impacto em reais (nunca zero) e com a confiança da margem", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: () => Promise.resolve(dadoAusente("historico_insuficiente", "Faltam vendas.")),
+      margensDosProdutos: () => Promise.resolve([{ produto_id: "p1", resultado: resultado(margem(), 0.9) }]),
+    });
+    expect(candidatos[0]).toMatchObject({ impactoCentavos: null, confianca: 0.9 });
+  });
+
+  it("com o impacto vindo do giro, a confiança é a menor entre a da margem e a do giro", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: () => Promise.resolve(giro([giroDoProduto("p1")], undefined, 0.5)),
+      margensDosProdutos: () => Promise.resolve([{ produto_id: "p1", resultado: resultado(margem(), 0.9) }]),
+    });
+    expect(candidatos[0]?.confianca).toBe(0.5);
   });
 
   it("dado ausente não vira candidato nem zero, e o motivo sai uma vez só", async () => {
     const ausente = dadoAusente("sem_custo", "Sem nota de compra.");
     const r = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
       margensDosProdutos: () =>
         Promise.resolve([
           { produto_id: "p1", resultado: ausente },
@@ -194,6 +217,7 @@ describe("regra de margem abaixo da meta", () => {
 describe("impacto até a meta de margem", () => {
   it("meta de 100% não tem preço que a atinja: sem impacto em reais, nunca zero", async () => {
     const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
       margensDosProdutos: () =>
         Promise.resolve([
           { produto_id: "p1", resultado: resultado(margem({ meta_bps: 10_000, margem_bps: 2026 })) },

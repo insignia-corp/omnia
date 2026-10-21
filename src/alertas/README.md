@@ -26,14 +26,14 @@ Os limites iniciais são os `PARAMETROS_*` das métricas (`limites.ts`). Cada co
 
 Nível de 1 (mais importante) a 3, por critério em `prioridade.ts`:
 
-1. **Impacto em reais**, calculado em código com inteiros em centavos:
-   - reajuste: diferença de custo por unidade vezes as unidades vendidas nos últimos 7 dias;
-   - margem abaixo da meta: (preço-alvo menos preço médio) vezes as unidades da janela de preço, com preço-alvo = custo / (1 menos a meta);
-   - espaço para subir preço: o mesmo ganho por unidade vezes as unidades dos últimos 7 dias;
-   - ticket médio: (média de 28 dias menos ticket do dia) vezes os cupons do dia;
-   - gasto fora do padrão: valor do dia menos a mediana.
+1. **Impacto em reais**, calculado em código com inteiros em centavos. Os que dependem de volume medem a **semana** (últimos 7 dias do giro); ticket e gasto medem o **dia** da data de referência, por natureza. Assim o mesmo fato tem a mesma prioridade em regras diferentes:
+   - reajuste (semana): diferença de custo por unidade vezes as unidades vendidas nos últimos 7 dias;
+   - margem abaixo da meta (semana): (preço-alvo menos preço médio) vezes as unidades dos últimos 7 dias, com preço-alvo = custo / (1 menos a meta);
+   - espaço para subir preço (semana): o mesmo ganho por unidade vezes as unidades dos últimos 7 dias;
+   - ticket médio (dia): (média de 28 dias menos ticket do dia) vezes os cupons do dia;
+   - gasto fora do padrão (dia): valor do dia menos a mediana.
 2. Impacto de R$ 500 ou mais é prioridade 1; de R$ 100 a R$ 499,99, prioridade 2; abaixo disso, 3.
-3. Sem impacto em reais (giro em alta, estoque parado, ou reajuste sem giro) o candidato fica em 3: sem número, sem urgência.
+3. Sem impacto em reais (giro em alta, estoque parado, ou reajuste e margem sem giro) o candidato fica em 3: sem número, sem urgência.
 4. **Confiança** abaixo de 0,8, ou desconhecida, rebaixa um nível (até o 3).
 
 Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave; `candidatos` do resultado do motor já vem nessa ordem. O impacto e a confiança ficam em `metricas_apoio` (`impacto_centavos`, `menor_confianca`) junto com a procedência da métrica (`fonte`).

@@ -96,26 +96,37 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
   async avaliar({ metricas }) {
     const candidatos: CandidatoDeAlerta[] = [];
     const ausentes: MotivoAusente[] = [];
-    for (const { produto_id, resultado } of await metricas.margens()) {
+    const [margens, giro] = await Promise.all([metricas.margens(), metricas.giro()]);
+    const giroPorProduto = ehDadoAusente(giro)
+      ? null
+      : new Map(giro.valor.por_produto.map((g) => [g.produto_id, g]));
+    for (const { produto_id, resultado } of margens) {
       if (ehDadoAusente(resultado)) {
         ausentes.push({ tipo: "margem_abaixo_da_meta", codigo: resultado.codigo, motivo: resultado.motivo });
         continue;
       }
       const m = resultado.valor;
       if (!m.abaixo_da_meta) continue;
+      const doGiro = giroPorProduto?.get(produto_id);
+      const usaGiro = !ehDadoAusente(giro) && doGiro !== undefined;
       candidatos.push({
         tipo: "margem_abaixo_da_meta",
         chave: produto_id,
         produtoId: produto_id,
         fornecedorId: null,
-        // Quanto as unidades da janela de preço renderiam a mais com o preço na meta de margem.
-        impactoCentavos: impactoDeChegarNaMeta(
-          m.preco_medio_venda_centavos,
-          m.custo_compra_mais_recente_centavos,
-          m.meta_bps,
-          m.unidades_vendidas,
-        ),
-        confianca: resultado.menor_confianca,
+        // Quanto a semana de venda (7 dias, a mesma base das outras regras) renderia a mais com o
+        // preço na meta de margem. Sem giro não há volume da semana: sem impacto, nunca zero.
+        impactoCentavos: doGiro
+          ? impactoDeChegarNaMeta(
+              m.preco_medio_venda_centavos,
+              m.custo_compra_mais_recente_centavos,
+              m.meta_bps,
+              doGiro.unidades_7_dias,
+            )
+          : null,
+        confianca: usaGiro
+          ? menorConhecida(resultado.menor_confianca, giro.menor_confianca)
+          : resultado.menor_confianca,
         metricasApoio: {
           produto_nome: m.nome,
           margem_bps: m.margem_bps,
@@ -125,6 +136,7 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
           preco_medio_venda_centavos: m.preco_medio_venda_centavos,
           custo_compra_mais_recente_centavos: m.custo_compra_mais_recente_centavos,
           fonte: fonteDe(resultado),
+          ...(usaGiro ? { unidades_7_dias: doGiro.unidades_7_dias, giro_fonte: fonteDe(giro) } : {}),
         },
       });
     }

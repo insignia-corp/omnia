@@ -85,6 +85,12 @@ class RepositorioFalso implements RepositorioAlertas {
     this.gravados.push(...novos);
     return Promise.resolve(novos.length);
   }
+  /** Alertas já gravados em qualquer data, para o teste da opção semRepetirGravados. */
+  existentes: Array<{ tipo: TipoAlerta; chave: string }> = [];
+  jaGravados(comercianteId: string, tipos: readonly TipoAlerta[]) {
+    this.chamadasDe.push(comercianteId);
+    return Promise.resolve(this.existentes.filter((e) => tipos.includes(e.tipo)));
+  }
   candidatosDoDia(comercianteId: string) {
     this.chamadasDe.push(comercianteId);
     return Promise.resolve([] as AlertaGravado[]);
@@ -309,5 +315,50 @@ describe("motor de alertas: o comerciante é o da sessão", () => {
     expect(vistos.length).toBeGreaterThanOrEqual(4);
     expect([...new Set([...vistos, ...repositorio.chamadasDe])]).toEqual(["c-sessao"]);
     expect(repositorio.chamadasDe.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("motor de alertas: opções do job pós-nota", () => {
+  it("semRepetirGravados não grava de novo o reajuste que já existe em outro dia", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.existentes = [{ tipo: "reajuste_de_custo", chave: "p1:f1:compra-16" }];
+    const r = await motor.executar(
+      { comercianteId: "c1", dataReferencia: REF },
+      { semRepetirGravados: true },
+    );
+    expect(r.suprimidos).toHaveLength(1);
+    expect(repositorio.gravados).toEqual([]);
+  });
+
+  it("semRepetirGravados só considera o mesmo tipo: outra regra com a mesma chave não barra", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    // Mesma chave do candidato de reajuste, mas de outro tipo (o repositório devolve só os tipos pedidos).
+    repositorio.existentes = [{ tipo: "estoque_parado", chave: "p1:f1:compra-16" }];
+    repositorio.jaGravados = () =>
+      Promise.resolve([{ tipo: "estoque_parado" as const, chave: "p1:f1:compra-16" }]);
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { semRepetirGravados: true });
+    expect(repositorio.gravados).toHaveLength(1);
+  });
+
+  it("sem a opção, o motor diário grava de novo: o candidato de ontem volta a ser candidato de hoje", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.existentes = [{ tipo: "reajuste_de_custo", chave: "p1:f1:compra-16" }];
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados).toHaveLength(1);
+  });
+
+  it("produtoIds grava só candidatos dos produtos informados", async () => {
+    const { motor, repositorio } = motorCom(
+      [variacao(), variacao({ produto_id: "p2", compra_atual_id: "compra-p2" })],
+      giro(10),
+    );
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { produtoIds: new Set(["p2"]) });
+    expect(repositorio.gravados.map((g) => g.produtoId)).toEqual(["p2"]);
+  });
+
+  it("tipos roda só as regras pedidas", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { tipos: ["estoque_parado"] });
+    expect(repositorio.gravados).toEqual([]);
   });
 });

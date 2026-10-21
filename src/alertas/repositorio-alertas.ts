@@ -39,6 +39,11 @@ export interface RepositorioAlertas {
     comercianteId: string,
     filtro: { desde: string | null; ate: string; tipos: readonly TipoAlerta[] },
   ): Promise<AlertaJaTratado[]>;
+  /** Tipo e chave dos alertas dos `tipos` já gravados em qualquer data e com qualquer status. */
+  jaGravados(
+    comercianteId: string,
+    tipos: readonly TipoAlerta[],
+  ): Promise<Array<Pick<AlertaJaTratado, "tipo" | "chave">>>;
   /** Grava como `candidato`; um alerta que já existe no dia (mesmo tipo e chave) fica como está. */
   gravarCandidatos(comercianteId: string, dataReferencia: string, novos: NovoAlerta[]): Promise<number>;
   /** Os candidatos do dia, sem ordem garantida dentro do nível: o motor ordena. */
@@ -67,6 +72,17 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
           lt(alerta.dataReferencia, filtro.ate),
         ),
       );
+  }
+
+  async jaGravados(
+    comercianteId: string,
+    tipos: readonly TipoAlerta[],
+  ): Promise<Array<Pick<AlertaJaTratado, "tipo" | "chave">>> {
+    if (tipos.length === 0) return [];
+    return this.db
+      .selectDistinct({ tipo: alerta.tipo, chave: alerta.chave })
+      .from(alerta)
+      .where(and(eq(alerta.comercianteId, comercianteId), inArray(alerta.tipo, [...tipos])));
   }
 
   async gravarCandidatos(

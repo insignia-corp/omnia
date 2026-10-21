@@ -1,7 +1,12 @@
 import { Module } from "@nestjs/common";
+import { ENV } from "../config/config.module";
+import type { Env } from "../config/env";
 import { DB, type Db } from "../infra/database/database.module";
 import { MetricasModule } from "../metricas/metricas.module";
 import { MetricasService } from "../metricas/metricas.service";
+import { criarHoje } from "./jobs/hoje";
+import { FilaReajuste } from "./jobs/fila-reajuste";
+import { VerificadorDeReajuste } from "./jobs/verificar-reajuste";
 import { FONTE_DE_LIMITES, fonteDeLimitesPadrao, type FonteDeLimites } from "./limites";
 import { MotorDeAlertas } from "./motor-de-alertas";
 import {
@@ -25,7 +30,14 @@ import {
       useFactory: (metricas: MetricasService, alertas: RepositorioAlertas, limites: FonteDeLimites) =>
         new MotorDeAlertas(metricas, alertas, limites),
     },
+    {
+      provide: VerificadorDeReajuste,
+      inject: [DB, MotorDeAlertas, ENV],
+      useFactory: (db: Db, motor: MotorDeAlertas, env: Env) =>
+        new VerificadorDeReajuste(db, motor, criarHoje(env)),
+    },
+    FilaReajuste,
   ],
-  exports: [MotorDeAlertas],
+  exports: [MotorDeAlertas, FilaReajuste],
 })
 export class AlertasModule {}

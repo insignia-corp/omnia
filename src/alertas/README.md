@@ -1,3 +1,48 @@
 # alertas
 
 Motor de regras que gera candidatos a alerta com prioridade. Issues: #43 a #46.
+
+Quem decide o que vai na mensagem do dia é o agente (`select_alerts`, no máximo 3). O motor só lista candidatos na tabela `alerta` com status `candidato`; os números de cada alerta vêm das métricas de [src/metricas](../metricas/README.md); o motor só soma o impacto em reais, com contas inteiras sobre eles.
+
+## Regras (#43)
+
+Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara com o limite do comerciante; o motor roda as sete em `motor-de-alertas.ts` e é idempotente (`comerciante + tipo + chave + data` é único). Repetir no mesmo dia com os mesmos dados não cria nem altera nada. Se os dados mudarem entre duas execuções do mesmo dia, o candidato que deixou de qualificar continua gravado como `candidato` (o motor só acrescenta); acompanhado em #157.
+
+| Tipo | Vira candidato quando | Chave |
+| --- | --- | --- |
+| `reajuste_de_custo` | variação de custo acima do limite, em compra recente (limites da métrica de variação de custo) | produto, fornecedor e id da compra atual |
+| `margem_abaixo_da_meta` | margem do produto abaixo da meta | produto |
+| `espaco_para_subir_preco` | giro alto e margem abaixo da meta | produto |
+| `giro_em_alta` | entre os de maior alta do giro, com alta acima de 0 | produto |
+| `estoque_parado` | mais dias sem venda que o limite do estoque parado | produto |
+| `ticket_medio_em_queda` | queda do ticket do dia contra a média anterior chega ao limite do ticket médio | dia |
+| `gasto_fora_do_padrao` | desvio robusto do gasto operacional acima do limite do gasto fora do padrão | dia |
+
+Dado ausente nunca é zero: a regra não gera candidato e o motivo volta em `ausentes` no resultado do motor (por exemplo, `historico_insuficiente` na Esquina, que tem 14 dias de dados).
+
+Os valores dos limites são das métricas: ficam nas constantes `PARAMETROS_*` de [src/metricas](../metricas/README.md) e na seção "Métricas determinísticas" de [docs/guia-desenvolvimento.md](../../docs/guia-desenvolvimento.md). `limites.ts` só os reaproveita como valor inicial. Cada comerciante pode sobrepor os seus por uma `FonteDeLimites`; a fonte padrão não sobrepõe nada. Janelas e tamanho de ranking continuam os da métrica.
+
+## Prioridade e ordem (#44)
+
+Nível de 1 (mais importante) a 3, por critério em `prioridade.ts`:
+
+1. **Impacto em reais**, calculado em código com inteiros em centavos. Os que dependem de volume medem a **semana** (últimos 7 dias do giro); ticket e gasto medem o **dia** da data de referência, por natureza. Assim o mesmo fato tem a mesma prioridade em regras diferentes:
+   - reajuste (semana): diferença de custo por unidade vezes as unidades vendidas nos últimos 7 dias;
+   - margem abaixo da meta (semana): (preço-alvo menos preço médio) vezes as unidades dos últimos 7 dias, com preço-alvo = custo / (1 menos a meta), arredondado para cima para a meta ficar garantida;
+   - espaço para subir preço (semana): o mesmo ganho por unidade vezes as unidades dos últimos 7 dias;
+   - ticket médio (dia): (média de 28 dias menos ticket do dia) vezes os cupons do dia; é uma **estimativa aproximada**: subtrai dois valores já arredondados em centavos e multiplica pelos cupons, então o erro chega a meio centavo por cupom (cerca de R$ 2 com 400 cupons), o que pode mudar o nível perto dos limites;
+   - gasto fora do padrão (dia): valor do dia menos a mediana.
+2. Impacto de R$ 500 ou mais é prioridade 1; de R$ 100 a R$ 499,99, prioridade 2; abaixo disso, 3.
+3. Sem impacto em reais (giro em alta, estoque parado, ou reajuste e margem sem giro) o candidato fica em 3: sem número, sem urgência.
+4. **Confiança** abaixo de 0,8, ou desconhecida, rebaixa um nível (até o 3).
+
+Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave; `candidatos` do resultado do motor já vem nessa ordem. O impacto e a confiança ficam em `metricas_apoio` (`impacto_centavos`, `menor_confianca`) junto com a procedência da métrica (`fonte`).
+
+## Supressão (#44)
+
+Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. O **reajuste** é a exceção: a chave inclui a compra, então o mesmo reajuste já enviado ou descartado é suprimido sem limite de idade (nunca precisa voltar). Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. A supressão só tem efeito depois que quem envia ou descarta grava o status final (`enviado` ou `descartado`) no alerta: o motor só cria `candidato` e ainda não há quem grave esse status (relatório diário e fluxo do `select_alerts`), então até lá nada é suprimido. Como a chave do reajuste inclui o id da compra atual (duas compras do mesmo produto e fornecedor no mesmo dia são alertas distintos), uma nota nova com outro reajuste do mesmo produto é um alerta novo.
+
+## Limites conhecidos
+
+- As sobreposições por comerciante ainda não têm onde ser guardadas: não há coluna ou tabela de configuração no modelo de dados, então só a fonte padrão existe. Guardar exige migração.
+- O motor ainda não é chamado por nenhum job nem pelo relatório diário (#45 e `list_alert_candidates`).

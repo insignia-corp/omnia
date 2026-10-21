@@ -440,18 +440,21 @@ describe("AgenteService: modo conversa e limite de tempo (#55)", () => {
     expect(primeira.trim().endsWith("</mensagem_do_dono>")).toBe(true);
   });
 
-  it("aceita repetir um número dito antes na conversa, e continua bloqueando os inventados", async () => {
+  it("número de fala anterior não vale: o modelo precisa buscar de novo, e o inventado continua bloqueado", async () => {
     const historico = [
       { papel: "dono" as const, texto: "O arroz subiu?" },
       { papel: "assistente" as const, texto: "O arroz subiu 12,05%." },
     ];
-    const repete = criarCom([texto("Como eu disse, subiu 12,05%.")]);
-    expect((await repete.agente.executar({ ...pergunta, historico })).resultado).toBe("aprovada");
+    // Repetir o 12,05% só do histórico: o valor pode estar velho, então não passa.
+    const repete = criarCom([texto("Como eu disse, subiu 12,05%."), texto("Como eu disse, subiu 12,05%.")]);
+    expect((await repete.agente.executar({ ...pergunta, historico })).resultado).toBe("fallback_verificador");
 
-    const inventa = criarCom([texto("Subiu 30%."), texto("Subiu 30%."), texto("Subiu 30%.")]);
-    expect((await inventa.agente.executar({ ...pergunta, historico })).resultado).toBe(
-      "fallback_verificador",
-    );
+    // Buscando de novo na ferramenta, o número volta a valer nesta execução.
+    const rebusca = criarCom([
+      usarFerramenta("get_product_margin", { produto: "Refrigerante" }),
+      texto("A margem do refrigerante é 27,7%."),
+    ]);
+    expect((await rebusca.agente.executar({ ...pergunta, historico })).resultado).toBe("aprovada");
   });
 
   it("sem histórico, só a mensagem atual", async () => {
@@ -471,5 +474,178 @@ describe("AgenteService: modo conversa e limite de tempo (#55)", () => {
     expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
     expect(modelo.pedidos).toHaveLength(0);
     expect(registro.execucoes[0]?.erro).toMatch(/Limite de tempo/);
+  });
+});
+
+/** Modelo que nunca responde por conta própria: só termina quando o prazo cancela a chamada. */
+class ModeloTravado implements ModeloLinguagem {
+  readonly nome = "claude-opus-5-5";
+  sinal: AbortSignal | undefined;
+  gerar(pedido: PedidoModelo): Promise<BetaMessage> {
+    this.sinal = pedido.signal;
+    return new Promise<BetaMessage>((_, rejeitar) => {
+      pedido.signal?.addEventListener("abort", () => rejeitar(new Error("Request was aborted.")));
+    });
+  }
+}
+
+describe("AgenteService: prazo vale também durante a operação em andamento (#55)", () => {
+  it("chamada ao modelo que trava é cortada no prazo, com fallback de erro e a chamada cancelada", async () => {
+    const modelo = new ModeloTravado();
+    const registro = new RegistroExecucoesMemoria();
+    const agente = new AgenteService(
+      modelo,
+      new RegistroFerramentas([margem]),
+      registro,
+      carregarPromptSistema(),
+      {
+        maxIteracoes: 6,
+        maxRegeracoes: 1,
+        maxMs: 40,
+      },
+    );
+    const inicio = performance.now();
+    const r = await agente.executar(pergunta);
+    expect(performance.now() - inicio).toBeLessThan(1000);
+    expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
+    expect(modelo.sinal?.aborted).toBe(true);
+    expect(registro.execucoes[0]?.erro).toMatch(/Limite de tempo de 40 ms/);
+  });
+
+  it("ferramenta que trava também é cortada no prazo", async () => {
+    const lenta = definirFerramenta({
+      nome: "get_product_margin",
+      descricao: "Margem de um produto.",
+      entrada: z.strictObject({ produto: z.string() }),
+      efeito: "nenhum",
+      executar: () => new Promise<never>(() => undefined),
+    });
+    const modelo = new ModeloRoteirizado([usarFerramenta("get_product_margin", { produto: "Arroz" })]);
+    const registro = new RegistroExecucoesMemoria();
+    const agente = new AgenteService(
+      modelo,
+      new RegistroFerramentas([lenta]),
+      registro,
+      carregarPromptSistema(),
+      {
+        maxIteracoes: 6,
+        maxRegeracoes: 1,
+        maxMs: 40,
+      },
+    );
+    const r = await agente.executar(pergunta);
+    expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
+    expect(registro.execucoes[0]?.erro).toMatch(/Limite de tempo/);
+  });
+
+  it("dentro do prazo, nada muda", async () => {
+    const modelo = new ModeloRoteirizado([texto("Posso ajudar.")]);
+    const agente = new AgenteService(
+      modelo,
+      new RegistroFerramentas([margem]),
+      new RegistroExecucoesMemoria(),
+      carregarPromptSistema(),
+      { maxIteracoes: 6, maxRegeracoes: 1, maxMs: 5000 },
+    );
+    expect((await agente.executar(pergunta)).resultado).toBe("aprovada");
+  });
+});
+
+describe("AgenteService: relatório diário só vale com a escolha registrada (#55)", () => {
+  const candidatos = (n: number) =>
+    definirFerramenta({
+      nome: "list_alert_candidates",
+      descricao: "Candidatos a alerta do dia.",
+      entrada: z.strictObject({}),
+      efeito: "nenhum",
+      executar: async () => ({ candidatos: n === 0 ? [] : [{ alerta_id: "a1" }], n_registros: n }),
+    });
+  const escolhe = definirFerramenta({
+    nome: "select_alerts",
+    descricao: "Escolhe alertas.",
+    entrada: z.strictObject({
+      alertas: z.array(z.strictObject({ alerta_id: z.string(), justificativa: z.string() })),
+    }),
+    efeito: "nenhum",
+    executar: async () => ({ selecionados: [{ ordem: 1, metricas_apoio: { variacao_percentual: 12.05 } }] }),
+  });
+  const diario = { contexto, gatilho: "relatorio_diario" as const, entrada: "Execução diária." };
+  const escolher = () =>
+    usarFerramenta(
+      "select_alerts",
+      { alertas: [{ alerta_id: "a1", justificativa: "Maior impacto." }] },
+      "t2",
+    );
+
+  it("escreve sem chamar select_alerts: o loop pede a escolha e só então aprova", async () => {
+    const { agente, modelo, registro } = criarCom(
+      [
+        usarFerramenta("list_alert_candidates", {}, "t1"),
+        texto("Hoje o arroz subiu."),
+        escolher(),
+        texto("O arroz subiu 12,05%."),
+      ],
+      [candidatos(1), escolhe],
+    );
+    const r = await agente.executar(diario);
+    expect(r).toMatchObject({ resultado: "aprovada", mensagem: "O arroz subiu 12,05%." });
+    expect(JSON.stringify(modelo.pedidos[2]?.messages)).toContain("select_alerts");
+    expect(registro.execucoes[0]?.chamadas.map((c) => c.ferramenta)).toEqual([
+      "list_alert_candidates",
+      "select_alerts",
+    ]);
+  });
+
+  it("insiste em não escolher: fallback de erro, sem enviar o relatório sem registro", async () => {
+    const { agente, registro } = criarCom(
+      [
+        usarFerramenta("list_alert_candidates", {}, "t1"),
+        texto("Hoje o arroz subiu."),
+        texto("Hoje o arroz subiu."),
+        texto("Hoje o arroz subiu."),
+      ],
+      [candidatos(1), escolhe],
+    );
+    const r = await agente.executar(diario);
+    expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
+    expect(registro.execucoes[0]?.erro).toMatch(/select_alerts/);
+  });
+
+  it("sem candidatos, não precisa de select_alerts", async () => {
+    const { agente } = criarCom(
+      [usarFerramenta("list_alert_candidates", {}, "t1"), texto("Hoje não há nada que exija atenção.")],
+      [candidatos(0), escolhe],
+    );
+    expect((await agente.executar(diario)).resultado).toBe("aprovada");
+  });
+
+  it("select_alerts com erro não conta como escolha registrada", async () => {
+    const falha = definirFerramenta({
+      nome: "select_alerts",
+      descricao: "Escolhe alertas.",
+      entrada: z.strictObject({
+        alertas: z.array(z.strictObject({ alerta_id: z.string(), justificativa: z.string() })),
+      }),
+      efeito: "nenhum",
+      executar: async () => {
+        throw new Error("Não são candidatos de hoje");
+      },
+    });
+    const { agente } = criarCom(
+      [
+        usarFerramenta("list_alert_candidates", {}, "t1"),
+        escolher(),
+        texto("Hoje o arroz subiu."),
+        texto("Hoje o arroz subiu."),
+        texto("Hoje o arroz subiu."),
+      ],
+      [candidatos(1), falha],
+    );
+    expect((await agente.executar(diario)).resultado).toBe("fallback_erro");
+  });
+
+  it("outros gatilhos não exigem select_alerts", async () => {
+    const { agente } = criarCom([texto("Posso ajudar.")], [candidatos(1), escolhe]);
+    expect((await agente.executar(pergunta)).resultado).toBe("aprovada");
   });
 });

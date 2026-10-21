@@ -13,6 +13,8 @@ export interface PedidoModelo {
   tools: BetaTool[];
   /** Esforço desta chamada; sem valor, vale o padrão do modelo configurado. */
   esforco?: Esforco;
+  /** Cancela a chamada (e as retentativas) quando o prazo da execução acaba. */
+  signal?: AbortSignal;
 }
 
 /** Porta do modelo de linguagem. O loop do agente depende só disto (testável com modelo falso). */

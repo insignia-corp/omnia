@@ -29,6 +29,9 @@ function limparNome(nome: string): string {
     .slice(0, NOME_MAXIMO);
 }
 
+/** Nome de cadastro pronto para texto montado em código (usado também pela confirmação do dono, #104). */
+export const nomeSeguro = limparNome;
+
 /**
  * Texto da pergunta ao dono, montado em código. Os nomes são cadastro, não instrução. Sem exemplo de
  * valor: o resultado da ferramenta autoriza os números no verificador (regra 8), e um valor de

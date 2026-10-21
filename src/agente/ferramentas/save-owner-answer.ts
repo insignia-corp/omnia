@@ -1,9 +1,9 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import type { Db, Tx } from "../../infra/database/database.module";
-import { historicoCusto, perguntaDono } from "../../infra/database/schema";
+import type { Db, Executor, Tx } from "../../infra/database/database.module";
+import { historicoCusto, perguntaDono, produto } from "../../infra/database/schema";
 import { formatarBRL, parseCentavos } from "../../lib/dinheiro/dinheiro";
-import { CAMPOS_DO_DONO, contextoPerguntaSchema } from "./ask-owner";
+import { CAMPOS_DO_DONO, contextoPerguntaSchema, nomeSeguro } from "./ask-owner";
 import { definirFerramenta } from "./ferramenta";
 
 /** O texto do dono vira centavos em código, nunca pela conta do modelo (regras 1 e 2). */
@@ -63,18 +63,25 @@ async function gravarCustoUnitario(
  * conversa nova, em que o modelo não tem o id), é a única pergunta pendente do dado; havendo mais de
  * uma, devolve a lista para o agente perguntar de qual se trata.
  */
-async function acharPergunta(tx: Tx, comercianteId: string, campo: string, perguntaId: string | undefined) {
+async function acharPergunta(
+  ex: Executor,
+  comercianteId: string,
+  campo: string,
+  perguntaId: string | undefined,
+  /** Só a gravação trava a linha; a descrição da confirmação apenas lê. */
+  travar = true,
+) {
   if (perguntaId) {
-    const [pergunta] = await tx
+    const consulta = ex
       .select()
       .from(perguntaDono)
       .where(and(eq(perguntaDono.id, perguntaId), eq(perguntaDono.comercianteId, comercianteId)))
-      .for("update")
       .limit(1);
+    const [pergunta] = await (travar ? consulta.for("update") : consulta);
     if (!pergunta) throw new Error("Pergunta não encontrada");
     return pergunta;
   }
-  const pendentes = await tx
+  const consulta = ex
     .select()
     .from(perguntaDono)
     .where(
@@ -85,8 +92,8 @@ async function acharPergunta(tx: Tx, comercianteId: string, campo: string, pergu
         sql`${perguntaDono.contexto}->>'campo' = ${campo}`,
       ),
     )
-    .orderBy(asc(perguntaDono.criadoEm))
-    .for("update");
+    .orderBy(asc(perguntaDono.criadoEm));
+  const pendentes = await (travar ? consulta.for("update") : consulta);
   if (pendentes.length === 0) {
     throw new Error("Não há pergunta pendente para este dado. Use ask_owner antes de gravar.");
   }
@@ -127,10 +134,35 @@ export function criarSaveOwnerAnswer(db: Db) {
         .describe("Valor em reais como o dono escreveu, por exemplo o número da resposta dele."),
     }),
     efeito: "escreve_config",
+    async descreverConfirmacao(contexto, entrada) {
+      // Produto e campo vêm da pergunta gravada em código; o dono vê o valor que o código leu do que ele escreveu.
+      const pergunta = await acharPergunta(
+        db,
+        contexto.comercianteId,
+        entrada.campo,
+        entrada.pergunta_id,
+        false,
+      );
+      const alvo = contextoPerguntaSchema.safeParse(pergunta.contexto);
+      if (!alvo.success) throw new Error("Pergunta sem dado que o agente possa gravar");
+      const [prod] = await db
+        .select({ nome: produto.nome })
+        .from(produto)
+        .where(and(eq(produto.id, alvo.data.produto_id), eq(produto.comercianteId, contexto.comercianteId)))
+        .limit(1);
+      if (!prod) throw new Error("Produto não encontrado no cadastro");
+      const valor = formatarBRL(parseCentavos(entrada.valor_informado));
+      const nome = nomeSeguro(prod.nome);
+      return {
+        pergunta: `Confirma que o custo unitário atual de "${nome}" é ${valor}? Responda sim ou não.`,
+        resumo: `Anotei ${valor} como custo unitário atual de "${nome}".`,
+      };
+    },
     async executar(contexto, entrada) {
       const { comercianteId } = contexto;
       const valorCentavos = parseCentavos(entrada.valor_informado);
-      return db.transaction(async (tx) => {
+      // Na confirmação do "sim", a transação é a da proposta: escrita e mudança de estado valem juntas.
+      return (contexto.executor ?? db).transaction(async (tx) => {
         const pergunta = await acharPergunta(tx, comercianteId, entrada.campo, entrada.pergunta_id);
         if (pergunta.status !== "pendente") throw new Error("Esta pergunta já foi respondida");
         const alvo = contextoPerguntaSchema.safeParse(pergunta.contexto);
@@ -159,10 +191,17 @@ export function criarSaveOwnerAnswer(db: Db) {
             respondidaEm: new Date(),
           })
           .where(and(eq(perguntaDono.id, pergunta.id), eq(perguntaDono.comercianteId, comercianteId)));
+        const [prod] = await tx
+          .select({ nome: produto.nome })
+          .from(produto)
+          .where(and(eq(produto.id, alvo.data.produto_id), eq(produto.comercianteId, comercianteId)))
+          .limit(1);
         return {
           pergunta_id: pergunta.id,
           campo: entrada.campo,
           produto_id: alvo.data.produto_id,
+          // O nome pode ter número ("Arroz 5kg"): ele precisa estar na saída para o aviso passar no verificador.
+          produto_nome: prod ? nomeSeguro(prod.nome) : null,
           fornecedor_id: alvo.data.fornecedor_id,
           valor_centavos: valorCentavos,
           valor: formatarBRL(valorCentavos),

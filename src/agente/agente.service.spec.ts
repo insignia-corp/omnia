@@ -7,6 +7,7 @@ import { z } from "zod";
 import { dadoAusente } from "../metricas/resultado-metrica";
 import { NumerosAutorizados, verificarNumeros } from "../lib/verificador-numeros/verificador-numeros";
 import { AgenteService, FALLBACK } from "./agente.service";
+import type { ResolveConfirmacao } from "./confirmacao/confirmacao-dono";
 import { RegistroExecucoesMemoria } from "./execucao/registro-execucoes";
 import { definirFerramenta, type ContextoSessao, type Ferramenta } from "./ferramentas/ferramenta";
 import { RegistroFerramentas } from "./ferramentas/registro-ferramentas";
@@ -647,5 +648,229 @@ describe("AgenteService: relatório diário só vale com a escolha registrada (#
   it("outros gatilhos não exigem select_alerts", async () => {
     const { agente } = criarCom([texto("Posso ajudar.")], [candidatos(1), escolhe]);
     expect((await agente.executar(pergunta)).resultado).toBe("aprovada");
+  });
+});
+
+describe("AgenteService: confirmação do dono resolvida em código (#104)", () => {
+  const chamada = {
+    ordem: 1,
+    ferramenta: "confirm_pending_action",
+    entrada: { resposta: "sim" },
+    saida: { status: "executada" },
+    erro: null,
+    menorConfianca: null,
+    latenciaMs: 3,
+  };
+  const montar = (
+    confirmacao: Pick<ResolveConfirmacao, "tratar"> & Partial<Pick<ResolveConfirmacao, "invalidarPendentes">>,
+    respostas: (BetaMessage | Error)[] = [],
+  ) => {
+    const modelo = new ModeloRoteirizado(respostas);
+    const registro = new RegistroExecucoesMemoria();
+    const agente = new AgenteService(
+      modelo,
+      new RegistroFerramentas([margem]),
+      registro,
+      carregarPromptSistema(),
+      { maxIteracoes: 6, maxRegeracoes: 1 },
+      { invalidarPendentes: () => Promise.resolve(), ...confirmacao },
+    );
+    return { agente, modelo, registro };
+  };
+
+  it("com ação pendente e confirmação, responde sem chamar o modelo e registra a chamada do código", async () => {
+    const tratar = jest.fn(() => Promise.resolve({ mensagem: "Pronto, registrei.", chamada, sucesso: true }));
+    const { agente, modelo, registro } = montar({ tratar });
+    const r = await agente.executar({ ...pergunta, entrada: "sim" });
+    expect(r).toMatchObject({ resultado: "aprovada", mensagem: "Pronto, registrei." });
+    expect(modelo.pedidos).toHaveLength(0);
+    expect(registro.execucoes[0]).toMatchObject({
+      modelo: "codigo",
+      iteracoes: 0,
+      custoEstimadoMicrodolares: 0,
+      chamadas: [chamada],
+    });
+    expect(tratar).toHaveBeenCalledWith(contexto, "sim");
+  });
+
+  it("sem ação pendente, a mensagem segue para o modelo como sempre", async () => {
+    const { agente, modelo } = montar({ tratar: () => Promise.resolve(null) }, [texto("Sem pendência.")]);
+    const r = await agente.executar({ ...pergunta, entrada: "sim" });
+    expect(r.mensagem).toBe("Sem pendência.");
+    expect(modelo.pedidos).toHaveLength(1);
+  });
+
+  it("só a mensagem do dono confirma: relatório diário e nota processada nunca chamam a resolução, mas encerram a proposta pendente", async () => {
+    const tratar = jest.fn(() => Promise.resolve(null));
+    const invalidarPendentes = jest.fn(() => Promise.resolve());
+    const { agente } = montar({ tratar, invalidarPendentes }, [
+      texto("Sem alertas hoje."),
+      texto("Nada a avisar."),
+    ]);
+    await agente.executar({ contexto, gatilho: "relatorio_diario", entrada: "sim" });
+    await agente.executar({ contexto, gatilho: "nota_processada", entrada: "sim" });
+    expect(tratar).not.toHaveBeenCalled();
+    expect(invalidarPendentes).toHaveBeenCalledTimes(2);
+    expect(invalidarPendentes).toHaveBeenCalledWith(contexto);
+  });
+
+  it("mensagem do dono que não é confirmação encerra a proposta pendente antes de o modelo responder", async () => {
+    const ordem: string[] = [];
+    const { agente } = montar(
+      {
+        tratar: () => {
+          ordem.push("tratar");
+          return Promise.resolve(null);
+        },
+        invalidarPendentes: () => {
+          ordem.push("invalidar");
+          return Promise.resolve();
+        },
+      },
+      [texto("Posso ajudar.")],
+    );
+    await agente.executar({ ...pergunta, entrada: "qual a margem do arroz?" });
+    expect(ordem).toEqual(["tratar", "invalidar"]);
+  });
+
+  it("um sim ou não resolvido em código não chama invalidarPendentes", async () => {
+    const invalidarPendentes = jest.fn(() => Promise.resolve());
+    const { agente } = montar({
+      tratar: () => Promise.resolve({ mensagem: "Pronto, registrei.", chamada, sucesso: true }),
+      invalidarPendentes,
+    });
+    await agente.executar({ ...pergunta, entrada: "sim" });
+    expect(invalidarPendentes).not.toHaveBeenCalled();
+  });
+
+  it("falha ao encerrar a proposta pendente não derruba a conversa", async () => {
+    const { agente } = montar(
+      {
+        tratar: () => Promise.resolve(null),
+        invalidarPendentes: () => Promise.reject(new Error("banco fora")),
+      },
+      [texto("Posso ajudar.")],
+    );
+    expect((await agente.executar(pergunta)).resultado).toBe("aprovada");
+  });
+
+  it("escrita que falhou vira fallback de erro registrado, sem dizer que gravou", async () => {
+    const falha = { ...chamada, saida: null, erro: "Falha ao executar x: banco fora" };
+    const { agente, registro } = montar({
+      tratar: () =>
+        Promise.resolve({ mensagem: "Não consegui registrar agora.", chamada: falha, sucesso: false }),
+    });
+    const r = await agente.executar({ ...pergunta, entrada: "sim" });
+    expect(r.resultado).toBe("fallback_erro");
+    expect(registro.execucoes[0]?.erro).toMatch(/banco fora/);
+  });
+
+  it("exceção na resolução vira o fallback de erro, sem chamar o modelo", async () => {
+    const { agente, modelo } = montar({ tratar: () => Promise.reject(new Error("conexão caiu")) });
+    const r = await agente.executar({ ...pergunta, entrada: "sim" });
+    expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
+    expect(modelo.pedidos).toHaveLength(0);
+  });
+
+  it("a pergunta de confirmação montada em código libera os números dela no verificador", async () => {
+    const propostaTool = definirFerramenta({
+      nome: "propose_target_price",
+      descricao: "Propõe preço-meta.",
+      entrada: z.strictObject({ preco_meta_centavos: z.number().int() }),
+      efeito: "escreve_config",
+      executar: async () => ({}),
+    });
+    const modelo = new ModeloRoteirizado([
+      usarFerramenta("propose_target_price", { preco_meta_centavos: 1290 }),
+      texto('Quer que eu registre R$ 12,90 como preço-meta de "Arroz"? Responda sim ou não.'),
+    ]);
+    const registro = new RegistroExecucoesMemoria();
+    const agente = new AgenteService(
+      modelo,
+      new RegistroFerramentas([propostaTool], {
+        consumir: () => Promise.resolve(false),
+        propor: () =>
+          Promise.resolve({
+            perguntaId: "p1",
+            pergunta: 'Quer que eu registre R$ 12,90 como preço-meta de "Arroz"? Responda sim ou não.',
+          }),
+      }),
+      registro,
+      carregarPromptSistema(),
+      { maxIteracoes: 6, maxRegeracoes: 1 },
+    );
+    const r = await agente.executar(pergunta);
+    expect(r.resultado).toBe("aprovada");
+    expect(registro.execucoes[0]?.bloqueios).toEqual([]);
+  });
+});
+
+describe("AgenteService: o dono confirma exatamente o texto montado em código (#104)", () => {
+  const PERGUNTA =
+    'Quer que eu registre R$ 12,90 como preço-meta de "Café Três Corações 500g"? Responda sim ou não.';
+  const propostaTool = definirFerramenta({
+    nome: "propose_target_price",
+    descricao: "Propõe preço-meta.",
+    entrada: z.strictObject({ preco_meta_centavos: z.number().int() }),
+    efeito: "escreve_config",
+    executar: async () => ({}),
+  });
+  const montar = (respostas: (BetaMessage | Error)[]) => {
+    const modelo = new ModeloRoteirizado(respostas);
+    const registro = new RegistroExecucoesMemoria();
+    const agente = new AgenteService(
+      modelo,
+      new RegistroFerramentas([propostaTool], {
+        consumir: () => Promise.resolve(false),
+        propor: () => Promise.resolve({ perguntaId: "p1", pergunta: PERGUNTA }),
+      }),
+      registro,
+      carregarPromptSistema(),
+      { maxIteracoes: 8, maxRegeracoes: 1 },
+      { tratar: () => Promise.resolve(null), invalidarPendentes: () => Promise.resolve() },
+    );
+    return { agente, modelo, registro };
+  };
+  const propor = () => usarFerramenta("propose_target_price", { preco_meta_centavos: 1290 });
+  // O dono escreveu 15,90, então esse número é autorizado: o verificador sozinho aceitaria o texto errado.
+  const donoDisse15 = { ...pergunta, entrada: "Quero o café a R$ 15,90" };
+
+  it("nome de produto com número por extenso ou com número no nome passa, porque a pergunta vem de código", async () => {
+    const { agente, registro } = montar([propor(), texto(`Fechado. ${PERGUNTA}`)]);
+    const r = await agente.executar(pergunta);
+    expect(r).toMatchObject({ resultado: "aprovada", mensagem: `Fechado. ${PERGUNTA}` });
+    expect(registro.execucoes[0]?.bloqueios).toEqual([]);
+  });
+
+  it("modelo escreve outro valor (do dono) em vez da pergunta: é corrigido e só segue a pergunta exata", async () => {
+    const { agente, modelo } = montar([
+      propor(),
+      texto(
+        'Quer que eu registre R$ 15,90 como preço-meta de "Café Três Corações 500g"? Responda sim ou não.',
+      ),
+      texto(PERGUNTA),
+    ]);
+    const r = await agente.executar(donoDisse15);
+    expect(r.mensagem).toBe(PERGUNTA);
+    expect(JSON.stringify(modelo.pedidos[2]?.messages)).toContain("sem mudar uma palavra");
+  });
+
+  it("se o modelo insiste em escrever outra coisa, a mensagem enviada é a própria pergunta", async () => {
+    const errada = "Quer que eu registre R$ 15,90 como preço-meta do café? Responda sim ou não.";
+    const { agente, registro } = montar([propor(), texto(errada), texto(errada)]);
+    const r = await agente.executar(donoDisse15);
+    expect(r).toMatchObject({ resultado: "aprovada", mensagem: PERGUNTA });
+    expect(r.mensagem).not.toContain("15,90");
+    expect(registro.execucoes[0]?.mensagemFinal).toBe(PERGUNTA);
+  });
+
+  it("o valor da pergunta não vira fonte de número fora dela", async () => {
+    const { agente } = montar([
+      propor(),
+      texto(`Hoje o café custa R$ 12,90. ${PERGUNTA}`),
+      texto(`Sobre o café. ${PERGUNTA}`),
+    ]);
+    const r = await agente.executar(pergunta);
+    expect(r.mensagem).toBe(`Sobre o café. ${PERGUNTA}`);
   });
 });

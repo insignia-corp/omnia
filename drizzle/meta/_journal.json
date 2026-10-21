@@ -57,6 +57,13 @@
       "when": 1792535941521,
       "tag": "0012_gatilho_vinculo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792555428923,
+      "tag": "0008_historico_preco_meta",
+      "breakpoints": true
     }
   ]
 }

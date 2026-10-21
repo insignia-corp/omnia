@@ -26,6 +26,8 @@ const esquemaEnv = z.object({
   LLM_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
   AGENTE_MAX_ITERACOES: z.coerce.number().int().min(1).max(20).default(8),
   AGENTE_MAX_REGERACOES: z.coerce.number().int().min(0).max(5).default(2),
+  /** Validade de uma ação à espera do "sim" do dono (ex.: preço-meta). Depois disso, o "sim" não vale. */
+  ACAO_EXPIRA_MINUTOS: z.coerce.number().int().min(1).max(1440).default(1440),
   /** Tempo total de uma execução do agente; depois dele o dono recebe o fallback de erro. */
   AGENTE_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
   /** Quantas falas anteriores da conversa o agente recebe (0 desliga o histórico). */

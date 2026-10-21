@@ -95,6 +95,41 @@ describe("RegistroFerramentas", () => {
       expect(executar).toHaveBeenCalledTimes(1);
     });
 
+    it("sem confirmação, registra a proposta e devolve a pergunta montada em código, sem executar", async () => {
+      const propor = jest.fn(() => Promise.resolve({ perguntaId: "p1", pergunta: "Registro R$ 9,99?" }));
+      const r = new RegistroFerramentas([definir], { consumir: () => Promise.resolve(false), propor });
+      const res = await r.executar(contexto, "set_target_price", { preco_centavos: 999 });
+      expect(res).toMatchObject({
+        ok: false,
+        erro: expect.stringContaining("Registro R$ 9,99?"),
+        confirmacao: { perguntaId: "p1", pergunta: "Registro R$ 9,99?" },
+      });
+      expect(propor).toHaveBeenCalledWith(contexto, definir, { preco_centavos: 999 });
+      expect(executar).not.toHaveBeenCalled();
+    });
+
+    it("executarConfirmada roda a escrita validando a entrada e só para escreve_config", async () => {
+      const r = new RegistroFerramentas([definir, eco]);
+      expect(await r.executarConfirmada(contexto, "set_target_price", { preco_centavos: 999 })).toMatchObject(
+        {
+          ok: true,
+          saida: { gravado: { preco_centavos: 999 } },
+        },
+      );
+      expect(await r.executarConfirmada(contexto, "set_target_price", { preco_centavos: "x" })).toMatchObject(
+        {
+          ok: false,
+          erro: /inválida/,
+        },
+      );
+      expect(await r.executarConfirmada(contexto, "echo_merchant", { texto: "oi" })).toMatchObject({
+        ok: false,
+        erro: /não confirmável/,
+      });
+      expect(await r.executarConfirmada(contexto, "nao_existe", {})).toMatchObject({ ok: false });
+      expect(executar).toHaveBeenCalledTimes(1);
+    });
+
     it("ferramentas de leitura não pedem confirmação", async () => {
       const consumir = jest.fn();
       const r = new RegistroFerramentas([eco], { consumir });

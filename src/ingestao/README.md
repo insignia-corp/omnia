@@ -70,4 +70,4 @@ Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem
 
 ## Pendente nesta etapa
 
-Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.
+Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso ao dono quando a extração falha ainda não existe: o `ProcessadorExtracao` só grava `documento.statusExtracao` e `documento.erro`, e o canal (#106, #66, já na `develop`) ainda não recebe esse evento. Acompanhamento em #158.

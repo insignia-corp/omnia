@@ -10,6 +10,7 @@ import {
   NumerosAutorizados,
   verificarNumeros,
 } from "../lib/verificador-numeros/verificador-numeros";
+import type { ResolveConfirmacao } from "./confirmacao/confirmacao-dono";
 import type { ContextoSessao } from "./ferramentas/ferramenta";
 import type { RegistroFerramentas } from "./ferramentas/registro-ferramentas";
 import type {
@@ -72,11 +73,17 @@ export class AgenteService {
     private readonly registro: RegistroExecucoes,
     private readonly prompt: PromptSistema,
     private readonly limites: LimitesAgente,
+    /** Resolve o "sim" do dono em código, antes do modelo (issue #104). Sem ele, nada é confirmado. */
+    private readonly confirmacao?: ResolveConfirmacao,
   ) {}
 
   async executar(pedido: PedidoAgente): Promise<RespostaAgente> {
     const inicio = performance.now();
     const { contexto } = pedido;
+    if (pedido.gatilho === "mensagem_dono" && this.confirmacao) {
+      const resolvida = await this.resolverConfirmacao(pedido, inicio);
+      if (resolvida) return resolvida;
+    }
     // Com o fallback do servidor, cada resposta informa o modelo que de fato rodou: cada um tem seu preço.
     const consumoPorModelo = new Map<string, ConsumoTokens>();
     const chamadas: ChamadaRegistrada[] = [];
@@ -201,6 +208,51 @@ export class AgenteService {
     return { execucaoId, resultado, mensagem };
   }
 
+  /**
+   * "Sim" ou "não" do dono a uma ação pendente: resolvido em código, sem chamar o modelo. A execução
+   * fica registrada com a chamada `confirm_pending_action`, para aparecer nos bastidores.
+   */
+  private async resolverConfirmacao(pedido: PedidoAgente, inicio: number): Promise<RespostaAgente | null> {
+    let resultado: ResultadoExecucao = "aprovada";
+    let mensagem: string = FALLBACK.erro;
+    let erro: string | null = null;
+    const chamadas: ChamadaRegistrada[] = [];
+    try {
+      const r = await this.confirmacao!.tratar(pedido.contexto, pedido.entrada);
+      if (!r) return null;
+      mensagem = r.mensagem;
+      chamadas.push(r.chamada);
+      if (!r.sucesso) {
+        resultado = "fallback_erro";
+        erro = r.chamada.erro;
+      }
+    } catch (e) {
+      // A ação pode ter sido reivindicada: o dono recebe o fallback, nunca a confirmação de algo não feito.
+      resultado = "fallback_erro";
+      erro = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      this.logger.error(`Resolução da confirmação falhou: ${erro}`);
+    }
+    const execucaoId = await this.registro.salvar({
+      comercianteId: pedido.contexto.comercianteId,
+      gatilho: pedido.gatilho,
+      entrada: pedido.entrada,
+      modelo: "codigo",
+      versaoPrompt: this.prompt.versao,
+      resultado,
+      mensagemFinal: mensagem,
+      iteracoes: 0,
+      bloqueios: [],
+      tokensEntrada: 0,
+      tokensSaida: 0,
+      tokensCacheLeitura: 0,
+      custoEstimadoMicrodolares: 0,
+      latenciaMs: Math.round(performance.now() - inicio),
+      erro,
+      chamadas,
+    });
+    return { execucaoId, resultado, mensagem };
+  }
+
   /** Executa em paralelo e devolve todos os resultados numa única mensagem. */
   private async rodarFerramentas(
     contexto: ContextoSessao,
@@ -223,7 +275,11 @@ export class AgenteService {
         menorConfianca: r.ok ? menorConfiancaDe(r.saida) : null,
         latenciaMs: r.latenciaMs,
       });
-      if (!r.ok) return { type: "tool_result", tool_use_id: p.id, content: r.erro, is_error: true };
+      if (!r.ok) {
+        // A pergunta de confirmação é montada em código: os números dela valem para a mensagem do dono.
+        if (r.confirmacao) autorizados.adicionarFonte(r.confirmacao.pergunta);
+        return { type: "tool_result", tool_use_id: p.id, content: r.erro, is_error: true };
+      }
       autorizados.adicionarFonte(r.saida);
       return { type: "tool_result", tool_use_id: p.id, content: JSON.stringify(r.saida) };
     });

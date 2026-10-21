@@ -9,7 +9,7 @@ Atualizado em: 2026-10-21 · commit base: `358d386` (`develop` após o PR 146) �
 - Etapa 0 (base): feita. Resta ligar a CI como status obrigatório na proteção das branches (#7) e o id de correlação por job (#10).
 - Etapa 1 (dados de teste e gabarito): feita. Falta só a revisão do gabarito de métricas por uma segunda pessoa (#16). Detalhe em `fixtures/README.md`.
 - Etapa 2 (ingestão): na `develop`, armazenamento, upload e fila BullMQ, Extrator com Zod, validações em código, revisão de item e pergunta ao dono, vínculo por catálogo, similaridade, código de barras e sugestão do modelo confirmada pelo dono (#27), planilha de vendas CSV e XLSX (#28) e NF-e em XML (#29). Falta a integração Pluggy (#30, P2, fora do escopo regional), o fluxo de resolução de importação parcial de planilha (#142) e a propagação de origem e confiança do produto (#144). Detalhe em `src/ingestao/README.md`.
-- Etapa 3 (métricas): feita. Margem, variação de custo, giro, resumo diário, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço batem com o gabarito, e o conjunto de alertas esperados também (#41). Débitos em #143 (extrato por conta) e #148 (critério de receita). Detalhe em `src/metricas/README.md`.
+- Etapa 3 (métricas): feita, com o épico #31 fechado. Margem, variação de custo, giro, resumo diário, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço batem com o gabarito, e o conjunto de alertas esperados também (#41). Débitos em #143 (extrato por conta) e #148 (critério de receita). Detalhe em `src/metricas/README.md`.
 - Etapa 4 (motor de alertas): não começou na `develop`; `src/alertas` é casca. Em andamento por outra frente: #43, #44, depois #45 e #46.
 - Etapa 5 (agente): na `develop`, núcleo, verificador, registro de execuções, loop diário e modo conversa (#55), `ask_owner`, `save_owner_answer`, `send_message`, ação com confirmação do dono e preço-meta (#104). Aberto em PR 145: `get_daily_summary`, `get_top_products`, `get_product_margin` e `get_cost_changes` (#50, #51). Falta `list_alert_candidates` (#52, depende do motor de alertas).
 - Etapa 6 (canal): na `develop`, `MessageChannel`, chat web como plano B, escolha por `CANAL`, relatório diário idempotente com horário de silêncio (#64, #66, #106). WhatsApp (#59 a #63) e áudio (#107) não começaram.
@@ -33,9 +33,10 @@ Gerados em 2026-10-21 sobre a `develop` em `358d386`, com Node 24 (via `npx`), P
 
 ## Em PR aberto
 
-- PR 145: ferramentas de leitura do agente (#50, #51), sem conflito com a `develop` na data.
+- PR 145: ferramentas de leitura do agente (#50, #51), sem conflito com a `develop` e com a CI verde, ainda sem revisão.
+- PR 150: correção do verificador para que ids nas saídas das ferramentas não autorizem números, sem conflito e com a CI verde, ainda sem revisão.
 - PR 139: corrige o e2e "o dono confirma a nota"; a `develop` já tem a correção do PR 140, então ele conflita e está superado (decisão do dono).
-- O motor de alertas (#43, #44) e a correção do verificador estão em andamento e sem PR aberto na data.
+- O motor de alertas (#43, #44) e o job de reajuste (#45, #46) estão em andamento e sem PR aberto na data.
 
 ## Pendências
 

@@ -55,7 +55,8 @@ export async function limparFilasDaDemo(
     for (;;) {
       const ativos: string[] = [];
       for (const fila of filas) {
-        for (const job of (await fila.getJobs(["active"])).filter(daDemo)) ativos.push(`${fila.name}:${job.id}`);
+        for (const job of (await fila.getJobs(["active"])).filter(daDemo))
+          ativos.push(`${fila.name}:${job.id}`);
       }
       if (ativos.length === 0) break;
       if (Date.now() >= limite) {

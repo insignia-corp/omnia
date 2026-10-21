@@ -45,9 +45,7 @@ export function versaoDoPainel(
   const validos = instantes.filter((d): d is Date => d instanceof Date).map((d) => d.getTime());
   const base = validos.length === 0 ? "0" : String(Math.max(...validos));
   if (decisoes.length === 0) return base;
-  const campos = [...decisoes]
-    .sort((a, b) => a.alerta_id.localeCompare(b.alerta_id))
-    .map(canonico);
+  const campos = [...decisoes].sort((a, b) => a.alerta_id.localeCompare(b.alerta_id)).map(canonico);
   return `${base}.${createHash("sha256").update(JSON.stringify(campos)).digest("hex").slice(0, 16)}`;
 }
 

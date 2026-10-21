@@ -1,7 +1,11 @@
 import { sql } from "drizzle-orm";
 import { LIMITE_SIMILARIDADE_PADRAO } from "../../../config/env";
 import type { Db } from "../../../infra/database/database.module";
-import { decidirPorSimilaridade, type CandidatoProduto } from "../../../ingestao/vinculo/vincular-produto";
+import {
+  NOME_NORMALIZADO,
+  decidirPorSimilaridade,
+  type CandidatoProduto,
+} from "../../../ingestao/vinculo/vincular-produto";
 import { normalizarDescricao } from "../../../ingestao/normalizar-descricao";
 
 /**
@@ -9,11 +13,6 @@ import { normalizarDescricao } from "../../../ingestao/normalizar-descricao";
  * variável `LIMITE_SIMILARIDADE` não é lida aqui (as ferramentas só recebem o `db`).
  */
 export const SIMILARIDADE_PARA_ESCOLHER_PRODUTO = LIMITE_SIMILARIDADE_PADRAO;
-
-/** Mesmo recorte de acentos de `normalizarDescricao`, para comparar o nome do catálogo em SQL. */
-const NOME_NORMALIZADO = sql.raw(
-  "translate(upper(p.nome), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')",
-);
 
 /** O produto achado traz o nome do cadastro: o id e o nome vêm da mesma consulta do comerciante da sessão. */
 export type ProdutoAchado =

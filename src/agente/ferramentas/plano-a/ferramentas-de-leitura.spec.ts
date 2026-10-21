@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Db } from "../../../infra/database/database.module";
 import type { MetricasService } from "../../../metricas/metricas.service";
+import { produtoNaoEncontrado } from "../../../metricas/produto-nao-encontrado";
 import { dadoAusente, ehDadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
 import { NumerosAutorizados, verificarNumeros } from "../../../lib/verificador-numeros/verificador-numeros";
 import type { ContextoSessao, Ferramenta } from "../ferramenta";
@@ -398,6 +399,8 @@ describe("ferramentas de leitura do plano A", () => {
       const { mock, metricas: m } = servico();
       const saida = await criarGetProductMargin(m, dbCom([])).executar(contexto, { produto: "Xyz" });
       expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+      // O mesmo texto da métrica: um só lugar para o aviso (issue #149).
+      expect(saida).toMatchObject({ motivo: produtoNaoEncontrado().motivo });
       expect(mock.margemDoProduto).not.toHaveBeenCalled();
     });
 

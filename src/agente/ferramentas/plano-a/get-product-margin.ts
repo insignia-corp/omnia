@@ -2,12 +2,8 @@ import { z } from "zod";
 import type { Db } from "../../../infra/database/database.module";
 import type { MargemDoProduto } from "../../../metricas/margem-por-produto";
 import type { MetricasService } from "../../../metricas/metricas.service";
-import {
-  dadoAusente,
-  ehDadoAusente,
-  type DadoAusente,
-  type ResultadoMetrica,
-} from "../../../metricas/resultado-metrica";
+import { produtoNaoEncontrado } from "../../../metricas/produto-nao-encontrado";
+import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
 import { definirFerramenta } from "../ferramenta";
 import { buscarProdutoPorNome } from "./buscar-produto";
 
@@ -70,11 +66,7 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
           candidatos: achado.candidatos.map((c) => ({ produto_id: c.produtoId, nome: c.nome })),
         };
       }
-      return dadoAusente(
-        "produto_nao_encontrado",
-        "Não encontrei esse produto no seu cadastro.",
-        "Qual é o nome do produto, como aparece na nota ou na prateleira?",
-      );
+      return produtoNaoEncontrado("Qual é o nome do produto, como aparece na nota ou na prateleira?");
     },
   });
 }

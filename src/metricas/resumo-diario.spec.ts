@@ -159,7 +159,10 @@ describe("calcularResumoDiario", () => {
 
     it("soma as contas, cada uma com seu saldo inicial", () => {
       const { valor } = resumo({
-        contas: [conta, { id: "conta-2", ativa: true, saldoInicialCentavos: 500_000, saldoInicialEm: "2026-10-15" }],
+        contas: [
+          conta,
+          { id: "conta-2", ativa: true, saldoInicialCentavos: 500_000, saldoInicialEm: "2026-10-15" },
+        ],
         movimentos: [
           movimento("2026-10-16", "entrada", 10_000, { contaId: "conta-2" }),
           movimento("2026-10-16", "saida", 4000),
@@ -169,7 +172,12 @@ describe("calcularResumoDiario", () => {
     });
 
     it("conta aberta depois da data não entra; sem nenhuma conta na data, o saldo é ausente", () => {
-      const nova = { id: "conta-2", ativa: true, saldoInicialCentavos: 500_000, saldoInicialEm: "2026-10-25" };
+      const nova = {
+        id: "conta-2",
+        ativa: true,
+        saldoInicialCentavos: 500_000,
+        saldoInicialEm: "2026-10-25",
+      };
       expect(resumo({ contas: [conta, nova] }).valor.saldo_da_conta).toEqual({ saldo_centavos: 1_000_000 });
       expect(resumo({ contas: [nova] }).valor.saldo_da_conta).toMatchObject({
         ausente: true,

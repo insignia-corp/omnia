@@ -260,7 +260,7 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
 
     beforeAll(async () => {
       await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, vilaNova));
-      // O reajuste do arroz foi enviado há 2 dias; o do óleo foi descartado há 7 (ainda na semana).
+      // O reajuste do arroz foi enviado há 2 dias; o do óleo foi descartado há 6 (ainda na semana).
       await tratado(
         "reajuste_de_custo",
         `${id("P01")}:${fornecedor("AUR")}:2026-10-16`,
@@ -270,10 +270,11 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       await tratado(
         "reajuste_de_custo",
         `${id("P03")}:${fornecedor("AUR")}:2026-10-13`,
-        "2026-10-12",
+        "2026-10-13",
         "descartado",
       );
-      // Fora da janela de 7 dias, ou ainda só candidato: não suprimem.
+      // Há 7 dias ou mais, ou ainda só candidato: não suprimem (a janela é de menos de 7 dias).
+      await tratado("giro_em_alta", id("P47"), "2026-10-12", "enviado");
       await tratado("margem_abaixo_da_meta", id("P01"), "2026-10-11", "enviado");
       await tratado("estoque_parado", id("P12"), "2026-10-17", "candidato");
     });
@@ -288,12 +289,13 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       expect(r.candidatos).toHaveLength(14);
     });
 
-    it("alerta enviado há mais que a janela, ou só candidato, não suprime", async () => {
+    it("alerta enviado há 7 dias ou mais, ou só candidato, não suprime", async () => {
       const linhas = await db
         .select()
         .from(schema.alerta)
         .where(and(eq(schema.alerta.comercianteId, vilaNova), eq(schema.alerta.dataReferencia, REF)));
       const chaves = linhas.map(chaveDaLinha);
+      expect(chaves).toContain(chaveDoGabarito("giro_em_alta", "P47"));
       expect(chaves).toContain(chaveDoGabarito("margem_abaixo_da_meta", "P01"));
       expect(chaves).toContain(chaveDoGabarito("estoque_parado", "P12"));
     });

@@ -62,7 +62,7 @@ export class MotorDeAlertas {
         (t) =>
           t.tipo === c.tipo &&
           t.chave === c.chave &&
-          diasEntre(t.dataReferencia, dataReferencia) <= limites.janelaSupressaoDias[c.tipo],
+          diasEntre(t.dataReferencia, dataReferencia) < limites.janelaSupressaoDias[c.tipo],
       );
 
     const suprimidos = achados.filter(barrado);

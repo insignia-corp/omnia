@@ -22,7 +22,7 @@ Depois de gravar os itens, cada descrição tenta ligar a um produto (`vinculo/v
 1. vínculo já confirmado pelo dono (mesmo fornecedor primeiro, depois qualquer um): liga sem perguntar;
 2. similaridade `pg_trgm` contra o catálogo e contra descrições já confirmadas. Liga sozinho se passar de `LIMITE_SIMILARIDADE` e superar o segundo candidato por 0,1; senão pergunta ao dono com até 3 sugestões.
 
-Item ligado grava uma linha em `historico_custo` com a menor entre a confiança do item, a do vínculo e a do documento (CNPJ, data e soma conferidos em código). Item sem produto fica sem custo no histórico até o dono escolher. O código de barras entra com a NF-e (#29). A sugestão pelo modelo, quando as duas buscas falham, está pendente (#27).
+Item ligado grava uma linha em `historico_custo` com a menor entre a confiança do item, a do vínculo e a do documento (CNPJ, data e soma conferidos em código). Item sem produto fica sem custo no histórico até o dono escolher. O código de barras (GTIN com dígito verificador válido, `lib/gtin`) é o primeiro passo quando a origem o traz; a foto não traz, a NF-e traz (`cEAN`). Quando nada liga, `vinculo/sugestor-vinculo.ts` pede ao modelo (`VINCULO_MODELO`, Haiku por padrão) o produto do cadastro, uma chamada por nota e só para os itens sem vínculo. O modelo vê referências locais (`i1`, `p1`...), nunca ids; o código valida a referência e traduz para o produto do próprio comerciante, e a confiança é limitada a 0,7. A sugestão nunca liga o item: entra como "Parece ser X" na pergunta `confirmar_vinculo` (`contexto.sugestao_modelo`), e se o dono confirma o vínculo é gravado com `metodo = modelo` e `confirmado_pelo_dono`. Sem chave de API, com tudo ligado, em job repetido, ou se o modelo falhar, não há sugestão e a nota segue como antes (o erro não sobe, para não repetir o job e cobrar a extração de novo). Cada chamada é registrada em `execucao_agente` com `gatilho = vinculo_produto`, tokens e custo.
 
 Medido com as 18 notas de `fixtures/` e o catálogo de 50 produtos (`tests/vinculo-notas.e2e-spec.ts`): 94 itens, 97,9% ligam sozinhos ao produto certo, nenhum liga ao errado, e os 2 restantes vão ao dono com o produto certo entre as sugestões.
 
@@ -62,4 +62,4 @@ Conferido contra o gabarito (`tests/planilha-vendas.e2e-spec.ts`): CSV e XLSX im
 
 ## Pendente nesta etapa
 
-Sugestão de vínculo pelo modelo (#27) e NF-e em XML (#29). O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.
+NF-e em XML (#29) e o uso do `cEAN` no vínculo da NF-e. Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso ao dono quando a extração falha depende do canal (#106, #66): hoje o estado fica em `documento.status` e `documento.erro`.

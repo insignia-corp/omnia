@@ -2,12 +2,15 @@ import { Module } from "@nestjs/common";
 import { LoggerModule } from "nestjs-pino";
 import { randomUUID } from "node:crypto";
 import { AgenteModule } from "./agente/agente.module";
+import { AlertasModule } from "./alertas/alertas.module";
+import { AvaliacaoModule } from "./avaliacao/avaliacao.module";
+import { CanalModule } from "./canal/canal.module";
 import { ConfigModule, ENV } from "./config/config.module";
 import type { Env } from "./config/env";
 import { DatabaseModule } from "./infra/database/database.module";
 import { IngestaoModule } from "./ingestao/ingestao.module";
-import { RedisModule } from "./infra/redis/redis.module";
 import { MetricasModule } from "./metricas/metricas.module";
+import { RedisModule } from "./infra/redis/redis.module";
 import { SaudeController } from "./saude/saude.controller";
 
 /** pino-pretty é dependência de desenvolvimento e não existe na imagem de produção. */
@@ -41,6 +44,9 @@ function temPinoPretty(): boolean {
     AgenteModule,
     IngestaoModule,
     MetricasModule,
+    AlertasModule,
+    CanalModule,
+    AvaliacaoModule,
   ],
   controllers: [SaudeController],
 })

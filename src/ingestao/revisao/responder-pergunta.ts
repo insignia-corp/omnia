@@ -94,7 +94,13 @@ export async function responderPergunta(
     if (pergunta.tipo === "confirmar_documento") {
       resultado = await responderDocumento(tx, comercianteId, pergunta.contexto, corpo, opcoes);
     } else if (pergunta.tipo === "confirmar_vinculo") {
-      resultado = await responderVinculo(tx, comercianteId, pergunta.itemDeCompraId!, corpo);
+      resultado = await responderVinculo(
+        tx,
+        comercianteId,
+        pergunta.itemDeCompraId!,
+        corpo,
+        pergunta.contexto,
+      );
     } else {
       resultado = await responderItem(tx, comercianteId, pergunta.itemDeCompraId!, corpo, opcoes);
     }
@@ -293,11 +299,18 @@ async function responderDocumento(
   return { statusDocumento: recalculado.status, itensLigados: 0 };
 }
 
+/** Produto que o modelo sugeriu na pergunta, se houve sugestão. */
+function sugeridoPeloModelo(contexto: unknown): string | null {
+  const sugestao = (contexto as { sugestao_modelo?: { produto_id?: unknown } } | null)?.sugestao_modelo;
+  return typeof sugestao?.produto_id === "string" ? sugestao.produto_id : null;
+}
+
 async function responderVinculo(
   tx: Tx,
   comercianteId: string,
   itemId: string,
   corpo: unknown,
+  contextoPergunta: unknown,
 ): Promise<Pick<ResultadoResposta, "itensLigados">> {
   const resposta = validar(respostaVinculoSchema, corpo);
   const [prod] = await tx
@@ -313,7 +326,8 @@ async function responderVinculo(
     fornecedorId: c.fornecedorId,
     descricao: item.descricaoNota,
     produtoId: prod.id,
-    metodo: "dono",
+    // Confirmar o que o modelo sugeriu fica registrado como tal; a confirmação é sempre do dono.
+    metodo: sugeridoPeloModelo(contextoPergunta) === prod.id ? "modelo" : "dono",
     confianca: 1,
     confirmadoPeloDono: true,
   });

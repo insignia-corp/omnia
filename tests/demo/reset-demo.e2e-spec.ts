@@ -1,0 +1,118 @@
+import { eq, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Queue } from "bullmq";
+import Redis from "ioredis";
+import { mkdirSync, mkdtempSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Pool } from "pg";
+import { resetarDemo } from "../../scripts/demo/resetar-demo";
+import { FILA_RELATORIO_DIARIO } from "../../src/canal/jobs/fila-relatorio-diario";
+import { carregarEnv } from "../../src/config/env";
+import { migrar } from "../../src/infra/database/migrar";
+import * as schema from "../../src/infra/database/schema";
+import { carregarFixtures } from "../../src/infra/database/seed/carregar-fixtures";
+import { comerciantesDoSeed } from "../../src/infra/database/seed/semear";
+import { montarSeed } from "../../src/infra/database/seed/montar-seed";
+
+/** Regra inviolável 10: o reset da demo recria só os comerciantes da demo e nunca mexe nos outros. */
+describe("reset da demo (e2e)", () => {
+  const dirArquivos = mkdtempSync(join(tmpdir(), "omnia-e2e-reset-"));
+  const env = { ...carregarEnv(), ARMAZENAMENTO_DIR: dirArquivos };
+  const idDemo = montarSeed(
+    comerciantesDoSeed(carregarFixtures())[0]!.dados,
+    comerciantesDoSeed(carregarFixtures())[0]!.opcoes,
+  ).comerciante.id as string;
+
+  let pool: Pool;
+  let db: ReturnType<typeof drizzle<typeof schema>>;
+  let redis: Redis;
+  let fila: Queue;
+  let real = "";
+
+  const contar = async (tabela: string, comerciante: string) => {
+    const r = await db.execute<{ n: number }>(
+      sql`select count(*)::int as n from ${sql.identifier(tabela)} where comerciante_id = ${comerciante}`,
+    );
+    return r.rows[0]!.n;
+  };
+  const retrato = async (comerciante: string) =>
+    Object.fromEntries(
+      await Promise.all(
+        [
+          "produto",
+          "fornecedor",
+          "compra",
+          "item_de_compra",
+          "venda",
+          "item_de_venda",
+          "historico_custo",
+        ].map(async (t) => [t, await contar(t, comerciante)] as const),
+      ),
+    );
+
+  beforeAll(async () => {
+    await migrar(env.DATABASE_URL);
+    pool = new Pool({ connectionString: env.DATABASE_URL, max: 4 });
+    db = drizzle(pool, { schema });
+    redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
+    fila = new Queue(FILA_RELATORIO_DIARIO, { connection: redis });
+    const [c] = await db
+      .insert(schema.comerciante)
+      .values({ nome: "E2E Reset comerciante real" })
+      .returning({ id: schema.comerciante.id });
+    real = c!.id;
+    await db.insert(schema.produto).values({ comercianteId: real, nome: "Produto real", origem: "dono" });
+  });
+
+  afterAll(async () => {
+    await fila.close();
+    await redis.quit();
+    await db.delete(schema.comerciante).where(eq(schema.comerciante.id, real));
+    await pool.end();
+    rmSync(dirArquivos, { recursive: true, force: true });
+  });
+
+  it("duas execuções seguidas dão o mesmo estado, e o que a demo gerou some", async () => {
+    await resetarDemo(env, redis);
+    // Uso da demo: mensagem gravada, arquivo enviado e job do dia concluído.
+    await db.insert(schema.mensagem).values({
+      comercianteId: idDemo,
+      direcao: "recebida",
+      texto: "teste",
+      dataEnvio: "2026-10-20",
+      idExterno: "reset-1",
+    });
+    mkdirSync(join(dirArquivos, idDemo), { recursive: true });
+    writeFileSync(join(dirArquivos, idDemo, "foto.jpg"), "x");
+    await fila.add(
+      "processar",
+      { comercianteId: idDemo, data: "2026-10-20" },
+      { jobId: `relatorio_${idDemo}_2026-10-20`, delay: 3_600_000 },
+    );
+    await fila.add(
+      "processar",
+      { comercianteId: real, data: "2026-10-20" },
+      { jobId: `relatorio_${real}_2026-10-20`, delay: 3_600_000 },
+    );
+
+    const primeiro = await resetarDemo(env, redis);
+    const retratoUm = await retrato(idDemo);
+    const segundo = await resetarDemo(env, redis);
+    const retratoDois = await retrato(idDemo);
+
+    expect(retratoDois).toEqual(retratoUm);
+    expect(primeiro.comerciantes[0]!.comercianteId).toBe(idDemo);
+    expect(segundo.comerciantes[0]!.comercianteId).toBe(idDemo);
+    expect(retratoUm.venda).toBeGreaterThan(0);
+
+    expect(await contar("mensagem", idDemo)).toBe(0);
+    expect(existsSync(join(dirArquivos, idDemo))).toBe(false);
+    expect(await fila.getJob(`relatorio_${idDemo}_2026-10-20`)).toBeUndefined();
+    expect(await fila.getJob(`relatorio_${real}_2026-10-20`)).toBeDefined();
+    await fila.remove(`relatorio_${real}_2026-10-20`);
+
+    // O comerciante que não é da demo continua intacto.
+    expect(await contar("produto", real)).toBe(1);
+  });
+});

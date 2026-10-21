@@ -26,7 +26,7 @@ Data de referência dos gabaritos: **2026-10-19** (segunda). Janela de dados: 20
 
 ## Carga no banco
 
-`npm run seed:demo` (ou `npm run db:seed` com o banco já migrado) carrega estes arquivos em PostgreSQL para dois comerciantes. Ver [docs/modelo-de-dados.md](../docs/modelo-de-dados.md#seed).
+`npm run seed:demo` (ou `npm run db:seed` com o banco já migrado) carrega estes arquivos em PostgreSQL para dois comerciantes. Para repetir a demo sem apagar outros comerciantes, use `npm run demo:reset`. Ver [docs/modelo-de-dados.md](../docs/modelo-de-dados.md#seed).
 
 ## Convenções
 

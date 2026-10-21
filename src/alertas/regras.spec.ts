@@ -408,6 +408,7 @@ describe("limites padrão", () => {
     expect(limites.reajusteLimiteBps).toBe(900);
     expect(limites.ticketQuedaLimiteBps).toBe(LIMITES_PADRAO.ticketQuedaLimiteBps);
     expect(limites.janelaSupressaoDias.estoque_parado).toBe(14);
-    expect(limites.janelaSupressaoDias.reajuste_de_custo).toBe(7);
+    expect(limites.janelaSupressaoDias.reajuste_de_custo).toBeNull();
+    expect(limites.janelaSupressaoDias.giro_em_alta).toBe(7);
   });
 });

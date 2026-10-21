@@ -31,9 +31,10 @@ export interface LimitesDeAlerta {
   confiancaMinima: number;
   /**
    * Dias em que um alerta enviado ou descartado suprime o mesmo alerta (mesmo tipo e chave).
-   * Zero desliga a supressão do tipo.
+   * Zero desliga a supressão do tipo; `null` suprime enquanto existir um alerta tratado com a mesma
+   * chave, sem limite de idade (para tipos cuja chave nunca precisa voltar).
    */
-  janelaSupressaoDias: Readonly<Record<TipoAlerta, number>>;
+  janelaSupressaoDias: Readonly<Record<TipoAlerta, number | null>>;
 }
 
 export const LIMITES_PADRAO: LimitesDeAlerta = {
@@ -47,7 +48,8 @@ export const LIMITES_PADRAO: LimitesDeAlerta = {
   prioridade2MinCentavos: 10_000,
   confiancaMinima: 0.8,
   janelaSupressaoDias: {
-    reajuste_de_custo: 7,
+    // A chave inclui a compra: o mesmo reajuste já tratado nunca precisa voltar, por mais velho que seja.
+    reajuste_de_custo: null,
     margem_abaixo_da_meta: 7,
     espaco_para_subir_preco: 7,
     giro_em_alta: 7,
@@ -59,7 +61,7 @@ export const LIMITES_PADRAO: LimitesDeAlerta = {
 };
 
 export type SobreposicaoDeLimites = Partial<Omit<LimitesDeAlerta, "janelaSupressaoDias">> & {
-  janelaSupressaoDias?: Partial<Record<TipoAlerta, number>>;
+  janelaSupressaoDias?: Partial<Record<TipoAlerta, number | null>>;
 };
 
 /** Onde os limites próprios de cada comerciante moram. A fonte padrão não sobrepõe nada. */

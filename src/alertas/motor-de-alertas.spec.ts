@@ -3,8 +3,9 @@ import type { MetricasService } from "../metricas/metricas.service";
 import type { ResultadoMetrica } from "../metricas/resultado-metrica";
 import type { VariacaoDeCusto } from "../metricas/variacao-de-custo";
 import type { FonteDeLimites } from "./limites";
+import type { TipoAlerta } from "./tipos";
 import { MotorDeAlertas } from "./motor-de-alertas";
-import type { AlertaGravado, NovoAlerta, RepositorioAlertas } from "./repositorio-alertas";
+import type { AlertaGravado, AlertaJaTratado, NovoAlerta, RepositorioAlertas } from "./repositorio-alertas";
 import { regraReajusteDeCusto } from "./regras";
 
 const REF = "2026-10-19";
@@ -60,7 +61,21 @@ const giro = (unidades: number, confianca: number | null = 1): ResultadoMetrica<
 /** Repositório em memória só para este teste: guarda o que o motor grava. */
 class RepositorioFalso implements RepositorioAlertas {
   gravados: NovoAlerta[] = [];
-  jaTratados = () => Promise.resolve([]);
+  tratados: AlertaJaTratado[] = [];
+  /** Filtra como o repositório real: por data (desde inclusive, ate exclusive). */
+  jaTratados(
+    _comercianteId: string,
+    filtro: { desde: string | null; ate: string; tipos: readonly TipoAlerta[] },
+  ) {
+    return Promise.resolve(
+      this.tratados.filter(
+        (t) =>
+          filtro.tipos.includes(t.tipo) &&
+          (filtro.desde === null || t.dataReferencia >= filtro.desde) &&
+          t.dataReferencia < filtro.ate,
+      ),
+    );
+  }
   gravarCandidatos(_c: string, _d: string, novos: NovoAlerta[]) {
     this.gravados.push(...novos);
     return Promise.resolve(novos.length);
@@ -139,5 +154,32 @@ describe("motor de alertas: confiança do giro no reajuste", () => {
       impacto_centavos: null,
       menor_confianca: 0.9,
     });
+  });
+});
+
+describe("motor de alertas: supressão do reajuste já tratado", () => {
+  const chave = "p1:f1:compra-16";
+  const tratadoHa = (dias: number): AlertaJaTratado => ({
+    tipo: "reajuste_de_custo",
+    chave,
+    dataReferencia: new Date(Date.parse(`${REF}T00:00:00Z`) - dias * 86_400_000).toISOString().slice(0, 10),
+  });
+
+  it.each([2, 7, 30, 90])(
+    "reajuste enviado ou descartado há %i dias com a mesma chave continua suprimido",
+    async (dias) => {
+      const { motor, repositorio } = motorCom([variacao()], giro(10));
+      repositorio.tratados = [tratadoHa(dias)];
+      const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+      expect(r.suprimidos.map((c) => c.chave)).toEqual([chave]);
+      expect(repositorio.gravados).toEqual([]);
+    },
+  );
+
+  it("outra compra do mesmo produto e fornecedor (outra chave) não é suprimida", async () => {
+    const { motor, repositorio } = motorCom([variacao({ compra_atual_id: "compra-17" })], giro(10));
+    repositorio.tratados = [tratadoHa(30)];
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados.map((g) => g.chave)).toEqual(["p1:f1:compra-17"]);
   });
 });

@@ -31,8 +31,14 @@ export interface AlertaJaTratado {
 
 /** Acesso do motor à tabela `alerta`. Toda consulta é do comerciante da sessão (regra inviolável 3). */
 export interface RepositorioAlertas {
-  /** Alertas enviados ou descartados entre `desde` (inclusive) e `ate` (exclusive). */
-  jaTratados(comercianteId: string, desde: string, ate: string): Promise<AlertaJaTratado[]>;
+  /**
+   * Alertas dos `tipos` enviados ou descartados antes de `ate` (exclusive) e a partir de `desde`
+   * (inclusive); `desde` nulo não limita a idade.
+   */
+  jaTratados(
+    comercianteId: string,
+    filtro: { desde: string | null; ate: string; tipos: readonly TipoAlerta[] },
+  ): Promise<AlertaJaTratado[]>;
   /** Grava como `candidato`; um alerta que já existe no dia (mesmo tipo e chave) fica como está. */
   gravarCandidatos(comercianteId: string, dataReferencia: string, novos: NovoAlerta[]): Promise<number>;
   /** Os candidatos do dia, sem ordem garantida dentro do nível: o motor ordena. */
@@ -44,16 +50,21 @@ export const REPOSITORIO_ALERTAS = Symbol("REPOSITORIO_ALERTAS");
 export class RepositorioAlertasPostgres implements RepositorioAlertas {
   constructor(private readonly db: Executor) {}
 
-  async jaTratados(comercianteId: string, desde: string, ate: string): Promise<AlertaJaTratado[]> {
+  async jaTratados(
+    comercianteId: string,
+    filtro: { desde: string | null; ate: string; tipos: readonly TipoAlerta[] },
+  ): Promise<AlertaJaTratado[]> {
+    if (filtro.tipos.length === 0) return [];
     return this.db
       .select({ tipo: alerta.tipo, chave: alerta.chave, dataReferencia: alerta.dataReferencia })
       .from(alerta)
       .where(
         and(
           eq(alerta.comercianteId, comercianteId),
+          inArray(alerta.tipo, [...filtro.tipos]),
           inArray(alerta.status, ["enviado", "descartado"]),
-          gte(alerta.dataReferencia, desde),
-          lt(alerta.dataReferencia, ate),
+          ...(filtro.desde === null ? [] : [gte(alerta.dataReferencia, filtro.desde)]),
+          lt(alerta.dataReferencia, filtro.ate),
         ),
       );
   }

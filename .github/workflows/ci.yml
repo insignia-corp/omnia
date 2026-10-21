@@ -43,6 +43,14 @@ jobs:
       - run: npm run lint
       - run: npx prettier --check .
       - run: npm run typecheck
+      - name: Migrações sem deriva (schema.ts contra os snapshots do drizzle)
+        run: |
+          npx drizzle-kit generate
+          if [ -n "$(git status --porcelain -- drizzle)" ]; then
+            echo "schema.ts mudou sem migração: rode npm run db:generate e commite o resultado (ou ajuste o snapshot)."
+            git status --porcelain -- drizzle
+            exit 1
+          fi
       - run: npm test
       - run: npm run test:e2e
       - run: npm run build

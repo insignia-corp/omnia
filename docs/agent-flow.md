@@ -1,6 +1,6 @@
 # Fluxo do agente
 
-Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado em 2026-10-20: o loop do Analista, o verificador, o registro de execuções, o histórico da conversa e `select_alerts` estão prontos (PRs #130, #131 e #133, em revisão); as ferramentas de leitura de métricas são do plano A (#50 a #52), `ask_owner` e `save_owner_answer` estão no PR #132 e a ação com confirmação do dono (#104) ainda não existe. A tabela de ferramentas abaixo marca o que já roda. A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
+Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado em 2026-10-20: o loop do Analista, o verificador, o registro de execuções, o histórico da conversa e `select_alerts` estão prontos (PRs #130, #131 e #133, em revisão); as ferramentas de leitura de métricas são do plano A (#50 a #52), `ask_owner` e `save_owner_answer` estão no PR #132 e a ação com confirmação do dono (`propose_target_price`, #104) no PR #141. A tabela de ferramentas abaixo marca o que já roda. A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
 
 ## Dois agentes e um orquestrador em código
 
@@ -53,6 +53,9 @@ O diagrama a seguir detalha o loop do Analista.
 ```
 gatilho ──▶ AgenteService.executar
               │
+              ├─ mensagem_dono com ação pendente e "sim" ou "não" explícito
+              │     ─▶ ConfirmacaoDoDono resolve em código e responde, sem chamar o modelo
+              │
               ├─ monta a entrada: histórico curto da conversa + mensagem atual
               │     (tudo como dado delimitado: <mensagem_do_dono>, <conteudo_de_documento>)
               │
@@ -85,6 +88,20 @@ O agente não envia nada: devolve a mensagem já aprovada e o canal a entrega. P
 4. Escreve uma frase por alerta, com o valor e a ação sugerida.
 5. O verificador confere cada número. Aprovada, a mensagem volta ao canal. A decisão (quais alertas e por quê) fica em `chamada_ferramenta`, na ordem, e alimenta a tela de bastidores.
 
+### Ação com confirmação do dono, passo a passo
+
+A única escrita do agente é a configuração do próprio comerciante (preço-meta, ou o custo que o dono informa). Ela nunca roda por decisão do modelo (regra inviolável 7):
+
+1. O modelo chama `propose_target_price` (ou `save_owner_answer`). O registro vê que a ferramenta é `escreve_config`, não executa e guarda a proposta em `pergunta_dono` (tipo `confirmar_acao`, com ferramenta, entrada, resumo e `expira_em`). Só uma proposta fica pendente por comerciante: a nova cancela a anterior.
+2. A ferramenta devolve a pergunta ao dono, montada em código (por exemplo, `Quer que eu registre R$ 12,90 como preço-meta de "Arroz"? Responda sim ou não.`). Os números dela valem como fonte no verificador; o modelo a inclui na mensagem.
+3. O dono responde. No início de `executar`, `ConfirmacaoDoDono` olha a mensagem antes de qualquer modelo:
+   - a mensagem inteira igual a uma frase explícita ("sim", "pode", "isso mesmo") reivindica a proposta de forma atômica, executa a escrita uma única vez e responde com o aviso montado em código; dois "sim" ao mesmo tempo gravam uma vez só;
+   - "não" cancela e nada muda;
+   - proposta vencida (24 horas) vira `expirada` e o dono é avisado; nada muda;
+   - qualquer outra mensagem ("sim, mas com 15,90", uma pergunta nova) não confirma nada e segue para o agente, com a proposta ainda pendente.
+4. A escrita grava o valor vigente em `produto` e uma linha nova em `historico_preco_meta` (append-only, com o valor anterior). Falha na escrita cancela a proposta e o dono recebe um aviso sem número.
+5. A resolução fica registrada como uma execução (`modelo = codigo`, zero tokens) com a chamada `confirm_pending_action`, para aparecer nos bastidores.
+
 ### Conversa, passo a passo
 
 1. O canal grava a mensagem recebida e carrega o histórico (`carregarHistorico`, últimas `AGENTE_HISTORICO_TURNOS` falas de `mensagem`, sem a atual).
@@ -109,6 +126,7 @@ Limites e esforço (variáveis de ambiente, padrões em `src/config/env.ts`):
 | `AGENTE_MAX_ITERACOES` | 8 | Chamadas ao modelo por execução |
 | `AGENTE_TIMEOUT_MS` | 90000 | Tempo total, conferido antes de cada chamada; depois dele, fallback de erro |
 | `AGENTE_MAX_REGERACOES` | 2 | Correções pedidas depois de o verificador bloquear |
+| `ACAO_EXPIRA_MINUTOS` | 1440 | Validade de uma ação à espera do "sim" do dono |
 | `AGENTE_HISTORICO_TURNOS` | 10 | Falas anteriores enviadas ao modelo (0 desliga) |
 | `LLM_ESFORCO_CONVERSA` | low | Esforço do modelo em `mensagem_dono` |
 | `LLM_ESFORCO` | medium | Esforço em `relatorio_diario` e `nota_processada` |
@@ -125,7 +143,7 @@ Limites e esforço (variáveis de ambiente, padrões em `src/config/env.ts`):
 | `list_alert_candidates` | nenhum | Plano A (#52) |
 | `select_alerts` | nenhum | Pronta (#133): até 3 ids com justificativa, conferidos contra o comerciante e a data |
 | `ask_owner`, `save_owner_answer` | `pergunta_dono`, `escreve_config` | PR #132 |
-| `propose_target_price` | `escreve_config` | #104, ainda não existe |
+| `propose_target_price` | `escreve_config` | PR #141: só propõe; o preço-meta muda quando o dono diz sim (ver abaixo) |
 
 Detalhe de cada ferramenta e das prioridades na [especificação dos agentes](especificacao-agentes.md), seção 4.
 - **Contrato de retorno** (`src/metricas/resultado-metrica.ts`): valor, período, número de registros e menor confiança. Dinheiro em chaves `*_centavos`, percentuais prontos para exibir em `*_percentual`. Dado ausente é explícito (`{ ausente: true, motivo }`).
@@ -140,12 +158,14 @@ Detalhe de cada ferramenta e das prioridades na [especificação dos agentes](es
 | Verificador bloqueia | Pede correção até `AGENTE_MAX_REGERACOES`; depois, mensagem de fallback sem números | `fallback_verificador` |
 | Timeout, rede, erro da API, resposta sem texto, resposta cortada ou limite de tempo ou de iterações | API repete o que vale repetir; esgotado, mensagem de fallback sem números e o motivo em `erro` | `fallback_erro` |
 | Recusa do modelo | Mensagem de recusa sem números | `recusa_modelo` |
+| Escrita confirmada falha (ex.: produto removido entre a proposta e o "sim") | A proposta é cancelada, nada é alterado e o dono recebe um aviso sem números | `fallback_erro` |
+| Resolução do "sim" lança exceção | Fallback de erro, sem chamar o modelo (a proposta pode já ter sido reivindicada: nunca se confirma algo não feito) | `fallback_erro` |
 
 ## Outputs
 
 - Mensagem para o canal: aprovada pelo verificador ou um fallback sem números.
 - Registro em `execucao_agente`: gatilho, entrada, modelo, versão do prompt, resultado (`aprovada`, `fallback_verificador`, `fallback_erro`, `recusa_modelo`), iterações, bloqueios do verificador com os números barrados, tokens, custo estimado, latência e erro.
-- Registro em `chamada_ferramenta`: cada chamada em ordem, com entrada, saída, erro, menor confiança e latência. Base da tela de bastidores.
+- Registro em `chamada_ferramenta`: cada chamada em ordem, com entrada, saída, erro, menor confiança e latência. Base da tela de bastidores. A resolução de um "sim" entra como chamada `confirm_pending_action`, feita pelo código.
 - Consulta (sempre filtrada pelo comerciante da sessão): `GET /execucoes` (mais recentes), `GET /execucoes/:id` (execução com as chamadas em ordem) e `GET /execucoes/verificador/bloqueios?de=AAAA-MM-DD&ate=AAAA-MM-DD`.
 
 ## Onde fica o estado

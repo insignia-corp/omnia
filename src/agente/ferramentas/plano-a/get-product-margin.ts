@@ -14,6 +14,9 @@ import { buscarProdutoPorNome } from "./buscar-produto";
 /** A margem da métrica, mais o quanto o nome digitado combina com o produto achado (0 a 1). */
 export type MargemDoProdutoAchado = ResultadoMetrica<MargemDoProduto> & { confianca_da_busca: number };
 
+/** Dado ausente de um produto que foi achado: leva o id e o nome do cadastro, para perguntar ao dono. */
+export type AusenteDoProduto = DadoAusente & { produto_id: string; nome: string };
+
 export interface ProdutoAmbiguo {
   ambiguo: true;
   motivo: string;
@@ -35,16 +38,20 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
       "(ausente: true) sem venda na janela, sem custo ou produto não encontrado: diga isso ao dono. " +
       "Confira o campo nome do resultado: a busca é aproximada, então cite o produto que foi de fato achado. " +
       "menor_confianca já considera quanto o nome combina com o produto (confianca_da_busca): se for baixa, confirme com o dono. " +
-      "O produto_id do resultado serve para ask_owner.",
+      "Quando o produto foi achado mas falta dado (ausente: true), o resultado traz produto_id e nome: use esse produto_id em ask_owner.",
     entrada: z.strictObject({
       produto: z.string().trim().min(2).max(120).describe("Nome do produto, como o dono falou."),
     }),
     efeito: "nenhum",
-    async executar(contexto, { produto }): Promise<MargemDoProdutoAchado | DadoAusente | ProdutoAmbiguo> {
+    async executar(
+      contexto,
+      { produto },
+    ): Promise<MargemDoProdutoAchado | AusenteDoProduto | DadoAusente | ProdutoAmbiguo> {
       const achado = await buscarProdutoPorNome(db, contexto.comercianteId, produto);
       if (achado.tipo === "vinculado") {
         const margem = await metricas.margemDoProduto(contexto, achado.produtoId);
-        if (ehDadoAusente(margem)) return margem;
+        // O agente precisa do id validado (do comerciante da sessão) para chamar ask_owner no custo ausente.
+        if (ehDadoAusente(margem)) return { ...margem, produto_id: achado.produtoId, nome: achado.nome };
         // A busca por nome aproximado é um dado a mais: um achado fraco rebaixa a confiança do resultado (regra 4).
         const menorConfianca =
           margem.menor_confianca === null

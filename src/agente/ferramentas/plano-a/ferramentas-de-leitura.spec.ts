@@ -334,13 +334,13 @@ describe("ferramentas de leitura do plano A", () => {
       expect(forte).toMatchObject({ confianca_da_busca: 0.95, menor_confianca: 0.92 });
     });
 
-    it("repassa o dado ausente da métrica", async () => {
+    it("produto achado sem custo devolve o ausente da métrica com o produto_id e o nome achados", async () => {
       const ausente = dadoAusente("sem_custo", "Sem nota para o produto.", "Qual o custo?");
       const m = { margemDoProduto: jest.fn(async () => ausente) } as unknown as MetricasService;
-      const banco = dbCom([{ produto_id: randomUUID(), nome: "Refrigerante 2L", sim: 0.9 }]);
-      expect(await criarGetProductMargin(m, banco).executar(contexto, { produto: "Refrigerante" })).toBe(
-        ausente,
-      );
+      const id = randomUUID();
+      const banco = dbCom([{ produto_id: id, nome: "Refrigerante 2L", sim: 0.9 }]);
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "Refrigerante" });
+      expect(saida).toEqual({ ...ausente, produto_id: id, nome: "Refrigerante 2L" });
     });
   });
 

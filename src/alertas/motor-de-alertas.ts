@@ -10,7 +10,6 @@ import { mesclarLimites, type FonteDeLimites } from "./limites";
 import { compararCandidatos, ordenarGravados, prioridadeDe } from "./prioridade";
 import { MetricasDaExecucao, type CandidatoDeAlerta, type MotivoAusente, type RegraDeAlerta } from "./regra";
 import type { AlertaGravado, RepositorioAlertas } from "./repositorio-alertas";
-import type { TipoAlerta } from "./tipos";
 import { REGRAS_DE_ALERTA } from "./regras";
 import type { TipoAlerta } from "./tipos";
 
@@ -61,9 +60,9 @@ export class MotorDeAlertas {
       .filter((c) => !produtoIds || (c.produtoId !== null && produtoIds.has(c.produtoId)));
     const ausentes = resultados.flatMap((r) => r.ausentes);
 
-    const tipos = Object.keys(limites.janelaSupressaoDias) as TipoAlerta[];
-    const comJanela = tipos.filter((t) => (limites.janelaSupressaoDias[t] ?? 0) > 0);
-    const semLimite = tipos.filter((t) => limites.janelaSupressaoDias[t] === null);
+    const tiposComJanela = Object.keys(limites.janelaSupressaoDias) as TipoAlerta[];
+    const comJanela = tiposComJanela.filter((t) => (limites.janelaSupressaoDias[t] ?? 0) > 0);
+    const semLimite = tiposComJanela.filter((t) => limites.janelaSupressaoDias[t] === null);
     const maiorJanela = Math.max(0, ...comJanela.map((t) => limites.janelaSupressaoDias[t] ?? 0));
     const [recentes, definitivos] = await Promise.all([
       this.alertas.jaTratados(comercianteId, {

@@ -33,8 +33,9 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
     descricao:
       "Margem de um produto: preço médio de venda dos últimos 30 dias, custo da compra mais recente, " +
       "margem percentual, meta e se está abaixo da meta, com confiança e origem. Informe o nome do " +
-      "produto como o dono disse; a busca é aproximada. Se mais de um produto couber, devolve " +
-      "ambiguo: true com candidatos (pergunte ao dono qual, sem adivinhar). Pode vir como dado ausente " +
+      'produto como o dono disse (só o nome, por exemplo "arroz" ou "café 500g", nunca a pergunta inteira); a busca é ' +
+      "aproximada. Sem certeza, devolve ambiguo: true com candidatos e um motivo: com mais de um, pergunte ao dono " +
+      "qual; com um só, confirme com o dono se é esse (sem adivinhar). Pode vir como dado ausente " +
       "(ausente: true) sem venda na janela, sem custo ou produto não encontrado: diga isso ao dono. " +
       "Confira o campo nome do resultado: a busca é aproximada, então cite o produto que foi de fato achado. " +
       "menor_confianca já considera quanto o nome combina com o produto (confianca_da_busca): se for baixa, confirme com o dono. " +
@@ -62,7 +63,10 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
       if (achado.tipo === "sugestao") {
         return {
           ambiguo: true,
-          motivo: "Mais de um produto combina com esse nome. Pergunte ao dono qual deles.",
+          motivo:
+            achado.candidatos.length === 1
+              ? "Não tenho certeza de que é esse produto. Confirme com o dono antes de usar."
+              : "Mais de um produto combina com esse nome. Pergunte ao dono qual deles.",
           candidatos: achado.candidatos.map((c) => ({ produto_id: c.produtoId, nome: c.nome })),
         };
       }

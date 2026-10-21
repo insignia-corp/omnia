@@ -63,6 +63,8 @@ interface Saida {
   ambiguo?: true;
   codigo?: string;
   candidatos?: Array<{ nome: string }>;
+  motivo?: string;
+  confianca_da_busca?: number;
 }
 
 describe("ferramentas de leitura do plano A (e2e)", () => {
@@ -149,7 +151,7 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
   it("get_product_margin acha o produto pelo nome aproximado e bate com o gabarito", async () => {
     const esperado = gabarito.margem_por_produto.find((m) => m.nome === "Refrigerante cola 2L");
     expect(esperado?.situacao).toBe("ok");
-    for (const nome of ["Refrigerante cola 2L", "refrigerante cola 2 l", "REFRIGERANTE COLA"]) {
+    for (const nome of ["Refrigerante cola 2L", "refrigerante cola 2 l"]) {
       const saida = await chamar(vilaNova, "get_product_margin", { produto: nome });
       expect(saida.valor).toMatchObject({
         nome: "Refrigerante cola 2L",
@@ -169,6 +171,51 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     expect((vago.candidatos ?? []).map((c) => c.nome)).toEqual(
       expect.arrayContaining(["Refrigerante cola 2L", "Refrigerante guaraná 2L"]),
     );
+  });
+
+  describe("nome curto contra o catálogo real do seed", () => {
+    /** Nome do produto achado: da margem, ou do dado ausente que o devolve com o id. */
+    const achado = (saida: Saida & { nome?: string }) =>
+      (saida.valor as { nome?: string } | undefined)?.nome ?? saida.nome;
+
+    it.each([
+      ["arroz", "Arroz branco tipo 1 5kg"],
+      ["Arroz 5kg", "Arroz branco tipo 1 5kg"],
+      ["feijão", "Feijão carioca tipo 1 1kg"],
+      ["café", "Café torrado e moído 500g"],
+      ["açúcar", "Açúcar refinado 1kg"],
+      ["detergente", "Detergente líquido 500ml"],
+    ])("%s liga sozinho a %s", async (digitado, esperado) => {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: digitado });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(achado(saida)).toBe(esperado);
+      expect(saida.confianca_da_busca).toBeGreaterThanOrEqual(0.45);
+    });
+
+    it("nome genérico com vários produtos continua sendo sugestão, não liga sozinho", async () => {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: "refrigerante" });
+      expect(saida.ambiguo).toBe(true);
+      const nomes = (saida.candidatos ?? []).map((c) => c.nome);
+      expect(nomes.length).toBeGreaterThan(1);
+      expect(nomes).toEqual(expect.arrayContaining(["Refrigerante cola 2L", "Refrigerante guaraná 2L"]));
+      expect(saida.motivo).toMatch(/Mais de um/);
+    });
+
+    it("duas colas no catálogo: o nome sem o tamanho não escolhe uma por sorte", async () => {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: "REFRIGERANTE COLA" });
+      expect(saida.ambiguo).toBe(true);
+      expect((saida.candidatos ?? []).map((c) => c.nome)).toEqual(
+        expect.arrayContaining(["Refrigerante cola 2L", "Refrigerante cola lata 350ml"]),
+      );
+    });
+
+    it("pergunta inteira no lugar do nome: um só candidato, dito com honestidade", async () => {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: "margem do arroz" });
+      expect(saida.ambiguo).toBe(true);
+      expect(saida.candidatos).toEqual([expect.objectContaining({ nome: "Arroz branco tipo 1 5kg" })]);
+      expect(saida.motivo).not.toMatch(/Mais de um/);
+      expect(saida.motivo).toMatch(/certeza/);
+    });
   });
 
   it("get_cost_changes devolve as variações do gabarito", async () => {

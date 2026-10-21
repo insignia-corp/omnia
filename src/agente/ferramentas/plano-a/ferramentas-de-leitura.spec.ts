@@ -428,6 +428,16 @@ describe("ferramentas de leitura do plano A", () => {
       expect(forte.mock.margemDoProduto).toHaveBeenCalledTimes(1);
     });
 
+    it("um só candidato fraco é dito com honestidade, não como 'mais de um'", async () => {
+      const saida = await criarGetProductMargin(
+        servico().metricas,
+        dbCom([{ produto_id: randomUUID(), nome: "Arroz branco 5kg", sim: 0.3 }]),
+      ).executar(contexto, { produto: "margem do arroz" });
+      expect(saida).toMatchObject({ ambiguo: true, candidatos: [{ nome: "Arroz branco 5kg" }] });
+      expect((saida as { motivo: string }).motivo).toMatch(/certeza/);
+      expect((saida as { motivo: string }).motivo).not.toMatch(/Mais de um/);
+    });
+
     it("produto claro vai para a métrica com o id achado", async () => {
       const { mock, metricas: m } = servico();
       const id = randomUUID();

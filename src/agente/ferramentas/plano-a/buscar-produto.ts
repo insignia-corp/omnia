@@ -24,6 +24,10 @@ export type ProdutoAchado =
 /**
  * Procura um produto do comerciante pelo nome aproximado (`pg_trgm`), com o mesmo critério do
  * vínculo de notas: só escolhe sozinho se for claramente o melhor, senão devolve sugestões.
+ * A nota traz a descrição inteira; o dono digita só uma palavra ("arroz"), que a similaridade pelo
+ * nome todo subestima. Por isso vale o maior entre `similarity` e `word_similarity` (a palavra
+ * dentro do nome). Uma palavra comum a vários produtos ("refrigerante") empata em 1 e continua
+ * sugestão: a folga sobre o segundo colocado é a mesma regra.
  * O comerciante vem da sessão, nunca do modelo (regra inviolável 3).
  */
 export async function buscarProdutoPorNome(
@@ -33,7 +37,8 @@ export async function buscarProdutoPorNome(
 ): Promise<ProdutoAchado> {
   const consulta = normalizarDescricao(nome);
   const resultado = await db.execute<{ produto_id: string; nome: string; sim: number }>(sql`
-    select p.id as produto_id, p.nome, similarity(${NOME_NORMALIZADO}, ${consulta})::float8 as sim
+    select p.id as produto_id, p.nome,
+           greatest(similarity(${NOME_NORMALIZADO}, ${consulta}), word_similarity(${consulta}, ${NOME_NORMALIZADO}))::float8 as sim
       from produto p
      where p.comerciante_id = ${comercianteId}
      order by sim desc, p.nome asc, p.id asc

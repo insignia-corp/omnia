@@ -87,6 +87,6 @@ O seed cria dois comerciantes, para testar o isolamento:
 | Comerciante | Conteúdo |
 | --- | --- |
 | Mercadinho Vila Nova | Os fixtures inteiros: 50 produtos, 7 fornecedores, 18 notas, 3.623 cupons, 212 transações, 1 pergunta pendente |
-| Conveniência Esquina 24h | Recorte menor: 12 produtos, últimas 2 semanas de vendas, meta de margem de 30% |
+| Conveniência Esquina 24h | Recorte menor: 12 produtos, últimas 2 semanas de vendas, meta de margem de 30%. O extrato bancário do período é o mesmo do primeiro lojista (só vendas, compras e catálogo são recortados), então os gastos dos dois coincidem |
 
 É idempotente e determinístico: os ids são UUIDs v5 de nomes fixos e as datas de criação são fixas, então `db:reset && db:seed` deixa o banco sempre no mesmo estado. Recusa rodar com `NODE_ENV=production`.

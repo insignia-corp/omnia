@@ -8,7 +8,7 @@ Stack: TypeScript, NestJS, PostgreSQL (`pg_trgm`), Drizzle, Redis + BullMQ, Dock
 
 ## Primeiro passo de toda sessão
 
-Leia `docs/ESTADO.md` (fonte única de "você está aqui": etapa, números, próxima ação, pendências). Antes de refazer qualquer coisa (função, teste, doc, decisão), confira nele e no código se já existe. Ao terminar, siga `docs/protocolos/checkpoint.md`. Depois de editar, siga `docs/protocolos/auditoria.md`.
+Leia `docs/ESTADO.md` (fonte única de "você está aqui": etapa, números, próxima ação, pendências). Antes de refazer qualquer coisa (função, teste, doc, decisão), confira nele e no código se já existe. Em seguida, antes de desenvolver, pergunte ao usuário qual plano (A, B ou C) ele segue (segurança fica para o fim) e quais issues quer fazer, conforme `docs/protocolos/divisao-planos.md`. Ao terminar, siga `docs/protocolos/checkpoint.md`. Depois de editar, siga `docs/protocolos/auditoria.md`.
 
 ## Regras invioláveis
 

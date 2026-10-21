@@ -2,8 +2,16 @@ import type { BetaTool } from "@anthropic-ai/sdk/resources/beta/messages/message
 import { z } from "zod";
 import type { ContextoSessao, Ferramenta } from "./ferramenta";
 
+/** Proposta de escrita guardada à espera do "sim" do dono (issue #104). */
+export interface PropostaConfirmacao {
+  perguntaId: string;
+  /** Pergunta ao dono, montada em código. Seus números valem como fonte no verificador. */
+  pergunta: string;
+}
+
 export type ResultadoExecucaoFerramenta =
-  { ok: true; saida: unknown; latenciaMs: number } | { ok: false; erro: string; latenciaMs: number };
+  | { ok: true; saida: unknown; latenciaMs: number }
+  | { ok: false; erro: string; latenciaMs: number; confirmacao?: PropostaConfirmacao };
 
 /** Comparadas sem maiúsculas e separadores: pega comerciante_id, comercianteId e comerciante-id. */
 const CHAVES_PROIBIDAS = new Set(["comercianteid"]);
@@ -38,6 +46,16 @@ function acharChaveProibida(esquema: unknown): string | undefined {
  */
 export interface ConfirmacoesConfig {
   consumir(contexto: ContextoSessao, ferramenta: string, entrada: unknown): Promise<boolean>;
+  /**
+   * Chamada quando `consumir` recusa: guarda a escrita pedida e devolve a pergunta ao dono, ou `null`
+   * se não há como propor. A escrita só roda depois, por `executarConfirmada`, quando o código vê o
+   * "sim" do dono: o modelo nunca dispara uma escrita sozinho (regra inviolável 7).
+   */
+  propor?(
+    contexto: ContextoSessao,
+    ferramenta: Ferramenta,
+    entrada: unknown,
+  ): Promise<PropostaConfirmacao | null>;
 }
 
 /** Padrão seguro: sem uma implementação ligada ao banco, nenhuma escrita é executada. */
@@ -106,6 +124,17 @@ export class RegistroFerramentas {
         ferramenta.efeito === "escreve_config" &&
         !(await this.confirmacoes.consumir(contexto, nome, validada.data))
       ) {
+        const proposta = await this.confirmacoes.propor?.(contexto, ferramenta, validada.data);
+        if (proposta) {
+          return {
+            ok: false,
+            erro:
+              `Nada foi alterado: a ação espera o "sim" do dono. Pergunte ao dono com estas palavras: "${proposta.pergunta}" ` +
+              "Quando ele responder sim, o sistema registra por conta própria; não chame a ferramenta de novo.",
+            latenciaMs: latencia(),
+            confirmacao: proposta,
+          };
+        }
         return {
           ok: false,
           erro: `Ação sem confirmação do dono. Peça a confirmação antes de executar ${nome}.`,
@@ -116,6 +145,37 @@ export class RegistroFerramentas {
       return { ok: true, saida, latenciaMs: latencia() };
     } catch (e) {
       // Erro de ferramenta não derruba o fluxo: volta ao modelo como tool_result com is_error.
+      const mensagem = e instanceof Error ? e.message : String(e);
+      return { ok: false, erro: `Falha ao executar ${nome}: ${mensagem}`, latenciaMs: latencia() };
+    }
+  }
+
+  /**
+   * Executa uma escrita que o dono já confirmou. Só o código chama isto, ao ver o "sim" (issue #104);
+   * a entrada guardada na proposta é validada de novo pelo esquema da ferramenta.
+   */
+  async executarConfirmada(
+    contexto: ContextoSessao,
+    nome: string,
+    entrada: unknown,
+  ): Promise<ResultadoExecucaoFerramenta> {
+    const inicio = performance.now();
+    const latencia = () => Math.round(performance.now() - inicio);
+    const ferramenta = this.ferramentas.get(nome);
+    if (ferramenta?.efeito !== "escreve_config") {
+      return { ok: false, erro: `Ação não confirmável: ${nome}`, latenciaMs: latencia() };
+    }
+    const validada = ferramenta.entrada.safeParse(entrada);
+    if (!validada.success) {
+      return {
+        ok: false,
+        erro: `Entrada inválida: ${z.prettifyError(validada.error)}`,
+        latenciaMs: latencia(),
+      };
+    }
+    try {
+      return { ok: true, saida: await ferramenta.executar(contexto, validada.data), latenciaMs: latencia() };
+    } catch (e) {
       const mensagem = e instanceof Error ? e.message : String(e);
       return { ok: false, erro: `Falha ao executar ${nome}: ${mensagem}`, latenciaMs: latencia() };
     }

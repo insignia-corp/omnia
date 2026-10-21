@@ -10,6 +10,7 @@ import {
   NumerosAutorizados,
   verificarNumeros,
 } from "../lib/verificador-numeros/verificador-numeros";
+import type { ResolveConfirmacao } from "./confirmacao/confirmacao-dono";
 import type { TurnoConversa } from "./conversa/historico";
 import type { ContextoSessao } from "./ferramentas/ferramenta";
 import type { RegistroFerramentas } from "./ferramentas/registro-ferramentas";
@@ -113,11 +114,28 @@ export class AgenteService {
     private readonly registro: RegistroExecucoes,
     private readonly prompt: PromptSistema,
     private readonly limites: LimitesAgente,
+    /** Resolve o "sim" do dono em código, antes do modelo (issue #104). Sem ele, nada é confirmado. */
+    private readonly confirmacao?: ResolveConfirmacao,
   ) {}
 
   async executar(pedido: PedidoAgente): Promise<RespostaAgente> {
     const inicio = performance.now();
     const { contexto } = pedido;
+    if (this.confirmacao) {
+      if (pedido.gatilho === "mensagem_dono") {
+        const resolvida = await this.resolverConfirmacao(pedido, inicio);
+        if (resolvida) return resolvida;
+      }
+      // Qualquer outra coisa (outra pergunta do dono, relatório, nota) encerra a proposta pendente: ela só
+      // vale para a resposta imediata, senão um "sim" tardio aplicaria uma configuração velha.
+      try {
+        await this.confirmacao.invalidarPendentes(contexto);
+      } catch (e) {
+        this.logger.error(
+          `Não consegui encerrar a proposta pendente: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
     // Com o fallback do servidor, cada resposta informa o modelo que de fato rodou: cada um tem seu preço.
     const consumoPorModelo = new Map<string, ConsumoTokens>();
     const chamadas: ChamadaRegistrada[] = [];
@@ -144,6 +162,9 @@ export class AgenteService {
     let iteracoes = 0;
     // Verificador barrou a última resposta e a correção pedida não teve iteração para rodar.
     let correcaoSemIteracao = false;
+    // Perguntas de confirmação montadas em código nesta execução: o dono aprova exatamente esse texto.
+    const propostas: string[] = [];
+    let correcoesProposta = 0;
     // Relatório diário: a escolha dos alertas tem de ficar registrada por select_alerts (ou não haver candidato).
     let correcoesSelecao = 0;
     const prazo = this.limites.maxMs === undefined ? null : new Prazo(this.limites.maxMs);
@@ -174,7 +195,9 @@ export class AgenteService {
         if (resposta.stop_reason === "tool_use") {
           messages.push({
             role: "user",
-            content: await comPrazo(this.rodarFerramentas(contexto, resposta, chamadas, autorizados)),
+            content: await comPrazo(
+              this.rodarFerramentas(contexto, resposta, chamadas, autorizados, propostas),
+            ),
           });
           continue;
         }
@@ -194,6 +217,21 @@ export class AgenteService {
           erro = "Modelo terminou sem texto";
           break;
         }
+        const proposta = propostas.at(-1);
+        if (proposta && !texto.includes(proposta)) {
+          // O que o dono confirma com o "sim" é o texto montado em código; se o modelo escrever outro valor, o
+          // "sim" aprovaria algo que ele não viu. Pede a pergunta exata e, se insistir, envia só a pergunta.
+          if (++correcoesProposta > this.limites.maxRegeracoes) {
+            resultado = "aprovada";
+            mensagem = proposta;
+            break;
+          }
+          messages.push({
+            role: "user",
+            content: `[sistema] Inclua na mensagem, sem mudar uma palavra, esta pergunta de confirmação: "${proposta}"`,
+          });
+          continue;
+        }
         if (pedido.gatilho === "relatorio_diario" && !escolhaRegistrada(chamadas)) {
           // Aprovar aqui deixaria o relatório sem escolha nem justificativa registradas, e o prompt sozinho não garante.
           if (++correcoesSelecao > this.limites.maxRegeracoes) {
@@ -209,7 +247,9 @@ export class AgenteService {
           });
           continue;
         }
-        const verificacao = verificarNumeros(texto, autorizados);
+        // A pergunta vem de código e o dono a aprova por inteiro: fica fora da conferência (o valor dela é o que
+        // ele vai confirmar, e o nome do produto, que pode ter "Três" ou "5kg", é cadastro, não quantidade).
+        const verificacao = verificarNumeros(proposta ? texto.replaceAll(proposta, " ") : texto, autorizados);
         if (verificacao.aprovado) {
           resultado = "aprovada";
           mensagem = texto;
@@ -291,12 +331,58 @@ export class AgenteService {
     return { execucaoId, resultado, mensagem };
   }
 
+  /**
+   * "Sim" ou "não" do dono a uma ação pendente: resolvido em código, sem chamar o modelo. A execução
+   * fica registrada com a chamada `confirm_pending_action`, para aparecer nos bastidores.
+   */
+  private async resolverConfirmacao(pedido: PedidoAgente, inicio: number): Promise<RespostaAgente | null> {
+    let resultado: ResultadoExecucao = "aprovada";
+    let mensagem: string = FALLBACK.erro;
+    let erro: string | null = null;
+    const chamadas: ChamadaRegistrada[] = [];
+    try {
+      const r = await this.confirmacao!.tratar(pedido.contexto, pedido.entrada);
+      if (!r) return null;
+      mensagem = r.mensagem;
+      chamadas.push(r.chamada);
+      if (!r.sucesso) {
+        resultado = "fallback_erro";
+        erro = r.chamada.erro;
+      }
+    } catch (e) {
+      // A ação pode ter sido reivindicada: o dono recebe o fallback, nunca a confirmação de algo não feito.
+      resultado = "fallback_erro";
+      erro = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      this.logger.error(`Resolução da confirmação falhou: ${erro}`);
+    }
+    const execucaoId = await this.registro.salvar({
+      comercianteId: pedido.contexto.comercianteId,
+      gatilho: pedido.gatilho,
+      entrada: pedido.entrada,
+      modelo: "codigo",
+      versaoPrompt: this.prompt.versao,
+      resultado,
+      mensagemFinal: mensagem,
+      iteracoes: 0,
+      bloqueios: [],
+      tokensEntrada: 0,
+      tokensSaida: 0,
+      tokensCacheLeitura: 0,
+      custoEstimadoMicrodolares: 0,
+      latenciaMs: Math.round(performance.now() - inicio),
+      erro,
+      chamadas,
+    });
+    return { execucaoId, resultado, mensagem };
+  }
+
   /** Executa em paralelo e devolve todos os resultados numa única mensagem. */
   private async rodarFerramentas(
     contexto: ContextoSessao,
     resposta: BetaMessage,
     chamadas: ChamadaRegistrada[],
     autorizados: NumerosAutorizados,
+    propostas: string[],
   ): Promise<BetaToolResultBlockParam[]> {
     const pedidos = resposta.content.filter((b): b is BetaToolUseBlock => b.type === "tool_use");
     const execucoes = await Promise.all(
@@ -313,7 +399,10 @@ export class AgenteService {
         menorConfianca: r.ok ? menorConfiancaDe(r.saida) : null,
         latenciaMs: r.latenciaMs,
       });
-      if (!r.ok) return { type: "tool_result", tool_use_id: p.id, content: r.erro, is_error: true };
+      if (!r.ok) {
+        if (r.confirmacao) propostas.push(r.confirmacao.pergunta);
+        return { type: "tool_result", tool_use_id: p.id, content: r.erro, is_error: true };
+      }
       autorizados.adicionarFonte(r.saida);
       return { type: "tool_result", tool_use_id: p.id, content: JSON.stringify(r.saida) };
     });

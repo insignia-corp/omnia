@@ -28,3 +28,25 @@ export function minutosDoDia(agora: Date, fuso: string): number {
   const valor = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value ?? "0");
   return valor("hour") * 60 + valor("minute");
 }
+
+/**
+ * Relógio da demo: a data é a fixa, a hora do dia é a real. Assim as métricas olham o período dos
+ * dados de teste e o horário de silêncio continua valendo.
+ */
+export function relogioComDataFixa(data: string, fuso: string, base: Relogio = relogioDoSistema): Relogio {
+  return {
+    agora(): Date {
+      const real = base.agora();
+      const minutos = minutosDoDia(real, fuso);
+      const segundos = real.getUTCSeconds() * 1000 + real.getUTCMilliseconds();
+      const meiaNoiteUtc = Date.parse(`${data}T00:00:00Z`);
+      // Minutos locais da meia-noite UTC dessa data: diz de quanto o fuso difere de UTC.
+      const local = minutosDoDia(new Date(meiaNoiteUtc), fuso);
+      const mesmoDia = dataLocal(new Date(meiaNoiteUtc), fuso) === data;
+      const meiaNoiteLocal = mesmoDia
+        ? meiaNoiteUtc - local * 60_000
+        : meiaNoiteUtc + (1440 - local) * 60_000;
+      return new Date(meiaNoiteLocal + minutos * 60_000 + segundos);
+    },
+  };
+}

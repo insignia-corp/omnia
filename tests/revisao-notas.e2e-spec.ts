@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,6 +12,7 @@ import { carregarEnv } from "../src/config/env";
 import { migrar } from "../src/infra/database/migrar";
 import * as schema from "../src/infra/database/schema";
 import type { ClienteVisao, RespostaVisao } from "../src/ingestao/extracao/cliente-visao";
+import { normalizarDescricao } from "../src/ingestao/normalizar-descricao";
 import { CLIENTE_VISAO } from "../src/ingestao/ingestao.module";
 
 const esperado = (n: string) => readFileSync(`fixtures/notas/${n}.esperado.json`, "utf8");
@@ -395,13 +396,44 @@ describe("revisão de itens e vínculo com o produto (e2e)", () => {
         .select()
         .from(schema.itemDeCompra)
         .where(eq(schema.itemDeCompra.compraId, compraDoDocumento!.id));
+      let limitadosPelaNota = 0;
+      let limitadosPeloVinculo = 0;
       for (const item of ligados.filter((i) => i.produtoId !== null)) {
         const linhas = await historico(ids.a, item.id);
-        // A linha antiga continua (histórico append-only) e a mais recente vale.
-        expect(linhas.length).toBeGreaterThanOrEqual(2);
-        expect(linhas.at(-1)!.confianca).toBeGreaterThan(0.5);
-        expect(linhas[0]!.confianca).toBeLessThanOrEqual(0.5);
+        const [vinculo] = await db
+          .select({ confianca: schema.vinculoDescricaoProduto.confianca })
+          .from(schema.vinculoDescricaoProduto)
+          .where(
+            and(
+              eq(schema.vinculoDescricaoProduto.comercianteId, ids.a),
+              eq(
+                schema.vinculoDescricaoProduto.descricaoNormalizada,
+                normalizarDescricao(item.descricaoNota),
+              ),
+              eq(schema.vinculoDescricaoProduto.produtoId, item.produtoId!),
+            ),
+          )
+          .orderBy(desc(schema.vinculoDescricaoProduto.criadoEm))
+          .limit(1);
+        // A confiança do custo é a menor entre item, vínculo e nota. Só a nota mudou com a confirmação.
+        const limiteDoItem = Math.min(item.confianca, vinculo?.confianca ?? 1);
+        if (limiteDoItem > 0.5) {
+          limitadosPelaNota++;
+          // A linha antiga continua (histórico append-only) e a mais recente vale.
+          expect(linhas.length).toBeGreaterThanOrEqual(2);
+          expect(linhas.at(-1)!.confianca).toBeGreaterThan(0.5);
+          expect(linhas[0]!.confianca).toBeLessThanOrEqual(0.5);
+        } else {
+          limitadosPeloVinculo++;
+          // O vínculo incerto (ex.: similaridade 0,46) já era o limite: a confirmação não muda o custo,
+          // e o histórico só ganha linha quando o valor muda.
+          expect(linhas).toHaveLength(1);
+          expect(linhas[0]!.confianca).toBeCloseTo(limiteDoItem, 5);
+        }
       }
+      // Os dois ramos precisam existir na nota-10, senão a asserção deixaria de provar a regra.
+      expect(limitadosPelaNota).toBeGreaterThan(0);
+      expect(limitadosPeloVinculo).toBeGreaterThan(0);
     });
   });
 });

@@ -10,7 +10,7 @@ import * as schema from "../../src/infra/database/schema";
 import { carregarFixtures } from "../../src/infra/database/seed/carregar-fixtures";
 import { comerciantesDoSeed, semear, type ResumoSeed } from "../../src/infra/database/seed/semear";
 import { montarSeed } from "../../src/infra/database/seed/montar-seed";
-import { limparFilasDaDemo } from "./limpar-filas";
+import { limparFilasDaDemo, type OpcoesLimpeza } from "./limpar-filas";
 
 export interface ResumoReset {
   comerciantes: ResumoSeed[];
@@ -20,16 +20,22 @@ export interface ResumoReset {
 /**
  * Leva a demo ao estado inicial em um comando, sem tocar em outros comerciantes (regra inviolável 10:
  * o histórico de quem não é da demo nunca é apagado). Idempotente: duas execuções seguidas dão o
- * mesmo estado. Aplica as migrações, limpa os jobs e os arquivos da demo e recarrega o seed.
+ * mesmo estado. Aplica as migrações, limpa os jobs e os arquivos da demo e recarrega o seed. Se um job
+ * da demo estiver em execução, espera ele terminar; se não terminar a tempo, o reset falha antes de
+ * mexer no banco e nos arquivos.
  */
-export async function resetarDemo(env: Env, redis: Redis): Promise<ResumoReset> {
+export async function resetarDemo(
+  env: Env,
+  redis: Redis,
+  opcoesFilas: OpcoesLimpeza = {},
+): Promise<ResumoReset> {
   const fix = carregarFixtures();
   const ids = comerciantesDoSeed(fix).map(
     ({ opcoes, dados }) => montarSeed(dados, opcoes).comerciante.id as string,
   );
 
   await migrar(env.DATABASE_URL);
-  const jobsRemovidos = await limparFilasDaDemo(redis, ids);
+  const jobsRemovidos = await limparFilasDaDemo(redis, ids, opcoesFilas);
 
   const pool = new Pool({ connectionString: env.DATABASE_URL, max: 2 });
   try {

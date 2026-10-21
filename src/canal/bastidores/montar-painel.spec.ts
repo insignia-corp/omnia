@@ -1,4 +1,4 @@
-import { abaixoDoLimite, agruparChamadas, versaoDoPainel } from "./montar-painel";
+import { abaixoDoLimite, agruparChamadas, versaoDoPainel, type DecisaoAlerta } from "./montar-painel";
 
 describe("agruparChamadas", () => {
   it("agrupa por execução e ordena pela ordem da chamada", () => {
@@ -27,5 +27,31 @@ describe("versaoDoPainel", () => {
 
   it("é '0' sem nada", () => {
     expect(versaoDoPainel([null])).toBe("0");
+  });
+
+  it("muda quando status ou justificativa de um alerta mudam, sem execução nova", () => {
+    const decisao: DecisaoAlerta = {
+      alerta_id: "a1",
+      tipo: "reajuste_de_custo",
+      prioridade: 1,
+      status: "candidato",
+      data_referencia: "2026-10-20",
+      chave: "p1",
+      metricas_apoio: {},
+      justificativa: null,
+      execucao_id: null,
+    };
+    const instantes = [new Date(5000)];
+    const antes = versaoDoPainel(instantes, [decisao]);
+    expect(versaoDoPainel(instantes, [{ ...decisao }])).toBe(antes);
+    expect(versaoDoPainel(instantes, [{ ...decisao, status: "descartado" }])).not.toBe(antes);
+    expect(versaoDoPainel(instantes, [{ ...decisao, justificativa: "repetido" }])).not.toBe(antes);
+    expect(versaoDoPainel(instantes, [])).not.toBe(antes);
+  });
+
+  it("não depende da ordem das decisões", () => {
+    const a = { alerta_id: "a", status: "candidato" } as DecisaoAlerta;
+    const b = { alerta_id: "b", status: "enviado" } as DecisaoAlerta;
+    expect(versaoDoPainel([null], [a, b])).toBe(versaoDoPainel([null], [b, a]));
   });
 });

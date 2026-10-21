@@ -42,7 +42,16 @@ Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave
 
 Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. O **reajuste** é a exceção: a chave inclui a compra, então o mesmo reajuste já enviado ou descartado é suprimido sem limite de idade (nunca precisa voltar). Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. A supressão só tem efeito depois que quem envia ou descarta grava o status final (`enviado` ou `descartado`) no alerta: o motor só cria `candidato` e ainda não há quem grave esse status (relatório diário e fluxo do `select_alerts`), então até lá nada é suprimido. Como a chave do reajuste inclui o id da compra atual (duas compras do mesmo produto e fornecedor no mesmo dia são alertas distintos), uma nota nova com outro reajuste do mesmo produto é um alerta novo.
 
+## Job de reajuste após cada nota (#45)
+
+Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-nota` chama o gancho `APOS_EXTRACAO`, que enfileira o job `reajuste-pos-nota` (`jobs/fila-reajuste.ts`). O job (`jobs/verificar-reajuste.ts`) pega os produtos dos itens da nota, sempre com o `comerciante_id` do job, e roda no motor só a regra de reajuste restrita a eles, com a data de hoje. O filtro é por produto: se o mesmo produto já tiver uma compra mais recente do mesmo fornecedor, o candidato gravado é o dessa compra (a chave leva o id dela), que pode não ser a da nota recém-processada.
+
+- Idempotência: o `jobId` é comerciante + documento. A unique de `alerta` só segura a repetição no mesmo dia; por isso o job grava com `semRepetirGravados`, que não grava de novo um reajuste (tipo e chave) já existente em qualquer data. O motor diário não usa isso: o candidato de ontem que não foi enviado precisa voltar a ser candidato de hoje.
+- O job só grava o candidato. O envio fica no relatório diário, que respeita no máximo 1 mensagem proativa por dia.
+- Falha do gancho é registrada com o id do documento e não falha nem repete a extração: o relatório diário pega o mesmo reajuste de qualquer forma.
+- Nota confirmada depois pelo dono (`revisao` para `extraido`) não reenfileira o job.
+
 ## Limites conhecidos
 
 - As sobreposições por comerciante ainda não têm onde ser guardadas: não há coluna ou tabela de configuração no modelo de dados, então só a fonte padrão existe. Guardar exige migração.
-- O motor é chamado pela ferramenta `list_alert_candidates` do agente (#52), que o roda para o comerciante e a data da sessão; ainda falta o job que o roda sem o agente (#45).
+- O motor diário (as sete regras) é chamado pela ferramenta `list_alert_candidates` do agente (#52), que o roda para o comerciante e a data da sessão. O job de reajuste (#45) só avalia o reajuste após cada nota; ainda não há job que rode o motor diário sem o agente.

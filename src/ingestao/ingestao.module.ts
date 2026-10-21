@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { MulterModule } from "@nestjs/platform-express";
 import { RegistroExecucoesPostgres } from "../agente/execucao/registro-execucoes";
+import { AlertasModule } from "../alertas/alertas.module";
+import { FilaReajuste } from "../alertas/jobs/fila-reajuste";
 import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
 import { ARMAZENAMENTO } from "../infra/armazenamento/armazenamento";
@@ -16,7 +18,7 @@ import { DocumentosService } from "./documentos.service";
 import { PerguntasController } from "./perguntas.controller";
 import { PlanilhasController } from "./planilhas.controller";
 import { PlanilhasService } from "./planilhas.service";
-import { FilaExtracao, PROCESSADOR_EXTRACAO } from "./fila/fila-extracao";
+import { APOS_EXTRACAO, FilaExtracao, PROCESSADOR_EXTRACAO, type AposExtracao } from "./fila/fila-extracao";
 import { ProcessadorExtracao } from "./processador-extracao";
 import { ClienteSugestaoAnthropic } from "./vinculo/cliente-sugestao-anthropic";
 import { carregarPromptVinculo } from "./vinculo/prompt-vinculo";
@@ -26,6 +28,7 @@ export const CLIENTE_VISAO = Symbol("CLIENTE_VISAO");
 
 @Module({
   imports: [
+    AlertasModule,
     MulterModule.registerAsync({
       inject: [ENV],
       // Upload em memória com teto de tamanho: o arquivo vai direto ao armazenamento.
@@ -38,6 +41,15 @@ export const CLIENTE_VISAO = Symbol("CLIENTE_VISAO");
     DocumentosService,
     PlanilhasService,
     FilaExtracao,
+    {
+      // Logo após cada nota processada, confere o reajuste dos itens dela (issue #45).
+      provide: APOS_EXTRACAO,
+      inject: [FilaReajuste],
+      useFactory:
+        (fila: FilaReajuste): AposExtracao =>
+        ({ documentoId, comercianteId }) =>
+          fila.enfileirar({ documentoId, comercianteId }),
+    },
     {
       provide: ARMAZENAMENTO,
       inject: [ENV],

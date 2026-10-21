@@ -10,13 +10,27 @@ import { mesclarLimites, type FonteDeLimites } from "./limites";
 import { compararCandidatos, ordenarGravados, prioridadeDe } from "./prioridade";
 import { MetricasDaExecucao, type CandidatoDeAlerta, type MotivoAusente, type RegraDeAlerta } from "./regra";
 import type { AlertaGravado, RepositorioAlertas } from "./repositorio-alertas";
-import type { TipoAlerta } from "./tipos";
 import { REGRAS_DE_ALERTA } from "./regras";
+import type { TipoAlerta } from "./tipos";
 
 export interface ContextoDoMotor {
   /** Vem da sessão, nunca do modelo. */
   comercianteId: string;
   dataReferencia: string;
+}
+
+export interface OpcoesDoMotor {
+  /** Roda só as regras destes tipos (o job de reajuste roda só a de reajuste). */
+  tipos?: readonly TipoAlerta[];
+  /** Grava só candidatos destes produtos (os itens da nota que acabou de ser processada). */
+  produtoIds?: ReadonlySet<string>;
+  /**
+   * Não grava candidato cujo tipo e chave já existem em qualquer data e com qualquer status. A
+   * unique do banco só segura a repetição no mesmo dia; o job pós-nota roda uma vez por documento e
+   * não pode repetir o mesmo reajuste num dia seguinte. O motor diário não usa isto: o candidato de
+   * ontem que não foi enviado precisa voltar a ser candidato de hoje.
+   */
+  semRepetirGravados?: boolean;
 }
 
 export interface ResultadoDoMotor {
@@ -38,20 +52,24 @@ export class MotorDeAlertas {
     private readonly regras: readonly RegraDeAlerta[] = REGRAS_DE_ALERTA,
   ) {}
 
-  async executar(contexto: ContextoDoMotor): Promise<ResultadoDoMotor> {
+  async executar(contexto: ContextoDoMotor, opcoes: OpcoesDoMotor = {}): Promise<ResultadoDoMotor> {
     const { comercianteId, dataReferencia } = contexto;
     const limites = mesclarLimites(await this.limites.limitesDoComerciante(comercianteId));
     const metricas = new MetricasDaExecucao(this.metricas, { comercianteId, dataReferencia });
 
+    const { tipos, produtoIds, semRepetirGravados } = opcoes;
+    const regras = tipos ? this.regras.filter((r) => tipos.includes(r.tipo)) : this.regras;
     const resultados = await Promise.all(
-      this.regras.map((regra) => regra.avaliar({ comercianteId, dataReferencia, limites, metricas })),
+      regras.map((regra) => regra.avaliar({ comercianteId, dataReferencia, limites, metricas })),
     );
-    const achados = resultados.flatMap((r) => r.candidatos);
+    const achados = resultados
+      .flatMap((r) => r.candidatos)
+      .filter((c) => !produtoIds || (c.produtoId !== null && produtoIds.has(c.produtoId)));
     const ausentes = resultados.flatMap((r) => r.ausentes);
 
-    const tipos = Object.keys(limites.janelaSupressaoDias) as TipoAlerta[];
-    const comJanela = tipos.filter((t) => (limites.janelaSupressaoDias[t] ?? 0) > 0);
-    const semLimite = tipos.filter((t) => limites.janelaSupressaoDias[t] === null);
+    const tiposComJanela = Object.keys(limites.janelaSupressaoDias) as TipoAlerta[];
+    const comJanela = tiposComJanela.filter((t) => (limites.janelaSupressaoDias[t] ?? 0) > 0);
+    const semLimite = tiposComJanela.filter((t) => limites.janelaSupressaoDias[t] === null);
     const maiorJanela = Math.max(0, ...comJanela.map((t) => limites.janelaSupressaoDias[t] ?? 0));
     const [recentes, definitivos] = await Promise.all([
       this.alertas.jaTratados(comercianteId, {
@@ -62,7 +80,11 @@ export class MotorDeAlertas {
       this.alertas.jaTratados(comercianteId, { desde: null, ate: dataReferencia, tipos: semLimite }),
     ]);
     const tratados = [...recentes, ...definitivos];
+    const jaGravados = semRepetirGravados
+      ? await this.alertas.jaGravados(comercianteId, [...new Set(achados.map((c) => c.tipo))])
+      : [];
     const barrado = (c: CandidatoDeAlerta): boolean => {
+      if (jaGravados.some((g) => g.tipo === c.tipo && g.chave === c.chave)) return true;
       const janela = limites.janelaSupressaoDias[c.tipo];
       return tratados.some(
         (t) =>

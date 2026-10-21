@@ -3,12 +3,14 @@
  * filtra por `comerciante_id` (regra inviolável 3) e devolve registros já somados por dia, no
  * formato de `dados-de-metricas.ts`. Janelas, limites e desempates ficam nas funções puras.
  */
-import { and, asc, desc, eq, gte, inArray, lte, sql, type AnyColumn } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { CONFIANCA_REDUZIDA } from "../ingestao/validacao/validar-nota";
 import type { Db } from "../infra/database/database.module";
 import {
   comerciante,
   compra,
   conta,
+  documento,
   historicoCusto,
   itemDeCompra,
   itemDeVenda,
@@ -57,7 +59,17 @@ export const FONTE_DE_DADOS_METRICAS = Symbol("FONTE_DE_DADOS_METRICAS");
 /** Soma de uma coluna numérica ou bigint: o PostgreSQL devolve texto, então converte. */
 const somar = (coluna: AnyColumn) => sql<number>`sum(${coluna})`.mapWith(Number);
 const contar = () => sql<number>`count(*)`.mapWith(Number);
-const menorConfianca = (coluna: AnyColumn) => sql<number>`min(${coluna})`.mapWith(Number);
+const menorConfianca = (valor: AnyColumn | SQL) => sql<number>`min(${valor})`.mapWith(Number);
+/**
+ * Confiança da venda. A planilha que ainda pede revisão do dono (linha rejeitada, importação em
+ * andamento ou com falha) é parcial: o que ela gravou vale, mas não com confiança 1.
+ */
+const confiancaDaVenda = sql<number>`least(${venda.confianca}, case when ${documento.statusExtracao} is null or ${documento.statusExtracao} = 'extraido' then ${venda.confianca} else ${CONFIANCA_REDUZIDA}::real end)`;
+/** Liga a venda ao documento de origem; venda sem documento (PDV, seed) fica com ele nulo. */
+const documentoDaVenda = and(
+  eq(documento.id, venda.documentoId),
+  eq(documento.comercianteId, venda.comercianteId),
+);
 /** Origens distintas; vai como texto porque o driver não lê array de enum. */
 const origens = (coluna: AnyColumn) => sql<OrigemDado[]>`array_agg(distinct ${coluna}::text)`;
 
@@ -93,7 +105,7 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
         quantidade: somar(itemDeVenda.quantidade),
         receitaCentavos: somar(itemDeVenda.valorTotalCentavos),
         registros: contar(),
-        menorConfianca: menorConfianca(venda.confianca),
+        menorConfianca: menorConfianca(confiancaDaVenda),
         origens: origens(venda.origem),
       })
       .from(itemDeVenda)
@@ -101,6 +113,7 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
         venda,
         and(eq(venda.id, itemDeVenda.vendaId), eq(venda.comercianteId, itemDeVenda.comercianteId)),
       )
+      .leftJoin(documento, documentoDaVenda)
       .where(
         and(
           eq(venda.comercianteId, comercianteId),
@@ -121,10 +134,11 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
         data: venda.data,
         cupons: contar(),
         faturamentoCentavos: somar(venda.totalCentavos),
-        menorConfianca: menorConfianca(venda.confianca),
+        menorConfianca: menorConfianca(confiancaDaVenda),
         origens: origens(venda.origem),
       })
       .from(venda)
+      .leftJoin(documento, documentoDaVenda)
       .where(and(eq(venda.comercianteId, comercianteId), gte(venda.data, desde), lte(venda.data, ate)))
       .groupBy(venda.data)
       .orderBy(asc(venda.data));
@@ -188,7 +202,7 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
       .selectDistinctOn([itemDeVenda.produtoId], {
         produtoId: itemDeVenda.produtoId,
         data: venda.data,
-        confianca: venda.confianca,
+        confianca: confiancaDaVenda,
         origem: venda.origem,
       })
       .from(itemDeVenda)
@@ -196,6 +210,7 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
         venda,
         and(eq(venda.id, itemDeVenda.vendaId), eq(venda.comercianteId, itemDeVenda.comercianteId)),
       )
+      .leftJoin(documento, documentoDaVenda)
       .where(
         and(
           eq(venda.comercianteId, comercianteId),
@@ -209,7 +224,7 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
       produtoId: l.produtoId,
       data: l.data,
       registros: 1,
-      menorConfianca: l.confianca,
+      menorConfianca: Number(l.confianca),
       origens: [l.origem],
     }));
   }

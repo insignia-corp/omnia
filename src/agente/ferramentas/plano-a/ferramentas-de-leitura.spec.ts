@@ -9,7 +9,7 @@ import { RegistroFerramentas } from "../registro-ferramentas";
 import { criarGetCostChanges } from "./get-cost-changes";
 import { criarGetDailySummary } from "./get-daily-summary";
 import { LIMITE_SIMILARIDADE_PADRAO } from "../../../config/env";
-import { criarGetProductMargin } from "./get-product-margin";
+import { criarGetProductMargin, type ProdutoAmbiguo } from "./get-product-margin";
 import { SIMILARIDADE_PARA_ESCOLHER_PRODUTO } from "./buscar-produto";
 import { criarGetTopProducts } from "./get-top-products";
 
@@ -67,7 +67,18 @@ const margem = (produtoId: string) => ({
 });
 
 /** `sim` é a similaridade do nome todo; `palavra` (word_similarity) vale `sim` quando não é dada. */
-const dbCom = (linhas: Array<{ produto_id: string; nome: string; sim: number; palavra?: number }>) =>
+const dbCom = (
+  linhas: Array<{
+    produto_id: string;
+    nome: string;
+    sim: number;
+    palavra?: number;
+    codigo_barras?: string | null;
+    sku?: string | null;
+    cadastrado_em?: string;
+    descricao_de_nota?: string | null;
+  }>,
+) =>
   ({
     execute: jest.fn(async () => ({ rows: linhas.map((l) => ({ ...l, palavra: l.palavra ?? l.sim })) })),
   }) as unknown as Db & { execute: jest.Mock };
@@ -392,7 +403,6 @@ describe("ferramentas de leitura do plano A", () => {
       const f = criarGetProductMargin(servico().metricas, dbCom([]));
       expect(f.entrada.safeParse({ produto: "" }).success).toBe(false);
       expect(f.entrada.safeParse({ produto: " a " }).success).toBe(false);
-      expect(f.entrada.safeParse({ produto_id: randomUUID() }).success).toBe(false);
     });
 
     it("sem produto parecido devolve dado ausente, sem chamar a métrica", async () => {
@@ -477,6 +487,74 @@ describe("ferramentas de leitura do plano A", () => {
       ]);
       await criarGetProductMargin(m, banco).executar(contexto, { produto: "refrigerante cola 2 l" });
       expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
+    });
+
+    it("candidatos de mesmo nome trazem código de barras, sku e data de cadastro, e a descrição de nota que casou", async () => {
+      const banco = dbCom([
+        {
+          produto_id: randomUUID(),
+          nome: "Arroz 5kg",
+          sim: 0.9,
+          codigo_barras: "7891000100103",
+          sku: "ARZ-A",
+          cadastrado_em: "2026-09-01",
+          descricao_de_nota: null,
+        },
+        {
+          produto_id: randomUUID(),
+          nome: "Arroz 5kg",
+          sim: 0.9,
+          codigo_barras: null,
+          sku: "ARZ-B",
+          cadastrado_em: "2026-10-02",
+          descricao_de_nota: "ARROZ TP1 5KG",
+        },
+      ]);
+      const saida = (await criarGetProductMargin(servico().metricas, banco).executar(contexto, {
+        produto: "Arroz 5kg",
+      })) as ProdutoAmbiguo;
+      expect(saida.ambiguo).toBe(true);
+      expect(
+        saida.candidatos.map((c) => [c.sku, c.codigo_barras, c.cadastrado_em, c.descricao_de_nota]),
+      ).toEqual([
+        ["ARZ-A", "7891000100103", "2026-09-01", null],
+        ["ARZ-B", null, "2026-10-02", "ARROZ TP1 5KG"],
+      ]);
+    });
+
+    describe("produto_id escolhido pelo dono", () => {
+      const comProduto = (linhas: Array<{ produto_id: string; nome: string }>) =>
+        ({ execute: jest.fn(async () => ({ rows: linhas })) }) as unknown as Db & { execute: jest.Mock };
+
+      it("vale quando é de um produto do comerciante da sessão, com confiança total", async () => {
+        const { mock, metricas: m } = servico();
+        const id = randomUUID();
+        const banco = comProduto([{ produto_id: id, nome: "Arroz 5kg" }]);
+        const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto_id: id });
+        expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
+        expect(saida).toMatchObject({ confianca_da_busca: 1, menor_confianca: 0.92 });
+        const consulta = banco.execute.mock.calls[0]?.[0] as { queryChunks: unknown[] };
+        expect(consulta.queryChunks).toEqual(expect.arrayContaining([contexto.comercianteId, id]));
+      });
+
+      it("id que não é do comerciante da sessão vira produto não encontrado, sem chamar a métrica", async () => {
+        const { mock, metricas: m } = servico();
+        const saida = await criarGetProductMargin(m, comProduto([])).executar(contexto, {
+          produto_id: randomUUID(),
+        });
+        expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+        expect(mock.margemDoProduto).not.toHaveBeenCalled();
+      });
+
+      it("a entrada exige produto ou produto_id, um dos dois, e continua estrita", () => {
+        const f = criarGetProductMargin(servico().metricas, dbCom([]));
+        const id = randomUUID();
+        expect(f.entrada.safeParse({ produto_id: id }).success).toBe(true);
+        expect(f.entrada.safeParse({}).success).toBe(false);
+        expect(f.entrada.safeParse({ produto: "Arroz", produto_id: id }).success).toBe(false);
+        expect(f.entrada.safeParse({ produto_id: "arroz" }).success).toBe(false);
+        expect(f.entrada.safeParse({ produto_id: id, comerciante_id: id }).success).toBe(false);
+      });
     });
 
     it("produto claro vai para a métrica com o id achado", async () => {

@@ -14,11 +14,34 @@ import { normalizarDescricao } from "../../../ingestao/normalizar-descricao";
  */
 export const SIMILARIDADE_PARA_ESCOLHER_PRODUTO = LIMITE_SIMILARIDADE_PADRAO;
 
+/**
+ * Candidato de uma busca sem escolha clara. Traz o que o dono enxerga para distinguir produtos de
+ * mesmo nome: código de barras, SKU e data de cadastro; e, quando achado por uma descrição de nota
+ * que ele já confirmou, essa descrição.
+ */
+export interface CandidatoDaBusca extends CandidatoProduto {
+  codigoBarras: string | null;
+  sku: string | null;
+  cadastradoEm: string;
+  descricaoDeNota: string | null;
+}
+
 /** O produto achado traz o nome do cadastro: o id e o nome vêm da mesma consulta do comerciante da sessão. */
 export type ProdutoAchado =
   | { tipo: "vinculado"; produtoId: string; nome: string; confianca: number }
-  | { tipo: "sugestao"; candidatos: CandidatoProduto[] }
+  | { tipo: "sugestao"; candidatos: CandidatoDaBusca[] }
   | { tipo: "sem_candidato" };
+
+type LinhaDaBusca = {
+  produto_id: string;
+  nome: string;
+  codigo_barras: string | null;
+  sku: string | null;
+  cadastrado_em: string;
+  descricao_de_nota: string | null;
+  sim: number;
+  palavra: number;
+};
 
 /**
  * Procura um produto do comerciante pelo nome aproximado (`pg_trgm`), com o mesmo critério do
@@ -35,22 +58,54 @@ export async function buscarProdutoPorNome(
   nome: string,
 ): Promise<ProdutoAchado> {
   const consulta = normalizarDescricao(nome);
-  const resultado = await db.execute<{ produto_id: string; nome: string; sim: number; palavra: number }>(sql`
-    select p.id as produto_id, p.nome,
-           similarity(${NOME_NORMALIZADO}, ${consulta})::float8 as sim,
-           word_similarity(${consulta}, ${NOME_NORMALIZADO})::float8 as palavra
-      from produto p
-     where p.comerciante_id = ${comercianteId}
-     order by greatest(similarity(${NOME_NORMALIZADO}, ${consulta}), word_similarity(${consulta}, ${NOME_NORMALIZADO})) desc,
-              p.nome asc, p.id asc
+  // O universo é o nome do cadastro e as descrições de nota que o dono já confirmou para o produto
+  // (o mesmo que o vínculo de notas consulta); vale o melhor dos dois para cada produto.
+  const resultado = await db.execute<LinhaDaBusca>(sql`
+    with fonte as (
+      select p.id as produto_id, null::text as descricao_de_nota,
+             similarity(${NOME_NORMALIZADO}, ${consulta}) as sim,
+             word_similarity(${consulta}, ${NOME_NORMALIZADO}) as palavra
+        from produto p
+       where p.comerciante_id = ${comercianteId}
+      union all
+      select v.produto_id, v.descricao_normalizada,
+             similarity(v.descricao_normalizada, ${consulta}),
+             word_similarity(${consulta}, v.descricao_normalizada)
+        from vinculo_descricao_produto v
+       where v.comerciante_id = ${comercianteId} and v.confirmado_pelo_dono
+    ), melhor as (
+      select distinct on (produto_id) produto_id, descricao_de_nota, sim, palavra
+        from fonte
+       order by produto_id, greatest(sim, palavra) desc, descricao_de_nota nulls first
+    )
+    select m.produto_id, p.nome, p.codigo_barras, p.sku, p.criado_em::date::text as cadastrado_em,
+           m.descricao_de_nota, m.sim::float8 as sim, m.palavra::float8 as palavra
+      from melhor m
+      join produto p on p.id = m.produto_id and p.comerciante_id = ${comercianteId}
+     order by greatest(m.sim, m.palavra) desc, p.nome asc, p.id asc
      limit 20
   `);
   const pelaPalavra = resultado.rows.every((l) => l.sim < SIMILARIDADE_PARA_ESCOLHER_PRODUTO);
-  const candidatos = resultado.rows
-    .map((l) => ({ produtoId: l.produto_id, nome: l.nome, similaridade: pelaPalavra ? l.palavra : l.sim }))
+  const candidatos: CandidatoDaBusca[] = resultado.rows
+    .map((l) => ({
+      produtoId: l.produto_id,
+      nome: l.nome,
+      similaridade: pelaPalavra ? l.palavra : l.sim,
+      codigoBarras: l.codigo_barras,
+      sku: l.sku,
+      cadastradoEm: l.cadastrado_em,
+      descricaoDeNota: l.descricao_de_nota,
+    }))
     .sort((x, y) => y.similaridade - x.similaridade || x.nome.localeCompare(y.nome, "pt-BR"));
   const decisao = decidirPorSimilaridade(candidatos, SIMILARIDADE_PARA_ESCOLHER_PRODUTO);
-  if (decisao.tipo !== "vinculado") return decisao;
+  if (decisao.tipo === "sem_candidato") return decisao;
+  if (decisao.tipo === "sugestao") {
+    const porId = new Map(candidatos.map((c) => [c.produtoId, c]));
+    return {
+      tipo: "sugestao",
+      candidatos: decisao.candidatos.flatMap((c) => porId.get(c.produtoId) ?? []),
+    };
+  }
   const escolhido = candidatos.find((c) => c.produtoId === decisao.produtoId);
   // A decisão só liga o primeiro da lista, que é o que veio da consulta: não há outro caminho.
   if (!escolhido) throw new Error("Produto ligado fora da lista de candidatos");
@@ -60,4 +115,22 @@ export async function buscarProdutoPorNome(
     nome: escolhido.nome,
     confianca: decisao.confianca,
   };
+}
+
+/**
+ * Confere que o id escolhido é de um produto do comerciante da sessão. O id vem do modelo, que o
+ * leu de uma resposta anterior: nunca vale por si, só se o cadastro do comerciante o tem.
+ */
+export async function buscarProdutoPorId(
+  db: Db,
+  comercianteId: string,
+  produtoId: string,
+): Promise<{ produtoId: string; nome: string } | null> {
+  const resultado = await db.execute<{ produto_id: string; nome: string }>(sql`
+    select p.id as produto_id, p.nome
+      from produto p
+     where p.id = ${produtoId} and p.comerciante_id = ${comercianteId}
+  `);
+  const linha = resultado.rows[0];
+  return linha ? { produtoId: linha.produto_id, nome: linha.nome } : null;
 }

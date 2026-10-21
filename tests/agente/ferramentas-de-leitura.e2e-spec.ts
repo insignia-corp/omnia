@@ -210,6 +210,91 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     });
   });
 
+  describe("aliases confirmados e produtos de mesmo nome (#156)", () => {
+    // Id novo a cada execução (a chave é global), com "99" no segundo grupo.
+    const ID_COM_99 = `f0e1d2c3-99ab-4cde-8f01-${randomUUID().slice(-12)}`;
+    let loja: ContextoSessao;
+    let produtoB = "";
+    let sabonete = "";
+
+    const nomeAchado = (saida: Saida & { nome?: string }) =>
+      (saida.valor as { nome?: string } | undefined)?.nome ?? saida.nome;
+
+    beforeAll(async () => {
+      const [dono] = await db.insert(schema.comerciante).values({ nome: "E2E Margem 156" }).returning();
+      loja = { comercianteId: dono!.id, nomeComercio: "E2E Margem 156", dataReferencia: REF };
+      const base = { comercianteId: dono!.id, origem: "dono" as const };
+      const produtos = await db
+        .insert(schema.produto)
+        .values([
+          { ...base, id: ID_COM_99, nome: "Feijão Preto 1kg", sku: "FP-1", codigoBarras: "7891000100103" },
+          { ...base, nome: "Feijão Preto 1kg", sku: "FP-2" },
+          { ...base, nome: "Sabonete Neutro 85g", sku: "SB-1" },
+        ])
+        .returning();
+      produtoB = produtos.find((p) => p.sku === "FP-2")!.id;
+      sabonete = produtos.find((p) => p.sku === "SB-1")!.id;
+      const vinculo = { comercianteId: dono!.id, produtoId: sabonete, metodo: "dono" as const, confianca: 1 };
+      await db.insert(schema.vinculoDescricaoProduto).values([
+        { ...vinculo, descricaoNormalizada: "SAB LIQ YPE COCO 5L", confirmadoPeloDono: true },
+        { ...vinculo, descricaoNormalizada: "DESCRICAO NAO CONFIRMADA XPTO", confirmadoPeloDono: false },
+      ]);
+    });
+
+    // Sem limpeza: o histórico de vínculos é só de acréscimo (regra 10), e cada execução usa um comerciante novo.
+
+    it("a descrição de nota que o dono confirmou acha o produto", async () => {
+      const saida = await chamar(loja, "get_product_margin", { produto: "sab liq ype coco" });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(nomeAchado(saida)).toBe("Sabonete Neutro 85g");
+    });
+
+    it("descrição não confirmada não vale", async () => {
+      const saida = await chamar(loja, "get_product_margin", { produto: "descricao nao confirmada xpto" });
+      expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+    });
+
+    it("produtos de mesmo nome: candidatos distinguíveis e o id escolhido resolve na segunda chamada", async () => {
+      const ambiguo = await chamar(loja, "get_product_margin", { produto: "Feijão Preto 1kg" });
+      expect(ambiguo.ambiguo).toBe(true);
+      const candidatos = (ambiguo.candidatos ?? []) as unknown as Array<{
+        produto_id: string;
+        sku: string | null;
+        codigo_barras: string | null;
+        cadastrado_em: string;
+      }>;
+      expect(candidatos.map((c) => c.sku).sort()).toEqual(["FP-1", "FP-2"]);
+      expect(candidatos.find((c) => c.sku === "FP-1")?.codigo_barras).toBe("7891000100103");
+      expect(candidatos[0]?.cadastrado_em).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      const escolhido = await chamar(loja, "get_product_margin", { produto_id: produtoB });
+      expect(escolhido.ambiguo).toBeUndefined();
+      expect(nomeAchado(escolhido)).toBe("Feijão Preto 1kg");
+      expect((escolhido as unknown as { produto_id?: string }).produto_id ?? produtoB).toBe(produtoB);
+    });
+
+    it("regra 8: o id do produto (com 99) não autoriza o 99 numa mensagem", async () => {
+      const ambiguo = await chamar(loja, "get_product_margin", { produto: "Feijão Preto 1kg" });
+      expect(JSON.stringify(ambiguo)).toContain(ID_COM_99);
+      expect(verificarNumeros("O feijão subiu 99%.", new NumerosAutorizados([ambiguo])).aprovado).toBe(false);
+    });
+
+    it("isolamento: id e descrição de outro comerciante não valem", async () => {
+      expect(await chamar(vilaNova, "get_product_margin", { produto_id: produtoB })).toMatchObject({
+        ausente: true,
+        codigo: "produto_nao_encontrado",
+      });
+      expect(await chamar(vilaNova, "get_product_margin", { produto_id: sabonete })).toMatchObject({
+        ausente: true,
+      });
+      const alias = await chamar(vilaNova, "get_product_margin", { produto: "sab liq ype coco" });
+      expect(nomeAchado(alias)).not.toBe("Sabonete Neutro 85g");
+      expect(await chamar(loja, "get_product_margin", { produto: "Refrigerante cola 2L" })).toMatchObject({
+        ausente: true,
+      });
+    });
+  });
+
   it("get_cost_changes devolve as variações do gabarito", async () => {
     const saida = await chamar(vilaNova, "get_cost_changes", {});
     const valor = saida.valor as unknown as Array<{

@@ -320,6 +320,20 @@ describe("ferramentas de leitura do plano A", () => {
       expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
     });
 
+    it("um achado fraco rebaixa a confiança do resultado e um achado forte não a muda", async () => {
+      const fraco = await criarGetProductMargin(
+        servico().metricas,
+        dbCom([{ produto_id: randomUUID(), nome: "Refrigerante 2L", sim: 0.5 }]),
+      ).executar(contexto, { produto: "Refri" });
+      expect(fraco).toMatchObject({ confianca_da_busca: 0.5, menor_confianca: 0.5 });
+
+      const forte = await criarGetProductMargin(
+        servico().metricas,
+        dbCom([{ produto_id: randomUUID(), nome: "Refrigerante 2L", sim: 0.95 }]),
+      ).executar(contexto, { produto: "Refrigerante 2L" });
+      expect(forte).toMatchObject({ confianca_da_busca: 0.95, menor_confianca: 0.92 });
+    });
+
     it("repassa o dado ausente da métrica", async () => {
       const ausente = dadoAusente("sem_custo", "Sem nota para o produto.", "Qual o custo?");
       const m = { margemDoProduto: jest.fn(async () => ausente) } as unknown as MetricasService;

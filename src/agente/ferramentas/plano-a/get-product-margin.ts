@@ -2,9 +2,17 @@ import { z } from "zod";
 import type { Db } from "../../../infra/database/database.module";
 import type { MargemDoProduto } from "../../../metricas/margem-por-produto";
 import type { MetricasService } from "../../../metricas/metricas.service";
-import { dadoAusente, type DadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
+import {
+  dadoAusente,
+  ehDadoAusente,
+  type DadoAusente,
+  type ResultadoMetrica,
+} from "../../../metricas/resultado-metrica";
 import { definirFerramenta } from "../ferramenta";
 import { buscarProdutoPorNome } from "./buscar-produto";
+
+/** A margem da métrica, mais o quanto o nome digitado combina com o produto achado (0 a 1). */
+export type MargemDoProdutoAchado = ResultadoMetrica<MargemDoProduto> & { confianca_da_busca: number };
 
 export interface ProdutoAmbiguo {
   ambiguo: true;
@@ -26,17 +34,24 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
       "ambiguo: true com candidatos (pergunte ao dono qual, sem adivinhar). Pode vir como dado ausente " +
       "(ausente: true) sem venda na janela, sem custo ou produto não encontrado: diga isso ao dono. " +
       "Confira o campo nome do resultado: a busca é aproximada, então cite o produto que foi de fato achado. " +
+      "menor_confianca já considera quanto o nome combina com o produto (confianca_da_busca): se for baixa, confirme com o dono. " +
       "O produto_id do resultado serve para ask_owner.",
     entrada: z.strictObject({
       produto: z.string().trim().min(2).max(120).describe("Nome do produto, como o dono falou."),
     }),
     efeito: "nenhum",
-    async executar(
-      contexto,
-      { produto },
-    ): Promise<ResultadoMetrica<MargemDoProduto> | DadoAusente | ProdutoAmbiguo> {
+    async executar(contexto, { produto }): Promise<MargemDoProdutoAchado | DadoAusente | ProdutoAmbiguo> {
       const achado = await buscarProdutoPorNome(db, contexto.comercianteId, produto);
-      if (achado.tipo === "vinculado") return metricas.margemDoProduto(contexto, achado.produtoId);
+      if (achado.tipo === "vinculado") {
+        const margem = await metricas.margemDoProduto(contexto, achado.produtoId);
+        if (ehDadoAusente(margem)) return margem;
+        // A busca por nome aproximado é um dado a mais: um achado fraco rebaixa a confiança do resultado (regra 4).
+        const menorConfianca =
+          margem.menor_confianca === null
+            ? achado.confianca
+            : Math.min(margem.menor_confianca, achado.confianca);
+        return { ...margem, menor_confianca: menorConfianca, confianca_da_busca: achado.confianca };
+      }
       if (achado.tipo === "sugestao") {
         return {
           ambiguo: true,

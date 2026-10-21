@@ -5,10 +5,16 @@ import type {
   BetaUsage,
 } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 
+export type Esforco = "low" | "medium" | "high" | "xhigh" | "max";
+
 export interface PedidoModelo {
   system: string;
   messages: BetaMessageParam[];
   tools: BetaTool[];
+  /** Esforço desta chamada; sem valor, vale o padrão do modelo configurado. */
+  esforco?: Esforco;
+  /** Cancela a chamada (e as retentativas) quando o prazo da execução acaba. */
+  signal?: AbortSignal;
 }
 
 /** Porta do modelo de linguagem. O loop do agente depende só disto (testável com modelo falso). */
@@ -54,7 +60,9 @@ export function acumularConsumo(total: ConsumoTokens, uso: BetaUsage): void {
   total.cacheEscrita += uso.cache_creation_input_tokens ?? 0;
 }
 
-/** Custo estimado em micro-dólares inteiros. Modelo sem preço cadastrado custa 0 (ver log). */
+export const temPreco = (modelo: string): boolean => modelo in PRECOS;
+
+/** Custo estimado em micro-dólares inteiros. Modelo sem preço cadastrado custa 0 (o loop registra um aviso). */
 export function custoMicrodolares(modelo: string, c: ConsumoTokens): number {
   const p = PRECOS[modelo];
   if (!p) return 0;

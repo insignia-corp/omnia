@@ -63,6 +63,7 @@
     "db:migrate": "tsx src/infra/database/migrar.ts",
     "db:seed": "tsx src/infra/database/seed/semear.ts",
     "db:reset": "tsx src/infra/database/resetar.ts && tsx src/infra/database/migrar.ts",
-    "seed:demo": "npm run db:reset && npm run db:seed"
+    "seed:demo": "npm run db:reset && npm run db:seed",
+    "eval": "tsx src/avaliacao/cli.ts"
   }
 }

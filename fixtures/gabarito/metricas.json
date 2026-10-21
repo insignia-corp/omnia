@@ -29,6 +29,12 @@
       "top_n": 5,
       "giro_alto": "entre os 5 de maior alta (com média semanal mínima) ou entre os 5 de maior volume em 7 dias"
     },
+    "receita_por_produto": {
+      "formula": "soma de preço unitário * quantidade das vendas dos últimos 7 dias",
+      "janela_dias": 7,
+      "top_n": 5,
+      "desempate": "mesma receita: nome em ordem alfabética do português e depois o id"
+    },
     "espaco_subir_preco": "giro_alto e margem_bps abaixo da meta, ao mesmo tempo",
     "estoque_parado": {
       "limite_dias": 30,
@@ -1514,6 +1520,291 @@
         "media_semanal_28_dias": 13.5,
         "alta_bps": 4815,
         "elegivel_para_alta": false
+      }
+    ]
+  },
+  "receita_por_produto": {
+    "periodo": {
+      "inicio": "2026-10-13",
+      "fim": "2026-10-19"
+    },
+    "maior_receita": [
+      {
+        "produto_id": "P01",
+        "nome": "Arroz branco tipo 1 5kg",
+        "receita_centavos": 125964
+      },
+      {
+        "produto_id": "P48",
+        "nome": "Ovos brancos dúzia",
+        "receita_centavos": 97435
+      },
+      {
+        "produto_id": "P47",
+        "nome": "Carvão vegetal 3kg",
+        "receita_centavos": 87945
+      },
+      {
+        "produto_id": "P05",
+        "nome": "Café torrado e moído 500g",
+        "receita_centavos": 85920
+      },
+      {
+        "produto_id": "P14",
+        "nome": "Refrigerante cola 2L",
+        "receita_centavos": 72819
+      }
+    ],
+    "por_produto": [
+      {
+        "produto_id": "P01",
+        "nome": "Arroz branco tipo 1 5kg",
+        "receita_centavos": 125964
+      },
+      {
+        "produto_id": "P02",
+        "nome": "Feijão carioca tipo 1 1kg",
+        "receita_centavos": 29667
+      },
+      {
+        "produto_id": "P03",
+        "nome": "Óleo de soja 900ml",
+        "receita_centavos": 24057
+      },
+      {
+        "produto_id": "P04",
+        "nome": "Açúcar refinado 1kg",
+        "receita_centavos": 25593
+      },
+      {
+        "produto_id": "P05",
+        "nome": "Café torrado e moído 500g",
+        "receita_centavos": 85920
+      },
+      {
+        "produto_id": "P06",
+        "nome": "Macarrão espaguete 500g",
+        "receita_centavos": 15498
+      },
+      {
+        "produto_id": "P07",
+        "nome": "Farinha de trigo 1kg",
+        "receita_centavos": 4790
+      },
+      {
+        "produto_id": "P08",
+        "nome": "Sal refinado 1kg",
+        "receita_centavos": 2190
+      },
+      {
+        "produto_id": "P09",
+        "nome": "Molho de tomate 340g",
+        "receita_centavos": 10360
+      },
+      {
+        "produto_id": "P10",
+        "nome": "Milho verde em conserva 200g",
+        "receita_centavos": 5491
+      },
+      {
+        "produto_id": "P11",
+        "nome": "Farinha de mandioca 500g",
+        "receita_centavos": 3861
+      },
+      {
+        "produto_id": "P12",
+        "nome": "Vinagre de álcool 750ml",
+        "receita_centavos": 0
+      },
+      {
+        "produto_id": "P13",
+        "nome": "Achocolatado em pó 400g",
+        "receita_centavos": 0
+      },
+      {
+        "produto_id": "P14",
+        "nome": "Refrigerante cola 2L",
+        "receita_centavos": 72819
+      },
+      {
+        "produto_id": "P15",
+        "nome": "Refrigerante guaraná 2L",
+        "receita_centavos": 36507
+      },
+      {
+        "produto_id": "P16",
+        "nome": "Refrigerante cola lata 350ml",
+        "receita_centavos": 22344
+      },
+      {
+        "produto_id": "P17",
+        "nome": "Cerveja pilsen lata 350ml",
+        "receita_centavos": 56588
+      },
+      {
+        "produto_id": "P18",
+        "nome": "Cerveja long neck 330ml",
+        "receita_centavos": 19168
+      },
+      {
+        "produto_id": "P19",
+        "nome": "Água mineral sem gás 1,5L",
+        "receita_centavos": 16185
+      },
+      {
+        "produto_id": "P20",
+        "nome": "Água mineral com gás 500ml",
+        "receita_centavos": 4580
+      },
+      {
+        "produto_id": "P21",
+        "nome": "Suco de laranja 1L",
+        "receita_centavos": 12078
+      },
+      {
+        "produto_id": "P22",
+        "nome": "Energético 250ml",
+        "receita_centavos": 27166
+      },
+      {
+        "produto_id": "P23",
+        "nome": "Leite integral 1L",
+        "receita_centavos": 49816
+      },
+      {
+        "produto_id": "P24",
+        "nome": "Iogurte de morango 170g",
+        "receita_centavos": 5478
+      },
+      {
+        "produto_id": "P25",
+        "nome": "Queijo mussarela fatiado 150g",
+        "receita_centavos": 26376
+      },
+      {
+        "produto_id": "P26",
+        "nome": "Manteiga com sal 200g",
+        "receita_centavos": 10493
+      },
+      {
+        "produto_id": "P27",
+        "nome": "Requeijão cremoso 200g",
+        "receita_centavos": 8490
+      },
+      {
+        "produto_id": "P28",
+        "nome": "Creme de leite 200g",
+        "receita_centavos": 10725
+      },
+      {
+        "produto_id": "P29",
+        "nome": "Detergente líquido 500ml",
+        "receita_centavos": 5980
+      },
+      {
+        "produto_id": "P30",
+        "nome": "Sabão em pó 800g",
+        "receita_centavos": 21582
+      },
+      {
+        "produto_id": "P31",
+        "nome": "Água sanitária 1L",
+        "receita_centavos": 2443
+      },
+      {
+        "produto_id": "P32",
+        "nome": "Desinfetante 500ml",
+        "receita_centavos": 2245
+      },
+      {
+        "produto_id": "P33",
+        "nome": "Papel higiênico folha dupla 4 rolos",
+        "receita_centavos": 28971
+      },
+      {
+        "produto_id": "P34",
+        "nome": "Sabonete 85g",
+        "receita_centavos": 4776
+      },
+      {
+        "produto_id": "P35",
+        "nome": "Creme dental 90g",
+        "receita_centavos": 10819
+      },
+      {
+        "produto_id": "P36",
+        "nome": "Shampoo 325ml",
+        "receita_centavos": 5994
+      },
+      {
+        "produto_id": "P37",
+        "nome": "Esponja de cozinha 3 unidades",
+        "receita_centavos": 1592
+      },
+      {
+        "produto_id": "P38",
+        "nome": "Pão de forma tradicional 500g",
+        "receita_centavos": 43299
+      },
+      {
+        "produto_id": "P39",
+        "nome": "Biscoito recheado chocolate 120g",
+        "receita_centavos": 15903
+      },
+      {
+        "produto_id": "P40",
+        "nome": "Biscoito cream cracker 400g",
+        "receita_centavos": 10557
+      },
+      {
+        "produto_id": "P41",
+        "nome": "Salgadinho de milho 100g",
+        "receita_centavos": 25803
+      },
+      {
+        "produto_id": "P42",
+        "nome": "Chocolate ao leite 80g",
+        "receita_centavos": 12852
+      },
+      {
+        "produto_id": "P43",
+        "nome": "Bala de goma 90g",
+        "receita_centavos": 7719
+      },
+      {
+        "produto_id": "P44",
+        "nome": "Linguiça toscana 500g",
+        "receita_centavos": 27184
+      },
+      {
+        "produto_id": "P45",
+        "nome": "Presunto fatiado 200g",
+        "receita_centavos": 20979
+      },
+      {
+        "produto_id": "P46",
+        "nome": "Salsicha hot dog 500g",
+        "receita_centavos": 18981
+      },
+      {
+        "produto_id": "P47",
+        "nome": "Carvão vegetal 3kg",
+        "receita_centavos": 87945
+      },
+      {
+        "produto_id": "P48",
+        "nome": "Ovos brancos dúzia",
+        "receita_centavos": 97435
+      },
+      {
+        "produto_id": "P49",
+        "nome": "Pilha alcalina AA 2 unidades",
+        "receita_centavos": 1099
+      },
+      {
+        "produto_id": "P50",
+        "nome": "Guardanapo de papel 50 folhas",
+        "receita_centavos": 4580
       }
     ]
   },

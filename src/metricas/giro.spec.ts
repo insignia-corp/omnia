@@ -45,7 +45,10 @@ describe("calcularGiro", () => {
       ["sem nenhuma venda importada", null],
       ["só 14 dias de vendas, de 06/10 a 19/10", { primeira: "2026-10-06", ultima: REF }],
       ["a janela de 28 dias começa um dia antes da primeira venda", { primeira: "2026-09-16", ultima: REF }],
-      ["a última venda importada é anterior à data de referência", { primeira: "2026-09-15", ultima: "2026-10-18" }],
+      [
+        "a última venda importada é anterior à data de referência",
+        { primeira: "2026-09-15", ultima: "2026-10-18" },
+      ],
     ])("%s: dado ausente, não volume zero", (_caso, intervaloDeVendas) => {
       const r = calcularOuAusente({
         produtos: [produto("a")],

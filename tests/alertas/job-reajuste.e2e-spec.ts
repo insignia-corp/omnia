@@ -93,6 +93,17 @@ describe("job de reajuste após cada nota (e2e)", () => {
     for (const f of filasDeExtracao.splice(0)) await f.onModuleDestroy();
   };
 
+  /** Documentos que nenhum outro teste enfileira na fila de extração, escolhidos pela data, não pela ordem. */
+  const documentoLivre = (indice: number): string => {
+    const usado = new Set([docDaNota("2026-10-16", "AUR"), docDaNota("2026-10-13", "AUR")]);
+    const livres = compras
+      .filter((c) => !usado.has(c.documentoId))
+      .sort((a, b) => a.data.localeCompare(b.data));
+    const escolhida = livres[indice];
+    if (!escolhida) throw new Error("Sem documento livre");
+    return escolhida.documentoId;
+  };
+
   const docDaNota = (data: string, fornecedorGabarito: string): string => {
     const c = compras.find(
       (x) => x.data === data && gabaritoPorFornecedor.get(x.fornecedorId) === fornecedorGabarito,
@@ -204,10 +215,8 @@ describe("job de reajuste após cada nota (e2e)", () => {
       const erro = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
       const gancho = jest.fn(() => Promise.reject(new Error("redis fora")));
       const { fila, processar } = criarFilaDeExtracao(gancho);
-      const documentoId = docDaNota("2026-10-16", "AUR");
-      // Outro jobId: o documento acima já passou pela fila de extração no primeiro teste.
-      const fila2Doc = compras.find((c) => c.documentoId !== documentoId)?.documentoId;
-      if (!fila2Doc) throw new Error("Sem outro documento");
+      // Documento próprio deste teste (o do primeiro já passou pela fila de extração: jobId não repete).
+      const fila2Doc = documentoLivre(0);
       await fila.enfileirar({ documentoId: fila2Doc, comercianteId: vilaNova });
       await esperar(() => Promise.resolve(gancho.mock.calls.length > 0));
       const contagem = new Queue(FILA_EXTRACAO, { connection: redis });
@@ -231,10 +240,8 @@ describe("job de reajuste após cada nota (e2e)", () => {
 
     it("sem o gancho, a fila de extração segue funcionando como antes", async () => {
       const { fila, processar } = criarFilaDeExtracao(undefined);
-      // Outro documento que o do teste anterior: o jobId de um job já concluído não se repete.
-      const documentoId = compras.find(
-        (c) => c.documentoId !== docDaNota("2026-10-16", "AUR") && c !== compras[0],
-      )!.documentoId;
+      // Outro documento, também só deste teste.
+      const documentoId = documentoLivre(1);
       await fila.enfileirar({ documentoId, comercianteId: vilaNova });
       await esperar(() => Promise.resolve(processar.mock.calls.length > 0));
       expect(processar).toHaveBeenCalledWith({ documentoId, comercianteId: vilaNova }, expect.any(Boolean));

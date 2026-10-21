@@ -65,6 +65,38 @@ export const FALLBACK = {
     "Não posso ajudar com esse pedido. Posso responder sobre vendas, custos, margens e alertas do seu comércio.",
 } as const;
 
+/** Prazo total de uma execução: vale também para uma chamada ao modelo ou ferramenta já em andamento. */
+class Prazo {
+  readonly controle = new AbortController();
+  estourou = false;
+  private readonly timer: NodeJS.Timeout;
+  private readonly rejeicao: Promise<never>;
+
+  constructor(readonly maxMs: number) {
+    let rejeitar!: (motivo: Error) => void;
+    this.rejeicao = new Promise<never>((_, rej) => {
+      rejeitar = rej;
+    });
+    this.timer = setTimeout(() => {
+      this.estourou = true;
+      this.controle.abort();
+      rejeitar(new Error(`Limite de tempo de ${maxMs} ms atingido`));
+    }, maxMs);
+    // Sem ouvinte, a rejeição de um prazo que ninguém estava esperando viraria erro não tratado.
+    this.rejeicao.catch(() => undefined);
+  }
+
+  /** Resolve com `operacao`, ou rejeita quando o prazo acaba antes. Uma operação sem cancelamento termina sozinha. */
+  correr<T>(operacao: Promise<T>): Promise<T> {
+    operacao.catch(() => undefined);
+    return Promise.race([operacao, this.rejeicao]);
+  }
+
+  encerrar(): void {
+    clearTimeout(this.timer);
+  }
+}
+
 /**
  * Loop do agente (issue #55): chama o modelo, executa as ferramentas pedidas e devolve a
  * mensagem só depois de o verificador de números aprovar (regra inviolável 8).
@@ -90,14 +122,13 @@ export class AgenteService {
     const consumoPorModelo = new Map<string, ConsumoTokens>();
     const chamadas: ChamadaRegistrada[] = [];
     const bloqueios: BloqueioVerificador[] = [];
-    // O dono pode ouvir de volta os números que ele mesmo escreveu, e a data da execução.
-    // Mesma regra para as falas anteriores: as do assistente já passaram pelo verificador na vez delas.
+    // O dono pode ouvir de volta os números que ele mesmo escreveu agora, e a data da execução. As falas
+    // anteriores da conversa são só contexto: um número de lá pode estar velho e só vale se uma ferramenta
+    // devolver de novo nesta execução (regra inviolável 8).
     const historico = pedido.historico ?? [];
     const autorizados = new NumerosAutorizados(
       [contexto.dataReferencia],
-      [pedido.entrada, ...historico.map((t) => t.texto)].flatMap((t) =>
-        extrairNumeros(t).map((n) => n.valor),
-      ),
+      extrairNumeros(pedido.entrada).map((n) => n.valor),
     );
     const messages: BetaMessageParam[] = [
       ...montarHistorico(historico),
@@ -113,20 +144,27 @@ export class AgenteService {
     let iteracoes = 0;
     // Verificador barrou a última resposta e a correção pedida não teve iteração para rodar.
     let correcaoSemIteracao = false;
+    // Relatório diário: a escolha dos alertas tem de ficar registrada por select_alerts (ou não haver candidato).
+    let correcoesSelecao = 0;
+    const prazo = this.limites.maxMs === undefined ? null : new Prazo(this.limites.maxMs);
+    const comPrazo = <T>(operacao: Promise<T>) => (prazo ? prazo.correr(operacao) : operacao);
 
     try {
       while (iteracoes < this.limites.maxIteracoes) {
-        if (this.limites.maxMs !== undefined && performance.now() - inicio > this.limites.maxMs) {
-          erro = `Limite de tempo de ${this.limites.maxMs} ms atingido`;
+        if (prazo && performance.now() - inicio > prazo.maxMs) {
+          erro = `Limite de tempo de ${prazo.maxMs} ms atingido`;
           break;
         }
         iteracoes++;
-        const resposta: BetaMessage = await this.modelo.gerar({
-          system,
-          messages,
-          tools,
-          ...(esforco ? { esforco } : {}),
-        });
+        const resposta: BetaMessage = await comPrazo(
+          this.modelo.gerar({
+            system,
+            messages,
+            tools,
+            ...(esforco ? { esforco } : {}),
+            ...(prazo ? { signal: prazo.controle.signal } : {}),
+          }),
+        );
         const consumoDoModelo = consumoPorModelo.get(resposta.model) ?? consumoZerado();
         acumularConsumo(consumoDoModelo, resposta.usage);
         consumoPorModelo.set(resposta.model, consumoDoModelo);
@@ -136,7 +174,7 @@ export class AgenteService {
         if (resposta.stop_reason === "tool_use") {
           messages.push({
             role: "user",
-            content: await this.rodarFerramentas(contexto, resposta, chamadas, autorizados),
+            content: await comPrazo(this.rodarFerramentas(contexto, resposta, chamadas, autorizados)),
           });
           continue;
         }
@@ -155,6 +193,21 @@ export class AgenteService {
         if (!texto) {
           erro = "Modelo terminou sem texto";
           break;
+        }
+        if (pedido.gatilho === "relatorio_diario" && !escolhaRegistrada(chamadas)) {
+          // Aprovar aqui deixaria o relatório sem escolha nem justificativa registradas, e o prompt sozinho não garante.
+          if (++correcoesSelecao > this.limites.maxRegeracoes) {
+            erro = "Relatório diário sem escolha registrada por select_alerts";
+            break;
+          }
+          messages.push({
+            role: "user",
+            content:
+              "[sistema] O relatório diário só vale depois de registrar a escolha dos alertas. Chame list_alert_candidates " +
+              "e depois select_alerts com até 3 alertas e uma justificativa curta para cada. Se não houver candidato, " +
+              "diga que hoje não há nada que exija atenção.",
+          });
+          continue;
         }
         const verificacao = verificarNumeros(texto, autorizados);
         if (verificacao.aprovado) {
@@ -195,8 +248,14 @@ export class AgenteService {
       }
     } catch (e) {
       // Timeout, falha de rede ou erro da API: o dono recebe o fallback, nunca um número inventado.
-      erro = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      erro = prazo?.estourou
+        ? `Limite de tempo de ${prazo.maxMs} ms atingido`
+        : e instanceof Error
+          ? `${e.name}: ${e.message}`
+          : String(e);
       this.logger.error(`Execução do agente falhou: ${erro}`);
+    } finally {
+      prazo?.encerrar();
     }
 
     const consumo = [...consumoPorModelo.values()].reduce(somarConsumo, consumoZerado());
@@ -276,6 +335,20 @@ function montarHistorico(historico: TurnoConversa[]): BetaMessageParam[] {
         ? { role: "user", content: `<mensagem_do_dono>\n${higienizar(t.texto)}\n</mensagem_do_dono>` }
         : { role: "assistant", content: t.texto },
     );
+}
+
+/** Há um `select_alerts` bem-sucedido, ou `list_alert_candidates` informou que não há candidato. */
+function escolhaRegistrada(chamadas: ChamadaRegistrada[]): boolean {
+  return chamadas.some(
+    (c) =>
+      c.erro === null &&
+      (c.ferramenta === "select_alerts" ||
+        (c.ferramenta === "list_alert_candidates" &&
+          typeof c.saida === "object" &&
+          c.saida !== null &&
+          "n_registros" in c.saida &&
+          c.saida.n_registros === 0)),
+  );
 }
 
 function montarEntrada({ gatilho, entrada, contexto }: PedidoAgente): string {

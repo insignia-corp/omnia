@@ -9,8 +9,8 @@ export const MAX_ALERTAS_POR_DIA = 3;
 
 /**
  * Registra a escolha dos alertas do dia e a justificativa de cada um. Não grava nada: a decisão
- * fica em `chamada_ferramenta`, na ordem, e aparece na tela de bastidores (#77). Devolve as
- * métricas de apoio de cada alerta escolhido, que são a fonte dos números da mensagem.
+ * fica em `chamada_ferramenta`, na ordem, e aparece na tela de bastidores (#77). Devolve só dados do
+ * banco: as métricas de apoio de cada alerta escolhido são a fonte dos números da mensagem.
  *
  * Os ids são conferidos contra os candidatos do comerciante da sessão na data da execução: o
  * modelo não consegue escolher alerta de outro lojista nem de outro dia.
@@ -67,7 +67,8 @@ export function criarSelectAlerts(db: Executor) {
           prioridade: l.prioridade,
           produto_id: l.produtoId,
           metricas_apoio: l.metricasApoio,
-          justificativa: a.justificativa,
+          // A justificativa é texto do modelo: fica só na entrada da chamada (bastidores). Se voltasse
+          // na saída, qualquer número escrito nela passaria a valer como fonte no verificador.
         };
       });
       return { selecionados, menor_confianca: menorConfianca(selecionados.map((s) => s.metricas_apoio)) };

@@ -210,6 +210,35 @@ describe("loop do agente com banco real (e2e)", () => {
       expect(execucao?.bloqueiosVerificador).toBe(1);
     });
 
+    it("a justificativa do modelo não volta na saída: número escrito nela não vira fonte para o verificador", async () => {
+      const r = await new RegistroFerramentas([criarSelectAlerts(db)]).executar(
+        contexto(a),
+        "select_alerts",
+        {
+          alertas: [{ alerta_id: alertaIds[0], justificativa: "O custo subiu 99% esta semana" }],
+        },
+      );
+      expect(r.ok).toBe(true);
+      expect(JSON.stringify(r)).not.toContain("99");
+      expect(JSON.stringify(r)).not.toContain("justificativa");
+
+      const modelo = new ModeloRoteirizado([
+        chamar(
+          "select_alerts",
+          { alertas: [{ alerta_id: alertaIds[0], justificativa: "O custo subiu 99% esta semana" }] },
+          "t1",
+        ),
+        texto("O custo do arroz subiu 99%."),
+        texto("O custo do arroz subiu 99%."),
+      ]);
+      const exec = await montar(modelo).executar({
+        contexto: contexto(a),
+        gatilho: "relatorio_diario",
+        entrada: "Execução diária.",
+      });
+      expect(exec).toMatchObject({ resultado: "fallback_verificador", mensagem: FALLBACK.verificador });
+    });
+
     it("não deixa escolher mais de 3, repetir, nem alerta de outro dia ou de outro lojista", async () => {
       const escolher = (ids: string[]) =>
         new RegistroFerramentas([criarSelectAlerts(db)]).executar(contexto(a), "select_alerts", {
@@ -241,8 +270,8 @@ describe("loop do agente com banco real (e2e)", () => {
       ]);
       const r = await montar(modelo).executar({
         contexto: contexto(a),
-        gatilho: "relatorio_diario",
-        entrada: "Execução diária.",
+        gatilho: "mensagem_dono",
+        entrada: "Quanto faturei hoje?",
       });
       expect(r).toMatchObject({ resultado: "fallback_verificador", mensagem: FALLBACK.verificador });
       expect(r.mensagem).not.toMatch(/\d/);
@@ -280,20 +309,61 @@ describe("loop do agente com banco real (e2e)", () => {
       expect(JSON.stringify(await carregarHistorico(db, a, 10))).not.toContain("outro lojista");
     });
 
-    it("o histórico carregado entra no pedido do agente e a resposta cita número da conversa sem bloqueio", async () => {
-      const modelo = new ModeloRoteirizado([texto("Como falei, subiu 12,05%.")]);
+    it("com `mensagemAtualId`, mensagens posteriores à atual não entram no histórico (duas mensagens em fila)", async () => {
+      const dono = (await db.insert(schema.comerciante).values({ nome: "E2E Loop Fila" }).returning())[0]!;
+      try {
+        await gravar(dono.id, "enviada", "Bom dia!", "2026-10-19T11:00:00Z");
+        const primeira = await gravar(dono.id, "recebida", "Primeira pergunta", "2026-10-19T12:00:00Z");
+        const segunda = await gravar(dono.id, "recebida", "Segunda pergunta", "2026-10-19T12:00:01Z");
+        await gravar(dono.id, "enviada", "Resposta futura", "2026-10-19T12:00:02Z");
+
+        // Respondendo a primeira, nem a segunda nem o que veio depois são histórico.
+        expect((await carregarHistorico(db, dono.id, 10, primeira)).map((t) => t.texto)).toEqual([
+          "Bom dia!",
+        ]);
+        // Respondendo a segunda, a primeira já é histórico e a resposta futura continua de fora.
+        expect((await carregarHistorico(db, dono.id, 10, segunda)).map((t) => t.texto)).toEqual([
+          "Bom dia!",
+          "Primeira pergunta",
+        ]);
+      } finally {
+        await db.delete(schema.comerciante).where(eq(schema.comerciante.id, dono.id));
+      }
+    });
+
+    it("mesma data de criação: o id desempata e a mensagem atual nunca entra", async () => {
+      const dono = (await db.insert(schema.comerciante).values({ nome: "E2E Loop Empate" }).returning())[0]!;
+      try {
+        const ids = [];
+        for (const t of ["m1", "m2", "m3"])
+          ids.push(await gravar(dono.id, "recebida", t, "2026-10-19T12:00:00Z"));
+        const ordenados = [...ids].sort();
+        const atual = ordenados[1]!;
+        const historico = await carregarHistorico(db, dono.id, 10, atual);
+        expect(historico).toHaveLength(1);
+        const textoDoAtual = ids.indexOf(atual) === 0 ? "m1" : ids.indexOf(atual) === 1 ? "m2" : "m3";
+        expect(historico.map((t) => t.texto)).not.toContain(textoDoAtual);
+      } finally {
+        await db.delete(schema.comerciante).where(eq(schema.comerciante.id, dono.id));
+      }
+    });
+
+    it("o histórico carregado entra no pedido do agente, mas seus números não valem sem ferramenta", async () => {
       const historico = await carregarHistorico(db, a, 10);
-      const r = await montar(modelo).executar({
+      const sem = new ModeloRoteirizado([
+        texto("Como falei, subiu 12,05%."),
+        texto("Como falei, subiu 12,05%."),
+      ]);
+      const r = await montar(sem).executar({
         contexto: contexto(a),
         gatilho: "mensagem_dono",
         entrada: "Quanto foi mesmo?",
         historico,
       });
-      expect(r.resultado).toBe("aprovada");
-      expect(modelo.pedidos[0]!.messages[0]!.role).toBe("user");
-      expect(JSON.stringify(modelo.pedidos[0]!.messages)).toContain("O arroz subiu 12,05%.");
-      expect(JSON.stringify(modelo.pedidos[0]!.messages)).not.toContain("outro lojista");
-      expect(r.mensagem).not.toBe(FALLBACK.erro);
+      expect(sem.pedidos[0]!.messages[0]!.role).toBe("user");
+      expect(JSON.stringify(sem.pedidos[0]!.messages)).toContain("O arroz subiu 12,05%.");
+      expect(JSON.stringify(sem.pedidos[0]!.messages)).not.toContain("outro lojista");
+      expect(r).toMatchObject({ resultado: "fallback_verificador", mensagem: FALLBACK.verificador });
     });
   });
 });

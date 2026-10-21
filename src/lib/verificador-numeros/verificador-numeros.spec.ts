@@ -138,3 +138,50 @@ describe("verificarNumeros", () => {
     expect(verificarNumeros("O Óleo 1,5L subiu.", a).aprovado).toBe(true);
   });
 });
+
+describe("identificadores não autorizam números (regra 8)", () => {
+  const UUID_COM_99 = "f0e1d2c3-99ab-4cde-8f01-23456789abcd";
+  const afirma99 = "O custo do arroz subiu 99%.";
+
+  it.each(["alerta_id", "produto_id", "fornecedor_id", "alertaId", "id"])(
+    "o valor da chave %s não autoriza os dígitos do UUID",
+    (chave) => {
+      const a = new NumerosAutorizados([{ [chave]: UUID_COM_99 }]);
+      expect(a.contem(99)).toBe(false);
+      expect(verificarNumeros(afirma99, a).aprovado).toBe(false);
+    },
+  );
+
+  it("vale também para listas de ids e para ids numéricos", () => {
+    const a = new NumerosAutorizados([
+      { alerta_ids: [UUID_COM_99], conta_id: 99, itens: [{ produto_id: 99 }] },
+    ]);
+    expect(a.contem(99)).toBe(false);
+  });
+
+  it("UUID solto em texto ou em lista também não autoriza", () => {
+    expect(new NumerosAutorizados([`Alerta ${UUID_COM_99} escolhido`]).contem(99)).toBe(false);
+    expect(new NumerosAutorizados([[UUID_COM_99]]).contem(99)).toBe(false);
+    expect(new NumerosAutorizados([{ descricao: `ref ${UUID_COM_99.toUpperCase()}` }]).contem(99)).toBe(
+      false,
+    );
+  });
+
+  it("o número de verdade ao lado do id continua autorizado", () => {
+    const a = new NumerosAutorizados([
+      { produto_id: UUID_COM_99, variacao_percentual: 12.5, custo_atual_centavos: 2790, unidades: 99 },
+    ]);
+    expect(verificarNumeros("O custo subiu 12,5% e passou a R$ 27,90.", a).aprovado).toBe(true);
+    expect(verificarNumeros("Foram 99 unidades.", a).aprovado).toBe(true);
+    expect(verificarNumeros("O custo subiu 13%.", a).aprovado).toBe(false);
+  });
+
+  it("só ignora o valor do id: outras chaves, datas e nomes com dígitos seguem valendo", () => {
+    const a = new NumerosAutorizados([{ data: "2026-10-15", nome: "Refrigerante 2L", paid: 7, valido: 5 }]);
+    expect(verificarNumeros("Em 2026-10-15, o Refrigerante 2L teve 7 e 5.", a).aprovado).toBe(true);
+  });
+
+  it("o texto de uma mensagem com UUID continua sendo conferido como antes", () => {
+    expect(verificarNumeros(`Veja ${UUID_COM_99}.`, new NumerosAutorizados()).aprovado).toBe(false);
+  });
+});

@@ -33,6 +33,11 @@ export interface GastoForaDoPadrao {
   valor_centavos: number;
   /** Mediana do histórico em centavos inteiros: o meio centavo da mediana de um número par arredonda para cima. */
   mediana_centavos: number;
+  /**
+   * O valor do dia menos a mediana exata (em meios de centavo), arredondado uma vez só: subtrair
+   * `mediana_centavos`, que já veio arredondada, erraria 1 centavo quando a mediana cai em meio centavo.
+   */
+  diferenca_para_mediana_centavos: number;
   /** Desvio absoluto mediano em centavos inteiros, arredondado para exibir. O `desvio` usa o valor exato. */
   desvio_absoluto_mediano_centavos: number;
   /** Quantos desvios absolutos medianos o dia está da mediana, com 2 casas. Nulo quando o desvio absoluto mediano é zero. */
@@ -101,6 +106,7 @@ export function calcularGastoForaDoPadrao(
       data,
       valor_centavos: valor,
       mediana_centavos: dividirArredondando(medianaEmMeios, 2) ?? 0,
+      diferenca_para_mediana_centavos: dividirArredondando(2 * valor - medianaEmMeios, 2) ?? 0,
       desvio_absoluto_mediano_centavos: dividirArredondando(desvioEmQuartos, 4) ?? 0,
       desvio,
       dias_de_historico: historico.length,

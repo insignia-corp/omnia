@@ -2,14 +2,10 @@ import { z } from "zod";
 import type { Db } from "../../../infra/database/database.module";
 import type { MargemDoProduto } from "../../../metricas/margem-por-produto";
 import type { MetricasService } from "../../../metricas/metricas.service";
-import {
-  dadoAusente,
-  ehDadoAusente,
-  type DadoAusente,
-  type ResultadoMetrica,
-} from "../../../metricas/resultado-metrica";
+import { produtoNaoEncontrado } from "../../../metricas/produto-nao-encontrado";
+import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
 import { definirFerramenta } from "../ferramenta";
-import { buscarProdutoPorNome } from "./buscar-produto";
+import { buscarProdutoPorId, buscarProdutoPorNome, type ProdutoAchado } from "./buscar-produto";
 
 /** A margem da métrica, mais o quanto o nome digitado combina com o produto achado (0 a 1). */
 export type MargemDoProdutoAchado = ResultadoMetrica<MargemDoProduto> & { confianca_da_busca: number };
@@ -20,7 +16,15 @@ export type AusenteDoProduto = DadoAusente & { produto_id: string; nome: string 
 export interface ProdutoAmbiguo {
   ambiguo: true;
   motivo: string;
-  candidatos: Array<{ produto_id: string; nome: string }>;
+  candidatos: Array<{
+    produto_id: string;
+    nome: string;
+    codigo_barras: string | null;
+    sku: string | null;
+    cadastrado_em: string;
+    /** Descrição de nota que o dono já confirmou para o produto, quando foi ela que casou. */
+    descricao_de_nota: string | null;
+  }>;
 }
 
 /**
@@ -39,16 +43,30 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
       "(ausente: true) sem venda na janela, sem custo ou produto não encontrado: diga isso ao dono. " +
       "Confira o campo nome do resultado: a busca é aproximada, então cite o produto que foi de fato achado. " +
       "menor_confianca já considera quanto o nome combina com o produto (confianca_da_busca): se for baixa, confirme com o dono. " +
-      "Quando o produto foi achado mas falta dado (ausente: true), o resultado traz produto_id e nome: use esse produto_id em ask_owner.",
-    entrada: z.strictObject({
-      produto: z.string().trim().min(2).max(120).describe("Nome do produto, como o dono falou."),
-    }),
+      "Quando o produto foi achado mas falta dado (ausente: true), o resultado traz produto_id e nome: use esse produto_id em ask_owner. " +
+      "Cada candidato traz codigo_barras, sku e cadastrado_em (e a descricao_de_nota que casou, se foi ela): use isso para o dono " +
+      "distinguir produtos de mesmo nome. Depois que o dono escolher, chame de novo com produto_id (o do candidato escolhido) " +
+      "no lugar de produto.",
+    entrada: z
+      .strictObject({
+        produto: z.string().trim().min(2).max(120).optional().describe("Nome do produto, como o dono falou."),
+        produto_id: z
+          .uuid()
+          .optional()
+          .describe("Só depois de o dono escolher entre candidatos: o produto_id do candidato escolhido."),
+      })
+      .refine((e) => (e.produto === undefined) !== (e.produto_id === undefined), {
+        message: "Informe produto ou produto_id, um dos dois",
+      }),
     efeito: "nenhum",
     async executar(
       contexto,
-      { produto },
+      { produto, produto_id },
     ): Promise<MargemDoProdutoAchado | AusenteDoProduto | DadoAusente | ProdutoAmbiguo> {
-      const achado = await buscarProdutoPorNome(db, contexto.comercianteId, produto);
+      const achado =
+        produto_id === undefined
+          ? await buscarProdutoPorNome(db, contexto.comercianteId, produto ?? "")
+          : await escolhidoPeloDono(db, contexto.comercianteId, produto_id);
       if (achado.tipo === "vinculado") {
         const margem = await metricas.margemDoProduto(contexto, achado.produtoId);
         // O agente precisa do id validado (do comerciante da sessão) para chamar ask_owner no custo ausente.
@@ -67,14 +85,23 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
             achado.candidatos.length === 1
               ? "Não tenho certeza de que é esse produto. Confirme com o dono antes de usar."
               : "Mais de um produto combina com esse nome. Pergunte ao dono qual deles.",
-          candidatos: achado.candidatos.map((c) => ({ produto_id: c.produtoId, nome: c.nome })),
+          candidatos: achado.candidatos.map((c) => ({
+            produto_id: c.produtoId,
+            nome: c.nome,
+            codigo_barras: c.codigoBarras,
+            sku: c.sku,
+            cadastrado_em: c.cadastradoEm,
+            descricao_de_nota: c.descricaoDeNota,
+          })),
         };
       }
-      return dadoAusente(
-        "produto_nao_encontrado",
-        "Não encontrei esse produto no seu cadastro.",
-        "Qual é o nome do produto, como aparece na nota ou na prateleira?",
-      );
+      return produtoNaoEncontrado("Qual é o nome do produto, como aparece na nota ou na prateleira?");
     },
   });
+}
+
+/** O dono escolheu entre candidatos: vale o id só se for de um produto dele, e com confiança total. */
+async function escolhidoPeloDono(db: Db, comercianteId: string, produtoId: string): Promise<ProdutoAchado> {
+  const produto = await buscarProdutoPorId(db, comercianteId, produtoId);
+  return produto ? { tipo: "vinculado", ...produto, confianca: 1 } : { tipo: "sem_candidato" };
 }

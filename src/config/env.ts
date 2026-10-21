@@ -61,7 +61,11 @@ const esquemaEnv = z.object({
   DEMO_DATA_REFERENCIA: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "use AAAA-MM-DD")
-    .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)), "data inválida")
+    // `Date.parse` rola "2026-02-30" para março: a data só vale se voltar igual ao formatar.
+    .refine((d) => {
+      const t = Date.parse(`${d}T00:00:00Z`);
+      return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
+    }, "data inválida")
     .optional(),
   SILENCIO_FIM: z.string().regex(HORA, "use HH:MM").default("07:00"),
 });

@@ -38,16 +38,12 @@ export class BastidoresService {
     for (const e of execucoes) {
       e.decisoes_alerta = decisoes.filter((d) => d.execucao_id === e.id);
     }
-    return {
-      versao: versaoDoPainel([
-        execucoes[0]?.criada_em,
-        ultimaNota?.processada_em ?? ultimaNota?.criada_em,
-        ultimaNota?.criada_em,
-      ]),
+    const corpo = {
       execucoes,
       ultima_nota: ultimaNota,
       decisoes_sem_execucao: decisoes.filter((d) => !d.execucao_id || !ids.has(d.execucao_id)),
     };
+    return { versao: versaoDoPainel(corpo), ...corpo };
   }
 
   /** As execuções mais novas primeiro, cada uma com as chamadas de ferramenta em ordem. */

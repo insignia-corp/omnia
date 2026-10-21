@@ -20,12 +20,15 @@ describe("abaixoDoLimite", () => {
 });
 
 describe("versaoDoPainel", () => {
-  it("usa o instante mais recente e ignora vazios", () => {
-    const v = versaoDoPainel([new Date(1000), null, new Date(5000), undefined]);
-    expect(v).toBe("5000");
+  it("o mesmo conteúdo dá a mesma versão", () => {
+    expect(versaoDoPainel({ a: 1, b: [2] })).toBe(versaoDoPainel({ a: 1, b: [2] }));
   });
 
-  it("é '0' sem nada", () => {
-    expect(versaoDoPainel([null])).toBe("0");
+  it("qualquer campo que muda muda a versão, inclusive status e justificativa de um alerta", () => {
+    const base = { decisoes: [{ status: "candidato", justificativa: null }] };
+    const status = { decisoes: [{ status: "enviado", justificativa: null }] };
+    const justificativa = { decisoes: [{ status: "candidato", justificativa: "maior variação" }] };
+    expect(versaoDoPainel(status)).not.toBe(versaoDoPainel(base));
+    expect(versaoDoPainel(justificativa)).not.toBe(versaoDoPainel(base));
   });
 });

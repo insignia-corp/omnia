@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ChamadaBastidores, DecisaoAlerta, ItemBastidores, PainelBastidores } from "./tipos";
 
 /** Agrupa por execução, mantendo a ordem em que as chamadas aconteceram. */
@@ -18,10 +19,12 @@ export function abaixoDoLimite(confianca: number, limite: number): boolean {
   return confianca < limite;
 }
 
-/** Versão do painel: o instante mais recente entre execuções, nota e decisões. */
-export function versaoDoPainel(instantes: Array<Date | null | undefined>): string {
-  const validos = instantes.filter((d): d is Date => d instanceof Date).map((d) => d.getTime());
-  return validos.length === 0 ? "0" : String(Math.max(...validos));
+/**
+ * Versão do painel: resumo do conteúdo inteiro (execuções, nota e decisões de alerta, com status e
+ * justificativa). A página só redesenha quando muda, então qualquer campo que mude tem de mudar a versão.
+ */
+export function versaoDoPainel(conteudo: unknown): string {
+  return createHash("sha1").update(JSON.stringify(conteudo)).digest("hex").slice(0, 16);
 }
 
 export type { ChamadaBastidores, DecisaoAlerta, ItemBastidores, PainelBastidores };

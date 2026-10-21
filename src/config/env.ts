@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/** Similaridade mínima (pg_trgm) para ligar sozinho; vale para a nota e para a busca de produto das ferramentas. */
+export const LIMITE_SIMILARIDADE_PADRAO = 0.45;
+
 /**
  * Esquema das variáveis de ambiente. A aplicação não sobe com configuração inválida.
  * Segredos ficam só no ambiente (regra inviolável 12); veja .env.example.
@@ -36,7 +39,7 @@ const esquemaEnv = z.object({
   // Ingestão
   LIMITE_CONFIANCA_ITEM: z.coerce.number().min(0).max(1).default(0.8),
   /** Similaridade (pg_trgm, 0 a 1) a partir da qual a descrição da nota liga sozinha a um produto. */
-  LIMITE_SIMILARIDADE: z.coerce.number().min(0).max(1).default(0.45),
+  LIMITE_SIMILARIDADE: z.coerce.number().min(0).max(1).default(LIMITE_SIMILARIDADE_PADRAO),
   EXTRATOR_MODELO: z.string().min(1).default("claude-sonnet-5-5"),
   /** Modelo que sugere o vínculo item-produto quando código de barras e similaridade falham. */
   VINCULO_MODELO: z.string().min(1).default("claude-haiku-5-5"),
@@ -61,12 +64,19 @@ const esquemaEnv = z.object({
   DEMO_DATA_REFERENCIA: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "use AAAA-MM-DD")
-    .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)), "data inválida")
+    // `Date.parse` aceita "2026-02-30" e rola para março: a data precisa voltar igual.
+    .refine((d) => {
+      const t = Date.parse(`${d}T00:00:00Z`);
+      return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
+    }, "data inválida")
     .optional(),
   SILENCIO_FIM: z.string().regex(HORA, "use HH:MM").default("07:00"),
 });
 
 export type Env = z.infer<typeof esquemaEnv>;
+
+/** Nomes das variáveis que o esquema lê; o teste confere cada uma contra o .env.example. */
+export const CHAVES_DO_ENV: readonly string[] = Object.keys(esquemaEnv.shape);
 
 export function carregarEnv(origem: NodeJS.ProcessEnv = process.env): Env {
   // "CHAVE=" vazio no .env conta como não definida, para valer o padrão ou o opcional.

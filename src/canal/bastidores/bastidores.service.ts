@@ -39,11 +39,10 @@ export class BastidoresService {
       e.decisoes_alerta = decisoes.filter((d) => d.execucao_id === e.id);
     }
     return {
-      versao: versaoDoPainel([
-        execucoes[0]?.criada_em,
-        ultimaNota?.processada_em ?? ultimaNota?.criada_em,
-        ultimaNota?.criada_em,
-      ]),
+      versao: versaoDoPainel(
+        [execucoes[0]?.criada_em, ultimaNota?.processada_em ?? ultimaNota?.criada_em, ultimaNota?.criada_em],
+        decisoes,
+      ),
       execucoes,
       ultima_nota: ultimaNota,
       decisoes_sem_execucao: decisoes.filter((d) => !d.execucao_id || !ids.has(d.execucao_id)),

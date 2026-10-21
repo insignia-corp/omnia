@@ -18,6 +18,7 @@ describe("carregarEnv", () => {
     const env = carregarEnv(base);
     expect(env.LIMITE_SIMILARIDADE).toBe(0.45);
     expect(env.EXTRATOR_MODELO).toBe("claude-sonnet-5-5");
+    expect(env.VINCULO_MODELO).toBe("claude-haiku-5-5");
     expect(env.ARMAZENAMENTO_DIR).toBe("./.dados/arquivos");
     expect(env.UPLOAD_MAX_BYTES).toBe(10_485_760);
   });

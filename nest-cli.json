@@ -7,7 +7,8 @@
     "deleteOutDir": true,
     "assets": [
       { "include": "agente/prompts/*.md", "watchAssets": true },
-      { "include": "ingestao/extracao/*.md", "watchAssets": true }
+      { "include": "ingestao/extracao/*.md", "watchAssets": true },
+      { "include": "ingestao/vinculo/*.md", "watchAssets": true }
     ]
   }
 }

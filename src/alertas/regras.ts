@@ -5,7 +5,8 @@
  */
 import { diasEntre } from "../lib/datas/datas";
 import { centavos, ErroDinheiro, multiplicar } from "../lib/dinheiro/dinheiro";
-import { ehDadoAusente, type DadoAusente } from "../metricas/resultado-metrica";
+import type { Giro, GiroDoProduto } from "../metricas/giro";
+import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "../metricas/resultado-metrica";
 import {
   fonteDe,
   type CandidatoDeAlerta,
@@ -38,6 +39,11 @@ function impactoOuNulo(calcular: () => number | null): number | null {
   }
 }
 
+/** O giro de cada produto, ou nulo quando o giro é dado ausente. */
+function mapaDoGiro(giro: ResultadoMetrica<Giro> | DadoAusente): Map<string, GiroDoProduto> | null {
+  return ehDadoAusente(giro) ? null : new Map(giro.valor.por_produto.map((g) => [g.produto_id, g]));
+}
+
 /** A menor das confianças conhecidas; nula quando nenhuma é conhecida. */
 function menorConhecida(...confiancas: Array<number | null>): number | null {
   const conhecidas = confiancas.filter((c): c is number => c !== null);
@@ -68,9 +74,7 @@ export const regraReajusteDeCusto: RegraDeAlerta = {
   tipo: "reajuste_de_custo",
   async avaliar({ metricas, dataReferencia, limites }) {
     const [variacoes, giro] = await Promise.all([metricas.variacoesDeCusto(), metricas.giro()]);
-    const giroPorProduto = ehDadoAusente(giro)
-      ? null
-      : new Map(giro.valor.por_produto.map((g) => [g.produto_id, g]));
+    const giroPorProduto = mapaDoGiro(giro);
     const candidatos: CandidatoDeAlerta[] = [];
     for (const v of variacoes.valor) {
       const dias = diasEntre(v.compra_atual_data, dataReferencia);
@@ -118,9 +122,15 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
     const candidatos: CandidatoDeAlerta[] = [];
     const ausentes: MotivoAusente[] = [];
     const [margens, giro] = await Promise.all([metricas.margens(), metricas.giro()]);
-    const giroPorProduto = ehDadoAusente(giro)
-      ? null
-      : new Map(giro.valor.por_produto.map((g) => [g.produto_id, g]));
+    const giroPorProduto = mapaDoGiro(giro);
+    // Sem nenhuma margem não há meta de margem do comerciante (ou não há produto): dizer, não calar.
+    if (margens.length === 0) {
+      ausentes.push({
+        tipo: "margem_abaixo_da_meta",
+        codigo: "sem_meta_de_margem",
+        motivo: "Sem meta de margem do comerciante ou sem produtos cadastrados.",
+      });
+    }
     for (const { produto_id, resultado } of margens) {
       if (ehDadoAusente(resultado)) {
         ausentes.push({ tipo: "margem_abaixo_da_meta", codigo: resultado.codigo, motivo: resultado.motivo });

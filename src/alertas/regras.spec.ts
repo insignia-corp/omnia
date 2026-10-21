@@ -198,6 +198,15 @@ describe("regra de margem abaixo da meta", () => {
     expect(candidatos[0]?.confianca).toBe(0.5);
   });
 
+  it("sem nenhuma margem (comerciante sem meta de margem), informa o motivo em vez de calar", async () => {
+    const r = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () => Promise.resolve([]),
+    });
+    expect(r.candidatos).toEqual([]);
+    expect(r.ausentes.map((a) => a.codigo)).toEqual(["sem_meta_de_margem"]);
+  });
+
   it("dado ausente não vira candidato nem zero, e o motivo sai uma vez só", async () => {
     const ausente = dadoAusente("sem_custo", "Sem nota de compra.");
     const r = await rodar(regraMargemAbaixoDaMeta, {

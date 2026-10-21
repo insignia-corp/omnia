@@ -1,4 +1,4 @@
-import type { VendaDoProdutoNoDia } from "./dados-de-metricas";
+import type { ProdutoParaMetrica, VendaDoProdutoNoDia } from "./dados-de-metricas";
 import {
   calcularReceitaPorProduto,
   type EntradaReceitaPorProduto,
@@ -7,10 +7,10 @@ import {
 import { ehDadoAusente } from "./resultado-metrica";
 
 const REF = "2026-10-19";
-const produtos = [
-  { id: "p-arroz", nome: "Arroz", margemMetaBps: null },
-  { id: "p-cafe", nome: "Café", margemMetaBps: null },
-  { id: "p-feijao", nome: "Feijão", margemMetaBps: null },
+const produtos: ProdutoParaMetrica[] = [
+  { id: "p-arroz", nome: "Arroz", margemMetaBps: null, origem: "dono", confianca: 1 },
+  { id: "p-cafe", nome: "Café", margemMetaBps: null, origem: "dono", confianca: 1 },
+  { id: "p-feijao", nome: "Feijão", margemMetaBps: null, origem: "dono", confianca: 1 },
 ];
 const venda = (
   produtoId: string,
@@ -79,10 +79,10 @@ describe("calcularReceitaPorProduto", () => {
   });
 
   it("desempata pelo nome em ordem alfabética do português, com o cadastro em ordem inversa", () => {
-    const cadastro = [
-      { id: "p-3", nome: "Zebra", margemMetaBps: null },
-      { id: "p-2", nome: "Água", margemMetaBps: null },
-      { id: "p-1", nome: "Arroz", margemMetaBps: null },
+    const cadastro: ProdutoParaMetrica[] = [
+      { id: "p-3", nome: "Zebra", margemMetaBps: null, origem: "dono", confianca: 1 },
+      { id: "p-2", nome: "Água", margemMetaBps: null, origem: "dono", confianca: 1 },
+      { id: "p-1", nome: "Arroz", margemMetaBps: null, origem: "dono", confianca: 1 },
     ];
     const r = calcular(
       entrada(
@@ -96,9 +96,9 @@ describe("calcularReceitaPorProduto", () => {
   });
 
   it("nomes iguais desempatam pelo id", () => {
-    const cadastro = [
-      { id: "p-b", nome: "Arroz", margemMetaBps: null },
-      { id: "p-a", nome: "Arroz", margemMetaBps: null },
+    const cadastro: ProdutoParaMetrica[] = [
+      { id: "p-b", nome: "Arroz", margemMetaBps: null, origem: "dono", confianca: 1 },
+      { id: "p-a", nome: "Arroz", margemMetaBps: null, origem: "dono", confianca: 1 },
     ];
     const r = calcular(
       entrada([venda("p-b", "2026-10-19", 300), venda("p-a", "2026-10-19", 300)], { produtos: cadastro }),
@@ -136,7 +136,18 @@ describe("calcularReceitaPorProduto", () => {
     expect(r.periodo).toEqual({ inicio: "2026-10-13", fim: REF });
     expect(r.n_registros).toBe(5);
     expect(r.menor_confianca).toBe(0.7);
-    expect(r.origens).toEqual(["banco", "planilha"]);
+    expect(r.origens).toEqual(["banco", "dono", "planilha"]);
+  });
+
+  it("a origem e a confiança do cadastro entram na procedência, sem contar como registro", () => {
+    const cadastro = [
+      { id: "p-arroz", nome: "Arroz", margemMetaBps: null, origem: "foto_nota" as const, confianca: 0.6 },
+      { id: "p-cafe", nome: "Café", margemMetaBps: null, origem: "nfe" as const, confianca: 1 },
+    ];
+    const r = calcular(entrada([venda("p-cafe", "2026-10-19", 20)], { produtos: cadastro }));
+    expect(r.menor_confianca).toBe(0.6);
+    expect(r.origens).toEqual(["foto_nota", "nfe", "planilha"]);
+    expect(r.n_registros).toBe(1);
   });
 
   it.each([

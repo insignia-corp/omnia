@@ -6,6 +6,7 @@
 import { somarDias } from "../lib/datas/datas";
 import {
   custoMaisRecente,
+  procedenciaDoProduto,
   type CustoDeCompra,
   type ProdutoParaMetrica,
   type VendaDoProdutoNoDia,
@@ -104,6 +105,6 @@ export function calcularMargemDoProduto(
       abaixo_da_meta: margemBps < meta,
     },
     { inicio, fim: dataReferencia },
-    [...vendas, procedenciaDeUmRegistro(custo.origem, custo.confianca)],
+    [...vendas, procedenciaDeUmRegistro(custo.origem, custo.confianca), procedenciaDoProduto(produto)],
   );
 }

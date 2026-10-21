@@ -4,6 +4,7 @@
  * um id de produto de outro lojista não é encontrado.
  */
 import { somarDias } from "../lib/datas/datas";
+import { intervaloComumDeMovimentos } from "./dados-de-metricas";
 import { calcularEspacoParaSubirPreco, type ProdutoComEspacoParaSubirPreco } from "./espaco-para-subir-preco";
 import { calcularEstoqueParado, type ProdutoParado } from "./estoque-parado";
 import {
@@ -147,11 +148,11 @@ export class MetricasService {
   ): Promise<ResultadoMetrica<ResumoDiario> | DadoAusente> {
     const { comercianteId } = contexto;
     const desde = somarDias(data, -DIAS_DE_COMPARACAO_DO_RESUMO);
-    const [vendas, intervaloDeVendas, movimentos, intervaloDeMovimentos, contas] = await Promise.all([
+    const [vendas, intervaloDeVendas, movimentos, intervalosPorConta, contas] = await Promise.all([
       this.dados.vendasPorDia(comercianteId, desde, data),
       this.dados.intervaloDeVendas(comercianteId),
       this.dados.movimentosPorDia(comercianteId, data),
-      this.dados.intervaloDeMovimentos(comercianteId),
+      this.dados.intervalosDeMovimentosPorConta(comercianteId),
       this.dados.contas(comercianteId),
     ]);
     return calcularResumoDiario({
@@ -159,7 +160,7 @@ export class MetricasService {
       vendas,
       intervaloDeVendas,
       movimentos,
-      intervaloDeMovimentos,
+      intervaloDeMovimentos: intervaloComumDeMovimentos(data, contas, intervalosPorConta),
       contas,
     });
   }
@@ -185,11 +186,16 @@ export class MetricasService {
   ): Promise<ResultadoMetrica<GastoForaDoPadrao> | DadoAusente> {
     const { comercianteId } = contexto;
     const desde = somarDias(data, -PARAMETROS_GASTO_FORA_DO_PADRAO.janelaDias);
-    const [movimentos, intervaloDeMovimentos] = await Promise.all([
+    const [movimentos, intervalosPorConta, contas] = await Promise.all([
       this.dados.movimentosPorDia(comercianteId, data, desde),
-      this.dados.intervaloDeMovimentos(comercianteId),
+      this.dados.intervalosDeMovimentosPorConta(comercianteId),
+      this.dados.contas(comercianteId),
     ]);
-    return calcularGastoForaDoPadrao({ data, movimentos, intervaloDeMovimentos });
+    return calcularGastoForaDoPadrao({
+      data,
+      movimentos,
+      intervaloDeMovimentos: intervaloComumDeMovimentos(data, contas, intervalosPorConta),
+    });
   }
 
   /** Produtos comprados há mais tempo sem vender. */

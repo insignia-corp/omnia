@@ -8,6 +8,7 @@ import { ZERO, centavos, somar, type Centavos } from "../lib/dinheiro/dinheiro";
 import {
   compararNomes,
   compararTexto,
+  procedenciaDoProduto,
   type IntervaloDeDados,
   type ProdutoParaMetrica,
   type VendaDoProdutoNoDia,
@@ -97,6 +98,7 @@ export function calcularReceitaPorProduto(
   return resultadoMetrica<ReceitaPorProduto>(
     { periodo, por_produto: porProduto, maior_receita: maiorReceita },
     periodo,
-    usadas,
+    // `por_produto` lista o cadastro inteiro, então a origem e a confiança dele entram como no giro.
+    [...usadas, ...entrada.produtos.map(procedenciaDoProduto)],
   );
 }

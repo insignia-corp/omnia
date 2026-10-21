@@ -25,10 +25,10 @@ export type ProdutoAchado =
  * Procura um produto do comerciante pelo nome aproximado (`pg_trgm`), com o mesmo critério do
  * vínculo de notas: só escolhe sozinho se for claramente o melhor, senão devolve sugestões.
  * A nota traz a descrição inteira; o dono digita só uma palavra ("arroz"), que a similaridade pelo
- * nome todo subestima. Por isso vale o maior entre `similarity` e `word_similarity` (a palavra
- * dentro do nome). Uma palavra comum a vários produtos ("refrigerante") empata em 1 e continua
- * sugestão: a folga sobre o segundo colocado é a mesma regra.
- * O comerciante vem da sessão, nunca do modelo (regra inviolável 3).
+ * nome todo subestima. Quando nenhum nome chega ao limite pela similaridade do nome todo, vale a
+ * `word_similarity` (a palavra dentro do nome). Se algum chega, a similaridade do nome todo decide
+ * como antes, para "refrigerante cola 2 l" preferir a de 2L à de lata. Uma palavra comum a vários
+ * produtos ("refrigerante") empata em 1 e continua sugestão: a folga sobre o segundo é a mesma regra.
  */
 export async function buscarProdutoPorNome(
   db: Db,
@@ -36,19 +36,20 @@ export async function buscarProdutoPorNome(
   nome: string,
 ): Promise<ProdutoAchado> {
   const consulta = normalizarDescricao(nome);
-  const resultado = await db.execute<{ produto_id: string; nome: string; sim: number }>(sql`
+  const resultado = await db.execute<{ produto_id: string; nome: string; sim: number; palavra: number }>(sql`
     select p.id as produto_id, p.nome,
-           greatest(similarity(${NOME_NORMALIZADO}, ${consulta}), word_similarity(${consulta}, ${NOME_NORMALIZADO}))::float8 as sim
+           similarity(${NOME_NORMALIZADO}, ${consulta})::float8 as sim,
+           word_similarity(${consulta}, ${NOME_NORMALIZADO})::float8 as palavra
       from produto p
      where p.comerciante_id = ${comercianteId}
-     order by sim desc, p.nome asc, p.id asc
-     limit 5
+     order by greatest(similarity(${NOME_NORMALIZADO}, ${consulta}), word_similarity(${consulta}, ${NOME_NORMALIZADO})) desc,
+              p.nome asc, p.id asc
+     limit 20
   `);
-  const candidatos = resultado.rows.map((l) => ({
-    produtoId: l.produto_id,
-    nome: l.nome,
-    similaridade: l.sim,
-  }));
+  const pelaPalavra = resultado.rows.every((l) => l.sim < SIMILARIDADE_PARA_ESCOLHER_PRODUTO);
+  const candidatos = resultado.rows
+    .map((l) => ({ produtoId: l.produto_id, nome: l.nome, similaridade: pelaPalavra ? l.palavra : l.sim }))
+    .sort((x, y) => y.similaridade - x.similaridade || x.nome.localeCompare(y.nome, "pt-BR"));
   const decisao = decidirPorSimilaridade(candidatos, SIMILARIDADE_PARA_ESCOLHER_PRODUTO);
   if (decisao.tipo !== "vinculado") return decisao;
   const escolhido = candidatos.find((c) => c.produtoId === decisao.produtoId);

@@ -65,8 +65,11 @@ const margem = (produtoId: string) => ({
   abaixo_da_meta: true,
 });
 
-const dbCom = (linhas: Array<{ produto_id: string; nome: string; sim: number }>) =>
-  ({ execute: jest.fn(async () => ({ rows: linhas })) }) as unknown as Db & { execute: jest.Mock };
+/** `sim` é a similaridade do nome todo; `palavra` (word_similarity) vale `sim` quando não é dada. */
+const dbCom = (linhas: Array<{ produto_id: string; nome: string; sim: number; palavra?: number }>) =>
+  ({
+    execute: jest.fn(async () => ({ rows: linhas.map((l) => ({ ...l, palavra: l.palavra ?? l.sim })) })),
+  }) as unknown as Db & { execute: jest.Mock };
 
 /** db falso para a consulta de nomes de fornecedor: select().from().where() devolve as linhas dadas. */
 const dbDeFornecedores = (linhas: Array<{ id: string; nome: string }> = []) =>
@@ -436,6 +439,41 @@ describe("ferramentas de leitura do plano A", () => {
       expect(saida).toMatchObject({ ambiguo: true, candidatos: [{ nome: "Arroz branco 5kg" }] });
       expect((saida as { motivo: string }).motivo).toMatch(/certeza/);
       expect((saida as { motivo: string }).motivo).not.toMatch(/Mais de um/);
+    });
+
+    it("nome curto: sem similaridade do nome todo, a palavra dentro do nome decide, com folga sobre o segundo", async () => {
+      const { mock, metricas: m } = servico();
+      const id = randomUUID();
+      const banco = dbCom([
+        { produto_id: id, nome: "Arroz branco tipo 1 5kg", sim: 0.25, palavra: 1 },
+        { produto_id: randomUUID(), nome: "Feijão carioca", sim: 0.1, palavra: 0.2 },
+      ]);
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "arroz" });
+      expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
+      expect(saida).toMatchObject({ confianca_da_busca: 1 });
+    });
+
+    it("palavra comum a vários produtos empata e continua sugestão", async () => {
+      const { mock, metricas: m } = servico();
+      const banco = dbCom([
+        { produto_id: randomUUID(), nome: "Refrigerante cola 2L", sim: 0.3, palavra: 1 },
+        { produto_id: randomUUID(), nome: "Refrigerante guaraná 2L", sim: 0.3, palavra: 1 },
+      ]);
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "refrigerante" });
+      expect(saida).toMatchObject({ ambiguo: true });
+      expect((saida as { motivo: string }).motivo).toMatch(/Mais de um/);
+      expect(mock.margemDoProduto).not.toHaveBeenCalled();
+    });
+
+    it("com similaridade do nome todo acima do limite, ela decide e a palavra não atropela", async () => {
+      const { mock, metricas: m } = servico();
+      const id = randomUUID();
+      const banco = dbCom([
+        { produto_id: id, nome: "Refrigerante cola 2L", sim: 0.8, palavra: 0.86 },
+        { produto_id: randomUUID(), nome: "Refrigerante cola lata 350ml", sim: 0.6, palavra: 0.86 },
+      ]);
+      await criarGetProductMargin(m, banco).executar(contexto, { produto: "refrigerante cola 2 l" });
+      expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
     });
 
     it("produto claro vai para a métrica com o id achado", async () => {

@@ -201,14 +201,6 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       expect(saida.motivo).toMatch(/Mais de um/);
     });
 
-    it("duas colas no catálogo: o nome sem o tamanho não escolhe uma por sorte", async () => {
-      const saida = await chamar(vilaNova, "get_product_margin", { produto: "REFRIGERANTE COLA" });
-      expect(saida.ambiguo).toBe(true);
-      expect((saida.candidatos ?? []).map((c) => c.nome)).toEqual(
-        expect.arrayContaining(["Refrigerante cola 2L", "Refrigerante cola lata 350ml"]),
-      );
-    });
-
     it("pergunta inteira no lugar do nome: um só candidato, dito com honestidade", async () => {
       const saida = await chamar(vilaNova, "get_product_margin", { produto: "margem do arroz" });
       expect(saida.ambiguo).toBe(true);

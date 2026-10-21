@@ -35,3 +35,25 @@ describe("perguntas ao dono", () => {
     );
   });
 });
+
+describe("montarPerguntaVinculo com sugestão do modelo", () => {
+  const base = { descricao: "REFRIG GUAR 2L", data: "2026-10-18", fornecedor: "Bebidas SA" };
+
+  it("traz a sugestão principal primeiro e as outras opções depois", () => {
+    const p = montarPerguntaVinculo({
+      ...base,
+      sugestaoPrincipal: "Guaraná 2L",
+      sugestoes: ["Guaraná lata", "Soda 2L"],
+    });
+    expect(p).toContain("Parece ser: Guaraná 2L.");
+    expect(p).toContain("Outras opções: Guaraná lata; Soda 2L.");
+    expect(p.indexOf("Parece ser")).toBeLessThan(p.indexOf("Outras opções"));
+  });
+
+  it("sem sugestão do modelo mantém o texto de antes", () => {
+    expect(montarPerguntaVinculo({ ...base, sugestoes: ["Guaraná lata"] })).toContain(
+      "Pode ser: Guaraná lata.",
+    );
+    expect(montarPerguntaVinculo({ ...base, sugestoes: [] })).not.toContain("Parece ser");
+  });
+});

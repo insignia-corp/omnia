@@ -31,6 +31,7 @@ export async function importarNfe(db: Db, e: EntradaImportacaoNfe): Promise<Comp
     validada,
     origem: "nfe",
     numeroDocumento: e.leitura.numeroDocumento,
+    codigosBarras: e.leitura.codigosBarras,
     limiteConfiancaItem: e.limiteConfiancaItem,
     limiteSimilaridade: e.limiteSimilaridade,
   });

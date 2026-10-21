@@ -8,11 +8,13 @@ import {
   historicoCusto,
   itemDeCompra,
   perguntaDono,
+  produto,
 } from "../infra/database/schema";
 import type { ExtracaoNota } from "./extracao/esquema-extracao";
 import { montarPerguntaDocumento, montarPerguntaItem, montarPerguntaVinculo } from "./revisao/perguntas";
 import { MOTIVOS_DO_DOCUMENTO } from "./revisao/recalcular-documento";
 import { dataDeCalendarioValida, type NotaValidada } from "./validacao/validar-nota";
+import type { SugestaoModelo } from "./vinculo/sugestor-vinculo";
 import { buscarVinculo, registrarVinculo } from "./vinculo/vincular-produto";
 
 export interface EntradaGravacao {
@@ -27,6 +29,13 @@ export interface EntradaGravacao {
   origem: "foto_nota" | "nfe";
   /** Número impresso na nota, quando a origem o traz (NF-e). */
   numeroDocumento?: string | null;
+  /** Código de barras de cada item, na ordem da nota, quando a origem o traz (NF-e). */
+  codigosBarras?: ReadonlyArray<string | null>;
+  /**
+   * Sugestão do modelo por ordem do item (issue #27). Só enriquece a pergunta ao dono: o vínculo
+   * continua sendo decidido aqui dentro, e item sem vínculo certo nunca é ligado por sugestão.
+   */
+  sugestoesModelo?: ReadonlyMap<number, SugestaoModelo>;
 }
 
 export interface CompraGravada {
@@ -189,6 +198,7 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
         fornecedorId,
         descricao: item.descricao,
         limiteSimilaridade: e.limiteSimilaridade,
+        codigoBarras: e.codigosBarras?.[linha.ordem - 1] ?? null,
       });
       if (vinculo.tipo === "vinculado") {
         await tx
@@ -219,10 +229,26 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
         }
       } else {
         const candidatos = vinculo.tipo === "sugestao" ? vinculo.candidatos : [];
+        const sugestaoModelo = e.sugestoesModelo?.get(linha.ordem);
+        // O produto sugerido precisa existir no cadastro deste comerciante; senão é descartado.
+        const [produtoSugerido] = sugestaoModelo
+          ? await tx
+              .select({ id: produto.id, nome: produto.nome })
+              .from(produto)
+              .where(
+                and(eq(produto.id, sugestaoModelo.produtoId), eq(produto.comercianteId, e.comercianteId)),
+              )
+              .limit(1)
+          : [];
+        const nomes = candidatos.map((c) => c.nome).filter((n) => n !== produtoSugerido?.nome);
         await tx.insert(perguntaDono).values({
           comercianteId: e.comercianteId,
           tipo: "confirmar_vinculo",
-          pergunta: montarPerguntaVinculo({ ...base, sugestoes: candidatos.map((c) => c.nome) }),
+          pergunta: montarPerguntaVinculo({
+            ...base,
+            sugestoes: nomes,
+            ...(produtoSugerido ? { sugestaoPrincipal: produtoSugerido.nome } : {}),
+          }),
           contexto: {
             ordem: linha.ordem,
             candidatos: candidatos.map((c) => ({
@@ -230,6 +256,15 @@ export async function gravarCompra(db: Db, e: EntradaGravacao): Promise<CompraGr
               nome: c.nome,
               similaridade: c.similaridade,
             })),
+            ...(produtoSugerido && sugestaoModelo
+              ? {
+                  sugestao_modelo: {
+                    produto_id: produtoSugerido.id,
+                    nome: produtoSugerido.nome,
+                    confianca: sugestaoModelo.confianca,
+                  },
+                }
+              : {}),
           },
           itemDeCompraId: linha.id,
         });

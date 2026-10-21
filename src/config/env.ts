@@ -34,6 +34,8 @@ const esquemaEnv = z.object({
   /** Similaridade (pg_trgm, 0 a 1) a partir da qual a descrição da nota liga sozinha a um produto. */
   LIMITE_SIMILARIDADE: z.coerce.number().min(0).max(1).default(0.45),
   EXTRATOR_MODELO: z.string().min(1).default("claude-sonnet-5-5"),
+  /** Modelo que sugere o vínculo item-produto quando código de barras e similaridade falham. */
+  VINCULO_MODELO: z.string().min(1).default("claude-haiku-5-5"),
   ARMAZENAMENTO_DIR: z.string().min(1).default("./.dados/arquivos"),
   UPLOAD_MAX_BYTES: z.coerce
     .number()

@@ -37,16 +37,19 @@ export class ModeloAnthropic implements ModeloLinguagem {
       maxRetries: this.env.LLM_MAX_RETRIES,
       ...(this.fetchPersonalizado ? { fetch: this.fetchPersonalizado } : {}),
     });
-    return this.cliente.beta.messages.create({
-      model: this.env.LLM_MODELO,
-      max_tokens: 16000,
-      system: pedido.system,
-      messages: pedido.messages,
-      tools: pedido.tools,
-      output_config: { effort: pedido.esforco ?? this.env.LLM_ESFORCO },
-      cache_control: { type: "ephemeral" },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-    });
+    return this.cliente.beta.messages.create(
+      {
+        model: this.env.LLM_MODELO,
+        max_tokens: 16000,
+        system: pedido.system,
+        messages: pedido.messages,
+        tools: pedido.tools,
+        output_config: { effort: pedido.esforco ?? this.env.LLM_ESFORCO },
+        cache_control: { type: "ephemeral" },
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+      },
+      pedido.signal ? { signal: pedido.signal } : {},
+    );
   }
 }

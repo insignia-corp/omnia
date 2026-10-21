@@ -42,7 +42,7 @@ export interface ConsultaExecucoes {
   buscar(comercianteId: string, execucaoId: string): Promise<ExecucaoDetalhada | null>;
   /** Mais recentes primeiro. */
   listar(comercianteId: string, opcoes?: { limite?: number }): Promise<ResumoExecucao[]>;
-  /** Só as execuções do Analista: a extração de notas não passa pelo verificador. */
+  /** Só as execuções do Analista com modelo: nem a extração de notas nem a confirmação resolvida em código passam pelo verificador. */
   bloqueioPorDia(comercianteId: string, periodo: { de: string; ate: string }): Promise<BloqueioPorDia[]>;
 }
 
@@ -133,6 +133,8 @@ export class ConsultaExecucoesPostgres implements ConsultaExecucoes {
         and(
           eq(execucaoAgente.comercianteId, comercianteId),
           ne(execucaoAgente.gatilho, "extracao_nota"),
+          // Confirmação do dono resolvida em código (modelo "codigo") também não passa pelo verificador.
+          ne(execucaoAgente.modelo, "codigo"),
           gte(dia, periodo.de),
           lte(dia, periodo.ate),
         ),

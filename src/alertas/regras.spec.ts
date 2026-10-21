@@ -4,6 +4,7 @@ import type { MetricasService } from "../metricas/metricas.service";
 import { dadoAusente, type ResultadoMetrica } from "../metricas/resultado-metrica";
 import type { VariacaoDeCusto } from "../metricas/variacao-de-custo";
 import { LIMITES_PADRAO, mesclarLimites, type SobreposicaoDeLimites } from "./limites";
+import { prioridadeDe } from "./prioridade";
 import { MetricasDaExecucao, type ContextoDasRegras, type RegraDeAlerta } from "./regra";
 import {
   regraEspacoParaSubirPreco,
@@ -330,6 +331,20 @@ describe("regra de espaço para subir preço", () => {
       impactoCentavos: 7956, // preço-alvo 3720 (custo 2790 / 0,75), 221 centavos a mais x 36 unidades
       metricasApoio: { margem_bps: 2026, meta_bps: 2500, unidades_7_dias: 36 },
     });
+  });
+
+  it("a confiança é a menor entre a do giro e a da margem do próprio produto, e rebaixa a prioridade", async () => {
+    const dois = giro([giroDoProduto("p1", { unidades_7_dias: 400 })]);
+    const { candidatos } = await rodar(regraEspacoParaSubirPreco, {
+      giro: () => Promise.resolve({ ...dois, valor: { ...dois.valor, giro_alto: ["p1"] } }),
+      margensDosProdutos: () => Promise.resolve([{ produto_id: "p1", resultado: resultado(margem(), 0.5) }]),
+    });
+    const candidato = candidatos[0];
+    // 221 centavos a mais x 400 unidades = R$ 884: pediria prioridade 1 com confiança plena.
+    expect(candidato?.impactoCentavos).toBe(88_400);
+    expect(candidato?.confianca).toBe(0.5);
+    expect(candidato && prioridadeDe(candidato, LIMITES_PADRAO)).toBe(2);
+    expect(prioridadeDe({ impactoCentavos: 88_400, confianca: 1 }, LIMITES_PADRAO)).toBe(1);
   });
 
   it("giro ausente não gera candidato", async () => {

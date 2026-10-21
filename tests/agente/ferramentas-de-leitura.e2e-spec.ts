@@ -216,6 +216,7 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     let loja: ContextoSessao;
     let produtoB = "";
     let sabonete = "";
+    let arrozBranco = "";
 
     const nomeAchado = (saida: Saida & { nome?: string }) =>
       (saida.valor as { nome?: string } | undefined)?.nome ?? saida.nome;
@@ -230,14 +231,18 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
           { ...base, id: ID_COM_99, nome: "Feijão Preto 1kg", sku: "FP-1", codigoBarras: "7891000100103" },
           { ...base, nome: "Feijão Preto 1kg", sku: "FP-2" },
           { ...base, nome: "Sabonete Neutro 85g", sku: "SB-1" },
+          { ...base, nome: "Arroz Branco Tipo 1 5kg", sku: "AR-1" },
+          { ...base, nome: "Arroz Integral 1kg", sku: "AR-2" },
         ])
         .returning();
       produtoB = produtos.find((p) => p.sku === "FP-2")!.id;
       sabonete = produtos.find((p) => p.sku === "SB-1")!.id;
+      arrozBranco = produtos.find((p) => p.sku === "AR-1")!.id;
       const vinculo = { comercianteId: dono!.id, produtoId: sabonete, metodo: "dono" as const, confianca: 1 };
       await db.insert(schema.vinculoDescricaoProduto).values([
         { ...vinculo, descricaoNormalizada: "SAB LIQ YPE COCO 5L", confirmadoPeloDono: true },
         { ...vinculo, descricaoNormalizada: "DESCRICAO NAO CONFIRMADA XPTO", confirmadoPeloDono: false },
+        { ...vinculo, produtoId: arrozBranco, descricaoNormalizada: "ARROZ", confirmadoPeloDono: true },
       ]);
     });
 
@@ -247,6 +252,13 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       const saida = await chamar(loja, "get_product_margin", { produto: "sab liq ype coco" });
       expect(saida.ambiguo).toBeUndefined();
       expect(nomeAchado(saida)).toBe("Sabonete Neutro 85g");
+    });
+
+    it("apelido confirmado que casa por inteiro decide, mesmo quando o nome empata na palavra", async () => {
+      const saida = await chamar(loja, "get_product_margin", { produto: "arroz" });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(nomeAchado(saida)).toBe("Arroz Branco Tipo 1 5kg");
+      expect((saida as unknown as { produto_id?: string }).produto_id).toBe(arrozBranco);
     });
 
     it("descrição não confirmada não vale", async () => {
@@ -270,7 +282,8 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       const escolhido = await chamar(loja, "get_product_margin", { produto_id: produtoB });
       expect(escolhido.ambiguo).toBeUndefined();
       expect(nomeAchado(escolhido)).toBe("Feijão Preto 1kg");
-      expect((escolhido as unknown as { produto_id?: string }).produto_id ?? produtoB).toBe(produtoB);
+      // Sem custo no produto novo, o resultado é a ausência com o id escolhido: prova que foi o B.
+      expect((escolhido as unknown as { produto_id?: string }).produto_id).toBe(produtoB);
     });
 
     it("regra 8: o id do produto (com 99) não autoriza o 99 numa mensagem", async () => {

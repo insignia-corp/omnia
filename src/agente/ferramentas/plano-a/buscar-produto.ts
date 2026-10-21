@@ -26,6 +26,8 @@ export interface CandidatoDaBusca extends CandidatoProduto {
   descricaoDeNota: string | null;
 }
 
+const FUSO = sql.raw("'America/Sao_Paulo'");
+
 /** O produto achado traz o nome do cadastro: o id e o nome vêm da mesma consulta do comerciante da sessão. */
 export type ProdutoAchado =
   | { tipo: "vinculado"; produtoId: string; nome: string; confianca: number }
@@ -74,13 +76,22 @@ export async function buscarProdutoPorNome(
         from vinculo_descricao_produto v
        where v.comerciante_id = ${comercianteId} and v.confirmado_pelo_dono
     ), melhor as (
-      select distinct on (produto_id) produto_id, descricao_de_nota, sim, palavra
+      -- O melhor valor de cada medida por produto (o nome e cada apelido contam); a descrição de nota só
+      -- aparece quando um apelido supera o nome, e no empate vale o nome.
+      select produto_id,
+             max(sim) as sim,
+             max(palavra) as palavra,
+             (array_agg(descricao_de_nota order by greatest(sim, palavra) desc, descricao_de_nota nulls first))[1]
+               as descricao_de_nota
         from fonte
-       order by produto_id, greatest(sim, palavra) desc, descricao_de_nota nulls first
+       group by produto_id
     )
-    select m.produto_id, p.nome, p.codigo_barras, p.sku, p.criado_em::date::text as cadastrado_em,
+    select m.produto_id, p.nome, p.codigo_barras, p.sku,
+           (p.criado_em at time zone ${FUSO})::date::text as cadastrado_em,
            m.descricao_de_nota, m.sim::float8 as sim, m.palavra::float8 as palavra
       from melhor m
+      -- O filtro do comerciante está aqui e em cada fonte: a chave composta do vínculo já impede
+      -- apelido de outro lojista, e repetir é defesa em profundidade, não um caminho a mais.
       join produto p on p.id = m.produto_id and p.comerciante_id = ${comercianteId}
      order by greatest(m.sim, m.palavra) desc, p.nome asc, p.id asc
      limit 20

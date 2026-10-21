@@ -62,7 +62,7 @@ interface Saida {
   ausente?: true;
   ambiguo?: true;
   codigo?: string;
-  candidatos?: Array<{ nome: string }>;
+  candidatos?: Array<{ produto_id: string; nome: string; codigo_barras: string | null }>;
   motivo?: string;
   confianca_da_busca?: number;
 }
@@ -314,5 +314,58 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     for (const id of ids) {
       if (proprios.has(id)) expect(doEsquina.has(id)).toBe(true);
     }
+  });
+
+  describe("escolha entre produtos de mesmo nome (#156)", () => {
+    const NOME = "Arroz tipo 1 5kg";
+    const CODIGOS = ["7891000100103", "7891000100110"];
+    let dono: ContextoSessao;
+
+    beforeAll(async () => {
+      const [c] = await db.insert(schema.comerciante).values({ nome: "E2E Nomes Iguais" }).returning();
+      dono = { comercianteId: c!.id, nomeComercio: "E2E Nomes Iguais", dataReferencia: REF };
+      await db.insert(schema.produto).values(
+        CODIGOS.map((codigoBarras) => ({
+          comercianteId: c!.id,
+          nome: NOME,
+          codigoBarras,
+          origem: "planilha" as const,
+        })),
+      );
+    });
+
+    afterAll(async () => {
+      await db.delete(schema.comerciante).where(eq(schema.comerciante.id, dono.comercianteId));
+    });
+
+    it("o nome devolve os dois candidatos com o código de barras, e o id escolhido resolve", async () => {
+      const ambiguo = await chamar(dono, "get_product_margin", { produto: NOME });
+      expect(ambiguo.ambiguo).toBe(true);
+      expect(ambiguo.candidatos).toHaveLength(2);
+      expect((ambiguo.candidatos ?? []).map((c) => c.codigo_barras).sort()).toEqual(CODIGOS);
+
+      const escolhido = ambiguo.candidatos![0]!;
+      const saida = await chamar(dono, "get_product_margin", { produto_id: escolhido.produto_id });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(saida).toMatchObject({ ausente: true, produto_id: escolhido.produto_id, nome: NOME });
+    });
+
+    it("id de produto de outro comerciante não vale: produto não encontrado, sem vazar o id", async () => {
+      const [deOutro] = await db
+        .select({ id: schema.produto.id })
+        .from(schema.produto)
+        .where(eq(schema.produto.comercianteId, vilaNova.comercianteId))
+        .limit(1);
+      const saida = await chamar(esquina, "get_product_margin", { produto_id: deOutro!.id });
+      expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+      expect(JSON.stringify(saida)).not.toContain(deOutro!.id);
+    });
+
+    it("o verificador aceita citar o código de barras e bloqueia número que a ferramenta não devolveu", async () => {
+      const ambiguo = await chamar(dono, "get_product_margin", { produto: NOME });
+      const aut = new NumerosAutorizados([ambiguo]);
+      expect(verificarNumeros("É o de código 7891000100103?", aut).aprovado).toBe(true);
+      expect(verificarNumeros("É o de código 7891000100999?", aut).aprovado).toBe(false);
+    });
   });
 });

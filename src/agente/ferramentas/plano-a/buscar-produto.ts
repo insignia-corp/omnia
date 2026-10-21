@@ -15,11 +15,32 @@ const NOME_NORMALIZADO = sql.raw(
   "translate(upper(p.nome), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')",
 );
 
+/** Candidato da busca do agente: o código de barras é o que o dono vê para distinguir nomes iguais. */
+export interface CandidatoDaBusca extends CandidatoProduto {
+  codigoBarras: string | null;
+}
+
 /** O produto achado traz o nome do cadastro: o id e o nome vêm da mesma consulta do comerciante da sessão. */
 export type ProdutoAchado =
   | { tipo: "vinculado"; produtoId: string; nome: string; confianca: number }
-  | { tipo: "sugestao"; candidatos: CandidatoProduto[] }
+  | { tipo: "sugestao"; candidatos: CandidatoDaBusca[] }
   | { tipo: "sem_candidato" };
+
+/** Produto escolhido pelo dono entre os candidatos: o id só vale se for do comerciante da sessão. */
+export async function buscarProdutoPorId(
+  db: Db,
+  comercianteId: string,
+  produtoId: string,
+): Promise<Extract<ProdutoAchado, { tipo: "vinculado" | "sem_candidato" }>> {
+  const resultado = await db.execute<{ produto_id: string; nome: string }>(sql`
+    select p.id as produto_id, p.nome
+      from produto p
+     where p.id = ${produtoId} and p.comerciante_id = ${comercianteId}
+  `);
+  const [linha] = resultado.rows;
+  if (!linha) return { tipo: "sem_candidato" };
+  return { tipo: "vinculado", produtoId: linha.produto_id, nome: linha.nome, confianca: 1 };
+}
 
 /**
  * Procura um produto do comerciante pelo nome aproximado (`pg_trgm`), com o mesmo critério do
@@ -36,8 +57,14 @@ export async function buscarProdutoPorNome(
   nome: string,
 ): Promise<ProdutoAchado> {
   const consulta = normalizarDescricao(nome);
-  const resultado = await db.execute<{ produto_id: string; nome: string; sim: number; palavra: number }>(sql`
-    select p.id as produto_id, p.nome,
+  const resultado = await db.execute<{
+    produto_id: string;
+    nome: string;
+    codigo_barras: string | null;
+    sim: number;
+    palavra: number;
+  }>(sql`
+    select p.id as produto_id, p.nome, p.codigo_barras,
            similarity(${NOME_NORMALIZADO}, ${consulta})::float8 as sim,
            word_similarity(${consulta}, ${NOME_NORMALIZADO})::float8 as palavra
       from produto p
@@ -48,10 +75,19 @@ export async function buscarProdutoPorNome(
   `);
   const pelaPalavra = resultado.rows.every((l) => l.sim < SIMILARIDADE_PARA_ESCOLHER_PRODUTO);
   const candidatos = resultado.rows
-    .map((l) => ({ produtoId: l.produto_id, nome: l.nome, similaridade: pelaPalavra ? l.palavra : l.sim }))
+    .map((l) => ({
+      produtoId: l.produto_id,
+      nome: l.nome,
+      codigoBarras: l.codigo_barras,
+      similaridade: pelaPalavra ? l.palavra : l.sim,
+    }))
     .sort((x, y) => y.similaridade - x.similaridade || x.nome.localeCompare(y.nome, "pt-BR"));
   const decisao = decidirPorSimilaridade(candidatos, SIMILARIDADE_PARA_ESCOLHER_PRODUTO);
-  if (decisao.tipo !== "vinculado") return decisao;
+  if (decisao.tipo === "sem_candidato") return decisao;
+  if (decisao.tipo === "sugestao") {
+    const ids = new Set(decisao.candidatos.map((c) => c.produtoId));
+    return { tipo: "sugestao", candidatos: candidatos.filter((c) => ids.has(c.produtoId)) };
+  }
   const escolhido = candidatos.find((c) => c.produtoId === decisao.produtoId);
   // A decisão só liga o primeiro da lista, que é o que veio da consulta: não há outro caminho.
   if (!escolhido) throw new Error("Produto ligado fora da lista de candidatos");

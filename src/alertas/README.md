@@ -6,7 +6,7 @@ Quem decide o que vai na mensagem do dia é o agente (`select_alerts`, no máxim
 
 ## Regras (#43)
 
-Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara com o limite do comerciante; o motor roda as sete em `motor-de-alertas.ts` e é idempotente (`comerciante + tipo + chave + data` é único).
+Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara com o limite do comerciante; o motor roda as sete em `motor-de-alertas.ts` e é idempotente (`comerciante + tipo + chave + data` é único). Repetir no mesmo dia com os mesmos dados não cria nem altera nada. Se os dados mudarem entre duas execuções do mesmo dia, o candidato que deixou de qualificar continua gravado como `candidato` (o motor só acrescenta); acompanhado em #157.
 
 | Tipo | Vira candidato quando | Chave |
 | --- | --- | --- |

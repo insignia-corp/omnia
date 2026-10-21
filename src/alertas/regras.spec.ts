@@ -339,6 +339,12 @@ describe("regra de giro em alta", () => {
     });
   });
 
+  it("a fronteira do mínimo de alta: 1 ponto-base gera, e o limite do comerciante a desloca", async () => {
+    const servico = { giro: () => Promise.resolve(giro([giroDoProduto("p1", { alta_bps: 1 })])) };
+    expect((await rodar(regraGiroEmAlta, servico)).candidatos).toHaveLength(1);
+    expect((await rodar(regraGiroEmAlta, servico, { giroAltaMinimaBps: 1 })).candidatos).toEqual([]);
+  });
+
   it("alta nula ou que não passa do mínimo não gera", async () => {
     const { candidatos } = await rodar(regraGiroEmAlta, {
       giro: () =>

@@ -64,10 +64,13 @@ class RepositorioFalso implements RepositorioAlertas {
   gravados: NovoAlerta[] = [];
   tratados: AlertaJaTratado[] = [];
   /** Filtra como o repositório real: por data (desde inclusive, ate exclusive). */
+  /** Os comerciantes com que o motor chamou o repositório, para provar que é o da sessão. */
+  chamadasDe: string[] = [];
   jaTratados(
-    _comercianteId: string,
+    comercianteId: string,
     filtro: { desde: string | null; ate: string; tipos: readonly TipoAlerta[] },
   ) {
+    this.chamadasDe.push(comercianteId);
     return Promise.resolve(
       this.tratados.filter(
         (t) =>
@@ -77,11 +80,15 @@ class RepositorioFalso implements RepositorioAlertas {
       ),
     );
   }
-  gravarCandidatos(_c: string, _d: string, novos: NovoAlerta[]) {
+  gravarCandidatos(comercianteId: string, _d: string, novos: NovoAlerta[]) {
+    this.chamadasDe.push(comercianteId);
     this.gravados.push(...novos);
     return Promise.resolve(novos.length);
   }
-  candidatosDoDia = () => Promise.resolve([] as AlertaGravado[]);
+  candidatosDoDia(comercianteId: string) {
+    this.chamadasDe.push(comercianteId);
+    return Promise.resolve([] as AlertaGravado[]);
+  }
 }
 
 const semLimites: FonteDeLimites = { limitesDoComerciante: () => Promise.resolve({}) };
@@ -262,5 +269,45 @@ describe("motor de alertas: a supressão discrimina o tipo", () => {
     const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
     expect(r.suprimidos.map((c) => c.tipo)).toEqual(["giro_em_alta"]);
     expect(repositorio.gravados.map((g) => g.tipo)).toEqual(["margem_abaixo_da_meta"]);
+  });
+});
+
+describe("motor de alertas: o comerciante é o da sessão", () => {
+  it("métricas, limites, regras e repositório recebem só o comerciante do contexto", async () => {
+    const vistos: string[] = [];
+    const registrar = (ctx: { comercianteId: string }) => {
+      vistos.push(ctx.comercianteId);
+    };
+    const servico = {
+      variacoesDeCusto: (ctx: { comercianteId: string }) => {
+        registrar(ctx);
+        return Promise.resolve(resultado([variacao()]));
+      },
+      giro: (ctx: { comercianteId: string }) => {
+        registrar(ctx);
+        return Promise.resolve(giro(10));
+      },
+    } as unknown as MetricasService;
+    const limites: FonteDeLimites = {
+      limitesDoComerciante: (comercianteId) => {
+        vistos.push(comercianteId);
+        return Promise.resolve({});
+      },
+    };
+    const regra: RegraDeAlerta = {
+      tipo: "estoque_parado",
+      avaliar: (contexto) => {
+        vistos.push(contexto.comercianteId);
+        return Promise.resolve({ candidatos: [], ausentes: [] });
+      },
+    };
+    const repositorio = new RepositorioFalso();
+    await new MotorDeAlertas(servico, repositorio, limites, [regraReajusteDeCusto, regra]).executar({
+      comercianteId: "c-sessao",
+      dataReferencia: REF,
+    });
+    expect(vistos.length).toBeGreaterThanOrEqual(4);
+    expect([...new Set([...vistos, ...repositorio.chamadasDe])]).toEqual(["c-sessao"]);
+    expect(repositorio.chamadasDe.length).toBeGreaterThanOrEqual(3);
   });
 });

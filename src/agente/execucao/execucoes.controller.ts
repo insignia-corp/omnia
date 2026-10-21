@@ -15,6 +15,14 @@ import { CONSULTA_EXECUCOES, type ConsultaExecucoes } from "./consulta-execucoes
 
 const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Formato AAAA-MM-DD e data que existe no calendário: "2026-02-30" passa no formato, mas não é data. */
+function dataValida(texto: string): boolean {
+  if (!DATA_ISO.test(texto)) return false;
+  const [ano, mes, dia] = texto.split("-").map(Number) as [number, number, number];
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia;
+}
+
 /**
  * Leitura do registro de execuções para a tela de bastidores (#77) e para o acompanhamento
  * da degradação do verificador. O comerciante vem da sessão, nunca do pedido.
@@ -39,8 +47,8 @@ export class ExecucoesController {
     @Query("de") de?: string,
     @Query("ate") ate?: string,
   ) {
-    if (!de || !ate || !DATA_ISO.test(de) || !DATA_ISO.test(ate) || de > ate) {
-      throw new BadRequestException("Informe `de` e `ate` no formato AAAA-MM-DD, com de <= ate");
+    if (!de || !ate || !dataValida(de) || !dataValida(ate) || de > ate) {
+      throw new BadRequestException("Informe `de` e `ate` como datas AAAA-MM-DD que existam, com de <= ate");
     }
     return this.consulta.bloqueioPorDia(comercianteId, { de, ate });
   }

@@ -114,6 +114,8 @@ describe("receita por produto contra o gabarito (e2e)", () => {
       ).map((p) => p.id),
     );
     const r = await servico.receitaPorProduto(esquina);
+    // O Esquina tem vendas na janela inteira; se deixar de ter, o teste precisa avisar, não passar calado.
+    expect(ehDadoAusente(r)).toBe(false);
     if (ehDadoAusente(r)) return;
     expect(r.valor.por_produto.every((p) => doEsquina.has(p.produto_id))).toBe(true);
     expect(r.valor.por_produto.length).toBe(doEsquina.size);

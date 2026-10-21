@@ -133,13 +133,21 @@ export class MetricasService {
   ): Promise<ResultadoMetrica<ResumoDiario> | DadoAusente> {
     const { comercianteId } = contexto;
     const desde = somarDias(data, -DIAS_DE_COMPARACAO_DO_RESUMO);
-    const [vendas, intervaloDeVendas, movimentos, contas] = await Promise.all([
+    const [vendas, intervaloDeVendas, movimentos, intervaloDeMovimentos, contas] = await Promise.all([
       this.dados.vendasPorDia(comercianteId, desde, data),
       this.dados.intervaloDeVendas(comercianteId),
       this.dados.movimentosPorDia(comercianteId, data),
+      this.dados.intervaloDeMovimentos(comercianteId),
       this.dados.contas(comercianteId),
     ]);
-    return calcularResumoDiario({ data, vendas, intervaloDeVendas, movimentos, contas });
+    return calcularResumoDiario({
+      data,
+      vendas,
+      intervaloDeVendas,
+      movimentos,
+      intervaloDeMovimentos,
+      contas,
+    });
   }
 
   /** Ticket médio de um dia contra a média dos 28 anteriores (a data de referência, se não for indicada outra). */

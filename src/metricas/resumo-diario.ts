@@ -3,7 +3,9 @@
  * base da ferramenta `get_daily_summary` e do relatório diário.
  *
  * Dia sem dado não vira zero: o intervalo de vendas importadas diz quais dias existem. Dentro
- * dele, dia sem cupom é dia sem venda (loja fechada); fora dele, a comparação fica ausente.
+ * dele, dia sem cupom é dia sem venda (loja fechada); fora dele, a comparação fica ausente. O
+ * mesmo vale para o extrato: dia fora do intervalo de movimentos bancários não tem gasto zero,
+ * tem gasto desconhecido.
  */
 import { somarDias } from "../lib/datas/datas";
 import {
@@ -44,9 +46,10 @@ export interface SaldoDaConta {
 export interface ResumoDiario {
   data: string;
   faturamento_centavos: number;
-  /** Todas as saídas da conta no dia: compras de mercadoria, despesas fixas e operacionais. */
-  gastos_centavos: number;
-  saldo_do_dia_centavos: number;
+  /** Todas as saídas da conta no dia: compras de mercadoria, despesas fixas e operacionais. Ausente sem extrato para o dia. */
+  gastos_centavos: number | DadoAusente;
+  /** Faturamento menos gastos; ausente quando os gastos são desconhecidos. */
+  saldo_do_dia_centavos: number | DadoAusente;
   /** Saldo inicial mais as transações até o fim do dia. */
   saldo_da_conta: SaldoDaConta | DadoAusente;
   cupons: number;
@@ -65,6 +68,8 @@ export interface EntradaResumoDiario {
   intervaloDeVendas: IntervaloDeDados | null;
   /** Movimentos bancários desde a abertura das contas até a data. */
   movimentos: readonly MovimentoDoDia[];
+  /** Datas entre as quais há extrato importado; fora delas não se sabe o gasto, e isso não é zero. */
+  intervaloDeMovimentos: IntervaloDeDados | null;
   contas: readonly ContaParaMetrica[];
 }
 
@@ -160,7 +165,17 @@ export function calcularResumoDiario(
     media_7_dias_anteriores: media,
   };
 
-  const saidasDoDia = entrada.movimentos.filter((m) => m.data === data && m.tipo === "saida");
+  const intervaloDoExtrato = entrada.intervaloDeMovimentos;
+  const extratoCobreODia =
+    intervaloDoExtrato !== null && data >= intervaloDoExtrato.primeira && data <= intervaloDoExtrato.ultima;
+  const semExtrato = dadoAusente(
+    "dia_sem_extrato",
+    `Não há extrato bancário importado para ${data}, então os gastos do dia são desconhecidos.`,
+    "Pode conectar o banco ou enviar o extrato mais recente?",
+  );
+  const saidasDoDia = extratoCobreODia
+    ? entrada.movimentos.filter((m) => m.data === data && m.tipo === "saida")
+    : [];
   const gastos = saidasDoDia.reduce((soma, m) => soma + m.totalCentavos, 0);
   const saldoDaConta = calcularSaldoDaConta(data, entrada.contas, entrada.movimentos);
   for (const m of saidasDoDia) fontes.add(m);
@@ -170,8 +185,8 @@ export function calcularResumoDiario(
     {
       data,
       faturamento_centavos: hoje.faturamentoCentavos,
-      gastos_centavos: gastos,
-      saldo_do_dia_centavos: hoje.faturamentoCentavos - gastos,
+      gastos_centavos: extratoCobreODia ? gastos : semExtrato,
+      saldo_do_dia_centavos: extratoCobreODia ? hoje.faturamentoCentavos - gastos : semExtrato,
       saldo_da_conta: "ausente" in saldoDaConta ? saldoDaConta : saldoDaConta.saldo,
       cupons: hoje.cupons,
       ticket_medio_centavos: hoje.cupons > 0 ? Math.round(hoje.faturamentoCentavos / hoje.cupons) : null,

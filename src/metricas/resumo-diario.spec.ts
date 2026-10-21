@@ -60,6 +60,7 @@ const entrada = (extra: Partial<EntradaResumoDiario> = {}): EntradaResumoDiario 
   vendas: HISTORICO,
   intervaloDeVendas: { primeira: "2026-10-01", ultima: DIA },
   movimentos: [],
+  intervaloDeMovimentos: { primeira: "2026-10-09", ultima: DIA },
   contas: [conta],
   ...extra,
 });
@@ -108,10 +109,22 @@ describe("calcularResumoDiario", () => {
       expect(valor.saldo_do_dia_centavos).toBe(65_000); // 1.000,00 - 350,00
     });
 
-    it("sem movimento, gastos zero e saldo do dia igual ao faturamento", () => {
+    it("dia dentro do extrato sem movimento: gastos zero e saldo do dia igual ao faturamento", () => {
       const { valor } = resumo();
       expect(valor.gastos_centavos).toBe(0);
       expect(valor.saldo_do_dia_centavos).toBe(100_000);
+    });
+
+    it.each([
+      ["extrato termina antes do dia", { primeira: "2026-10-09", ultima: "2026-10-18" }],
+      ["extrato começa depois do dia", { primeira: "2026-10-20", ultima: "2026-10-25" }],
+      ["sem nenhum extrato importado", null],
+    ])("%s: gastos e saldo do dia são ausentes, não zero", (_caso, intervaloDeMovimentos) => {
+      const { valor } = resumo({ intervaloDeMovimentos });
+      const ausente = { ausente: true, codigo: "dia_sem_extrato" };
+      expect(valor.gastos_centavos).toMatchObject(ausente);
+      expect(valor.saldo_do_dia_centavos).toMatchObject(ausente);
+      expect(valor.faturamento_centavos).toBe(100_000);
     });
   });
 

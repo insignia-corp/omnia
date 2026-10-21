@@ -49,7 +49,15 @@ describe("tratarJobExtracao", () => {
     expect(t.avisoFalha).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["extraido", "revisao", "ignorado"] as const)("status %s não avisa", async (status) => {
+  it("job repetido de documento já resolvido (ignorado) chama o aviso, que confere o documento no banco", async () => {
+    const t = montar(1);
+    t.processar.mockResolvedValue({ status: "ignorado" });
+    await t.tratar();
+    expect(t.avisoFalha).toHaveBeenCalledTimes(1);
+    expect(t.avisoFalha).toHaveBeenCalledWith(entrada);
+  });
+
+  it.each(["extraido", "revisao"] as const)("status %s não avisa", async (status) => {
     const t = montar(1);
     t.processar.mockResolvedValue({ status });
     await t.tratar();

@@ -107,24 +107,26 @@ export class ConversaService implements OnModuleInit {
       chave,
     });
     // A leitura pode ter falhado antes deste aviso existir; aí o worker não achou a conversa e quem avisa é aqui.
-    const [doc] = await this.db
-      .select({ status: documento.statusExtracao })
-      .from(documento)
-      .where(and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId)))
-      .limit(1);
-    if (doc?.status === "falha") await this.avisarFalhaExtracao(comercianteId, documentoId);
+    await this.avisarFalhaExtracao(comercianteId, documentoId);
     return (await this.caixa.buscarPorChave(comercianteId, chave))!;
   }
 
   /**
    * Aviso de que a leitura da nota falhou de vez. É resposta ao envio do dono, não mensagem proativa
    * (regra 9): só sai quando a nota entrou pela conversa (existe o aviso `nota_<id>`); nota enviada por
-   * `POST /documentos/notas` não tem conversa a responder. Idempotente pela chave `nota_falha_<id>`.
+   * `POST /documentos/notas` não tem conversa a responder. Só avisa documento em `falha` (o worker
+   * também chama em job repetido). Idempotente pela chave `nota_falha_<id>`.
    */
   async avisarFalhaExtracao(
     comercianteId: string,
     documentoId: string,
   ): Promise<MensagemGravada | undefined> {
+    const [doc] = await this.db
+      .select({ status: documento.statusExtracao })
+      .from(documento)
+      .where(and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId)))
+      .limit(1);
+    if (doc?.status !== "falha") return undefined;
     const pelaConversa = await this.caixa.buscarPorChave(comercianteId, `nota_${documentoId}`);
     if (!pelaConversa) return undefined;
     const chave = `nota_falha_${documentoId}`;

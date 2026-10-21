@@ -14,6 +14,7 @@ import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
 import type { ClienteVisao } from "../../src/ingestao/extracao/cliente-visao";
+import { FilaExtracao } from "../../src/ingestao/fila/fila-extracao";
 import { CLIENTE_VISAO } from "../../src/ingestao/ingestao.module";
 import { ModeloFalso } from "../demo/modelo-falso";
 
@@ -42,6 +43,7 @@ describe("aviso ao dono quando a leitura da nota falha (e2e)", () => {
   let a = "";
   let b = "";
   let c = "";
+  let d = "";
 
   const servidor = () => app.getHttpServer() as Parameters<typeof request>[0];
   const como = (id: string) => ({ "X-Comerciante-Id": id });
@@ -77,11 +79,17 @@ describe("aviso ao dono quando a leitura da nota falha (e2e)", () => {
     db = drizzle(pool, { schema });
     const criados = await db
       .insert(schema.comerciante)
-      .values([{ nome: "E2E Falha A" }, { nome: "E2E Falha B" }, { nome: "E2E Falha C" }])
+      .values([
+        { nome: "E2E Falha A" },
+        { nome: "E2E Falha B" },
+        { nome: "E2E Falha C" },
+        { nome: "E2E Falha D" },
+      ])
       .returning({ id: schema.comerciante.id });
     a = criados[0]!.id;
     b = criados[1]!.id;
     c = criados[2]!.id;
+    d = criados[3]!.id;
 
     const modulo = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(MODELO_LINGUAGEM)
@@ -96,7 +104,7 @@ describe("aviso ao dono quando a leitura da nota falha (e2e)", () => {
 
   afterAll(async () => {
     await app?.close();
-    await db.delete(schema.comerciante).where(inArray(schema.comerciante.id, [a, b, c]));
+    await db.delete(schema.comerciante).where(inArray(schema.comerciante.id, [a, b, c, d]));
     await pool.end();
     rmSync(dirArquivos, { recursive: true, force: true });
   });
@@ -163,5 +171,35 @@ describe("aviso ao dono quando a leitura da nota falha (e2e)", () => {
       TEXTO_FALHA_NOTA,
     ]);
     expect(linhas.some((m) => m.proativa)).toBe(false);
+  });
+
+  it("processo que caiu entre gravar falha e avisar: o job repetido avisa uma vez", async () => {
+    const [doc] = await db
+      .insert(schema.documento)
+      .values({
+        comercianteId: d,
+        tipo: "foto_nota",
+        arquivoCaminho: `${d}/falha-repetida.jpg`,
+        arquivoHash: `hash-falha-repetida-${d}`,
+      })
+      .returning({ id: schema.documento.id });
+    const documentoId = doc!.id;
+    // Nota pelo chat ainda em leitura: o recebimento não avisa falha.
+    await conversa.avisarNotaRecebida(d, documentoId);
+    expect(await conversa.avisarFalhaExtracao(d, documentoId)).toBeUndefined();
+    expect(await mensagensDe(d)).toHaveLength(2);
+
+    // A leitura gravou `falha` e o processo caiu antes do aviso; o BullMQ repete o job.
+    await db
+      .update(schema.documento)
+      .set({ statusExtracao: "falha" })
+      .where(eq(schema.documento.id, documentoId));
+    await app.get(FilaExtracao).enfileirar({ documentoId, comercianteId: d });
+    const chave = `nota_falha_${documentoId}`;
+    await aguardarMensagem(d, chave);
+
+    const linhas = await mensagensDe(d);
+    expect(linhas.filter((m) => m.chaveIdempotencia === chave)).toHaveLength(1);
+    expect(linhas.find((m) => m.chaveIdempotencia === chave)!.texto).toBe(TEXTO_FALHA_NOTA);
   });
 });

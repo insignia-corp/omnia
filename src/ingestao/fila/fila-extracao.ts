@@ -28,7 +28,8 @@ const ESPERA_INICIAL_MS = 5_000;
 
 /**
  * Quem avisa o dono quando a leitura da nota falha de vez. O canal registra (ele importa a
- * ingestão, nunca o contrário). Recebe só ids: o texto do aviso é fixo e mora no canal.
+ * ingestão, nunca o contrário). Recebe só ids: o texto do aviso é fixo e mora no canal, que confere
+ * no banco se o documento está mesmo em `falha` antes de avisar.
  */
 export type AvisoFalhaExtracao = (entrada: { documentoId: string; comercianteId: string }) => Promise<void>;
 
@@ -39,8 +40,10 @@ export function ehUltimaTentativa(job: Pick<Job, "attemptsStarted" | "opts">): b
 
 /**
  * O que o worker faz com cada job. Falha de vez (`status: "falha"`, na hora ou na última tentativa)
- * avisa o dono; erro que sobe é tentativa pendente e não avisa. O aviso é idempotente pela chave da
- * mensagem e nunca derruba o job: o documento já está em `falha` e repetir não refaria a leitura.
+ * avisa o dono; erro que sobe é tentativa pendente e não avisa. Job repetido (`ignorado`) também chama
+ * o aviso: se o processo caiu entre gravar `falha` e avisar, a repetição é a única chance de o dono
+ * saber. Quem avisa confere no banco que o documento está em `falha` e é idempotente pela chave da
+ * mensagem. O aviso nunca derruba o job: o documento já está resolvido e repetir não refaria a leitura.
  */
 export async function tratarJobExtracao(
   job: Pick<Job<JobExtracao>, "data" | "attemptsStarted" | "opts">,
@@ -53,7 +56,7 @@ export async function tratarJobExtracao(
   const entrada = { documentoId: job.data.documentoId, comercianteId: job.data.comercianteId };
   const r = await dep.processador.processar(entrada, ehUltimaTentativa(job));
   dep.logger.log(`Extração do documento ${entrada.documentoId}: ${r.status}`);
-  if (r.status === "falha" && dep.avisoFalha) {
+  if ((r.status === "falha" || r.status === "ignorado") && dep.avisoFalha) {
     try {
       await dep.avisoFalha(entrada);
     } catch (e) {

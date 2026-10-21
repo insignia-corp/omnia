@@ -28,8 +28,8 @@ Nível de 1 (mais importante) a 3, por critério em `prioridade.ts`:
 
 1. **Impacto em reais**, calculado em código com inteiros em centavos:
    - reajuste: diferença de custo por unidade vezes as unidades vendidas nos últimos 7 dias;
-   - margem abaixo da meta: perda por unidade até a meta vezes as unidades da janela de preço;
-   - espaço para subir preço: perda por unidade até a meta vezes as unidades dos últimos 7 dias;
+   - margem abaixo da meta: (preço-alvo menos preço médio) vezes as unidades da janela de preço, com preço-alvo = custo / (1 menos a meta);
+   - espaço para subir preço: o mesmo ganho por unidade vezes as unidades dos últimos 7 dias;
    - ticket médio: (média de 28 dias menos ticket do dia) vezes os cupons do dia;
    - gasto fora do padrão: valor do dia menos a mediana.
 2. Impacto de R$ 500 ou mais é prioridade 1; de R$ 100 a R$ 499,99, prioridade 2; abaixo disso, 3.

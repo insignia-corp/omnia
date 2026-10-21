@@ -5,6 +5,7 @@
  */
 import { diasEntre } from "../lib/datas/datas";
 import { centavos, multiplicar } from "../lib/dinheiro/dinheiro";
+import { dividirArredondando } from "../metricas/pontos-base";
 import { ehDadoAusente, type DadoAusente } from "../metricas/resultado-metrica";
 import {
   fonteDe,
@@ -25,14 +26,20 @@ function motivosUnicos(motivos: MotivoAusente[]): MotivoAusente[] {
   return [...new Map(motivos.map((m) => [m.codigo, m])).values()];
 }
 
-/** Perda até a meta de margem nas unidades vendidas, arredondada uma vez só, no fim. */
-function impactoDaMargem(
+/**
+ * O que as unidades vendidas renderiam a mais com o preço que dá a meta de margem. O preço-alvo sai
+ * de custo / (1 - meta), em inteiros: a margem tem o preço no denominador, então diferença de margem
+ * vezes preço não é o aumento de preço necessário. Nulo quando a meta é 100% (sem preço que a atinja).
+ */
+function impactoDeChegarNaMeta(
   precoCentavos: number,
-  margemBps: number,
+  custoCentavos: number,
   metaBps: number,
   unidades: number,
-): number {
-  return Math.round((precoCentavos * (metaBps - margemBps) * unidades) / 10_000);
+): number | null {
+  const precoAlvo = dividirArredondando(custoCentavos * 10_000, 10_000 - metaBps);
+  if (precoAlvo === null) return null;
+  return multiplicar(centavos(Math.max(0, precoAlvo - precoCentavos)), unidades);
 }
 
 export const regraReajusteDeCusto: RegraDeAlerta = {
@@ -92,10 +99,10 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
         chave: produto_id,
         produtoId: produto_id,
         fornecedorId: null,
-        // Quanto a janela de preço deixou de render até a meta.
-        impactoCentavos: impactoDaMargem(
+        // Quanto as unidades da janela de preço renderiam a mais com o preço na meta de margem.
+        impactoCentavos: impactoDeChegarNaMeta(
           m.preco_medio_venda_centavos,
-          m.margem_bps,
+          m.custo_compra_mais_recente_centavos,
           m.meta_bps,
           m.unidades_vendidas,
         ),
@@ -172,9 +179,9 @@ export const regraEspacoParaSubirPreco: RegraDeAlerta = {
         produtoId: p.produto_id,
         fornecedorId: null,
         // O que a semana de venda renderia a mais com o preço na meta de margem.
-        impactoCentavos: impactoDaMargem(
+        impactoCentavos: impactoDeChegarNaMeta(
           p.preco_medio_venda_centavos,
-          p.margem_bps,
+          p.custo_compra_mais_recente_centavos,
           p.meta_bps,
           p.unidades_7_dias,
         ),

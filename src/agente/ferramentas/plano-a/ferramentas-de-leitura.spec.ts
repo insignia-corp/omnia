@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Db } from "../../../infra/database/database.module";
 import type { MetricasService } from "../../../metricas/metricas.service";
-import { dadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
+import { dadoAusente, ehDadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
 import { NumerosAutorizados, verificarNumeros } from "../../../lib/verificador-numeros/verificador-numeros";
 import type { ContextoSessao, Ferramenta } from "../ferramenta";
 import { RegistroFerramentas } from "../registro-ferramentas";
@@ -251,11 +251,33 @@ describe("ferramentas de leitura do plano A", () => {
   });
 
   describe("get_cost_changes", () => {
+    it("lista vazia da métrica vira dado ausente, não 'sem variação'", async () => {
+      const m = { variacoesDeCusto: jest.fn(async () => metrica([])) } as unknown as MetricasService;
+      for (const filtro of ["todos", "acima_do_limite", "recentes"] as const) {
+        const saida = await criarGetCostChanges(m).executar(contexto, { filtro });
+        expect(saida).toMatchObject({ ausente: true, codigo: "sem_variacao_calculavel" });
+        expect((saida as { motivo: string }).motivo).toMatch(/não prova/);
+      }
+    });
+
+    it("filtro que não deixa nada, com variações existentes, devolve lista vazia", async () => {
+      const m = {
+        variacoesDeCusto: jest.fn(async () => metrica([variacao(false, false)])),
+      } as unknown as MetricasService;
+      const saida = await criarGetCostChanges(m).executar(contexto, { filtro: "acima_do_limite" });
+      expect(saida).toMatchObject({ valor: [] });
+    });
+
     it("filtra pelas marcas da métrica e mantém a procedência", async () => {
       const f = criarGetCostChanges(servico().metricas);
-      const todos = (await f.executar(contexto, { filtro: "todos" })).valor;
-      const acima = await f.executar(contexto, { filtro: "acima_do_limite" });
-      const recentes = await f.executar(contexto, { filtro: "recentes" });
+      const comoMetrica = async (filtro: "todos" | "acima_do_limite" | "recentes") => {
+        const saida = await f.executar(contexto, { filtro });
+        if (ehDadoAusente(saida)) throw new Error("dado ausente inesperado");
+        return saida;
+      };
+      const todos = (await comoMetrica("todos")).valor;
+      const acima = await comoMetrica("acima_do_limite");
+      const recentes = await comoMetrica("recentes");
       expect(todos).toHaveLength(2);
       expect(acima.valor).toHaveLength(1);
       expect(acima.valor.every((v) => v.acima_do_limite)).toBe(true);

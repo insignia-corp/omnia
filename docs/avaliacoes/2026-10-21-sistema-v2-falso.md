@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Rodada | 2026-10-21T13:18:25.238Z |
+| Rodada | 2026-10-21T13:22:28.804Z |
 | Modo | falso (roteirizado, sem custo) |
 | Modelo | falso-roteirizado |
 | Versão do prompt | sistema-v2 |
@@ -14,7 +14,7 @@
 
 **2 de 2 casos passaram (100%).**
 
-Custo estimado da rodada: US$ 0,0000. Latência por execução: média de 5 ms, máxima de 7 ms.
+Custo estimado da rodada: US$ 0,0000. Latência por execução: média de 7 ms, máxima de 10 ms.
 
 ## Acertos por categoria
 
@@ -31,5 +31,5 @@ Nenhuma falha nesta rodada.
 
 | Caso | Categoria | Resultado | Ferramentas | Iterações | Bloqueios | Custo | Latência (ms) |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
-| q01 (passou) | numerica | aprovada | get_daily_summary | 2 | 0 | US$ 0,0000 | 7 |
-| q33 (passou) | sem_resposta | aprovada | nenhuma | 1 | 0 | US$ 0,0000 | 2 |
+| q01 (passou) | numerica | aprovada | get_daily_summary | 2 | 0 | US$ 0,0000 | 10 |
+| q33 (passou) | sem_resposta | aprovada | nenhuma | 1 | 0 | US$ 0,0000 | 4 |

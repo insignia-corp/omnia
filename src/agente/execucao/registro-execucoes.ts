@@ -3,8 +3,8 @@ import type { Db, Executor } from "../../infra/database/database.module";
 import { chamadaFerramenta, execucaoAgente } from "../../infra/database/schema";
 
 export type Gatilho = "relatorio_diario" | "mensagem_dono" | "nota_processada";
-/** O registro também guarda as execuções do Extrator, que não são do Analista. */
-export type GatilhoRegistrado = Gatilho | "extracao_nota";
+/** O registro também guarda as execuções do Extrator e do Sugestor de vínculo, que não são do Analista. */
+export type GatilhoRegistrado = Gatilho | "extracao_nota" | "vinculo_produto";
 export type ResultadoExecucao = "aprovada" | "fallback_verificador" | "fallback_erro" | "recusa_modelo";
 
 export interface ChamadaRegistrada {

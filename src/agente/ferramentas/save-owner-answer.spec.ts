@@ -34,7 +34,11 @@ describe("save_owner_answer", () => {
   });
 
   it("sem confirmação do dono não executa (regra 7)", async () => {
-    const r = await new RegistroFerramentas([ferramenta]).executar(sessao, "save_owner_answer", entradaValida);
+    const r = await new RegistroFerramentas([ferramenta]).executar(
+      sessao,
+      "save_owner_answer",
+      entradaValida,
+    );
     expect(r).toMatchObject({ ok: false, erro: expect.stringContaining("sem confirmação") });
   });
 

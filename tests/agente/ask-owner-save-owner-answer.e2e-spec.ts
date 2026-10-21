@@ -276,7 +276,10 @@ describe("ask_owner e save_owner_answer (e2e)", () => {
     const r = registro(CONFIRMA);
     const { pergunta_id } = await perguntar(r, loja);
 
-    for (const extra of [{ comerciante_id: loja.sessao.comercianteId }, { produto_id: loja.produtoSemNotaId }]) {
+    for (const extra of [
+      { comerciante_id: loja.sessao.comercianteId },
+      { produto_id: loja.produtoSemNotaId },
+    ]) {
       const res = await r.executar(loja.sessao, "save_owner_answer", {
         pergunta_id,
         campo: "custo_unitario_produto",

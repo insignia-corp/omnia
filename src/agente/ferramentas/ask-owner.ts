@@ -69,7 +69,10 @@ export function criarAskOwner(db: Db) {
           .select({ id: historicoCusto.id })
           .from(historicoCusto)
           .where(
-            and(eq(historicoCusto.comercianteId, comercianteId), eq(historicoCusto.produtoId, entrada.produto_id)),
+            and(
+              eq(historicoCusto.comercianteId, comercianteId),
+              eq(historicoCusto.produtoId, entrada.produto_id),
+            ),
           )
           .limit(1);
         if (!base) return { ausente: true as const, motivo: "O produto não tem nota registrada." };

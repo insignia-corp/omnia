@@ -25,6 +25,8 @@ describe("métricas e contas desconectadas (e2e)", () => {
 
   let comercianteId: string;
   let outroId: string;
+  let contaAtivaId: string;
+  let contaRevogadaId: string;
 
   async function novaConta(
     dono: string,
@@ -82,6 +84,8 @@ describe("métricas e contas desconectadas (e2e)", () => {
 
     const ativa = await novaConta(comercianteId, "ativo", 1_000_000);
     const revogada = await novaConta(comercianteId, "revogado", 500_000);
+    contaAtivaId = ativa;
+    contaRevogadaId = revogada;
     await novaTransacao(comercianteId, ativa, DIA, "saida", 30_000);
     await novaTransacao(comercianteId, revogada, DIA, "saida", 20_000);
     await novaTransacao(comercianteId, revogada, DIA, "entrada", 10_000);
@@ -109,11 +113,15 @@ describe("métricas e contas desconectadas (e2e)", () => {
     });
   });
 
-  it("o intervalo de extrato inclui os dias que só a conta revogada cobre", async () => {
-    expect(await repositorio.intervaloDeMovimentos(comercianteId)).toEqual({
-      primeira: DIA,
-      ultima: DIA_SO_DA_REVOGADA,
-    });
+  it("o intervalo de extrato é por conta e inclui a conta revogada", async () => {
+    const intervalos = await repositorio.intervalosDeMovimentosPorConta(comercianteId);
+    expect(intervalos).toHaveLength(2);
+    expect(intervalos).toEqual(
+      expect.arrayContaining([
+        { contaId: contaAtivaId, primeira: DIA, ultima: DIA },
+        { contaId: contaRevogadaId, primeira: DIA, ultima: DIA_SO_DA_REVOGADA },
+      ]),
+    );
   });
 
   it("os movimentos do dia trazem as duas contas, e só as deste comerciante", async () => {

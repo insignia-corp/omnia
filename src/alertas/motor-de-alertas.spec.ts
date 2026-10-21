@@ -104,3 +104,39 @@ describe("motor de alertas: confiança para o agente", () => {
     expect(repositorio.gravados[0]?.metricasApoio).not.toHaveProperty("confianca");
   });
 });
+
+describe("motor de alertas: confiança do giro no reajuste", () => {
+  const grande = variacao({ custo_atual_centavos: 15_100 });
+
+  it("giro de baixa confiança rebaixa a prioridade um nível, e a procedência do giro vai nas métricas", async () => {
+    const confiavel = motorCom([grande], giro(10, 1));
+    await confiavel.motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(confiavel.repositorio.gravados[0]).toMatchObject({ prioridade: 1 });
+
+    const duvidoso = motorCom([grande], giro(10, 0.5));
+    await duvidoso.motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    const gravado = duvidoso.repositorio.gravados[0];
+    expect(gravado?.prioridade).toBe(2);
+    expect(gravado?.metricasApoio).toMatchObject({
+      menor_confianca: 0.5,
+      unidades_7_dias: 10,
+      giro_fonte: { menor_confianca: 0.5, n_registros: 10 },
+    });
+  });
+
+  it("sem giro não há impacto, e a confiança é só a da variação de custo", async () => {
+    const servico = {
+      variacoesDeCusto: () => Promise.resolve(resultado([variacao({ menor_confianca: 0.9 })])),
+      giro: () => Promise.resolve({ ausente: true, codigo: "historico_insuficiente", motivo: "sem giro" }),
+    } as unknown as MetricasService;
+    const repositorio = new RepositorioFalso();
+    await new MotorDeAlertas(servico, repositorio, semLimites, [regraReajusteDeCusto]).executar({
+      comercianteId: "c1",
+      dataReferencia: REF,
+    });
+    expect(repositorio.gravados[0]?.metricasApoio).toMatchObject({
+      impacto_centavos: null,
+      menor_confianca: 0.9,
+    });
+  });
+});

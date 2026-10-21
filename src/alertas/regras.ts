@@ -26,6 +26,12 @@ function motivosUnicos(motivos: MotivoAusente[]): MotivoAusente[] {
   return [...new Map(motivos.map((m) => [m.codigo, m])).values()];
 }
 
+/** A menor das confianças conhecidas; nula quando nenhuma é conhecida. */
+function menorConhecida(...confiancas: Array<number | null>): number | null {
+  const conhecidas = confiancas.filter((c): c is number => c !== null);
+  return conhecidas.length === 0 ? null : Math.min(...conhecidas);
+}
+
 /**
  * O que as unidades vendidas renderiam a mais com o preço que dá a meta de margem. O preço-alvo sai
  * de custo / (1 - meta), em inteiros: a margem tem o preço no denominador, então diferença de margem
@@ -46,26 +52,27 @@ export const regraReajusteDeCusto: RegraDeAlerta = {
   tipo: "reajuste_de_custo",
   async avaliar({ metricas, dataReferencia, limites }) {
     const [variacoes, giro] = await Promise.all([metricas.variacoesDeCusto(), metricas.giro()]);
-    const unidadesPorProduto = ehDadoAusente(giro)
+    const giroPorProduto = ehDadoAusente(giro)
       ? null
-      : new Map(giro.valor.por_produto.map((g) => [g.produto_id, g.unidades_7_dias]));
+      : new Map(giro.valor.por_produto.map((g) => [g.produto_id, g]));
     const candidatos: CandidatoDeAlerta[] = [];
     for (const v of variacoes.valor) {
       const dias = diasEntre(v.compra_atual_data, dataReferencia);
       if (v.variacao_bps <= limites.reajusteLimiteBps || dias < 0 || dias > limites.reajusteJanelaDias)
         continue;
-      const unidades = unidadesPorProduto?.get(v.produto_id);
+      const doGiro = giroPorProduto?.get(v.produto_id);
+      const usaGiro = !ehDadoAusente(giro) && doGiro !== undefined;
       candidatos.push({
         tipo: "reajuste_de_custo",
         chave: `${v.produto_id}:${v.fornecedor_id}:${v.compra_atual_data}`,
         produtoId: v.produto_id,
         fornecedorId: v.fornecedor_id,
         // Quanto a semana de venda passa a custar a mais com o custo novo.
-        impactoCentavos:
-          unidades === undefined
-            ? null
-            : multiplicar(centavos(v.custo_atual_centavos - v.custo_anterior_centavos), unidades),
-        confianca: v.menor_confianca,
+        impactoCentavos: doGiro
+          ? multiplicar(centavos(v.custo_atual_centavos - v.custo_anterior_centavos), doGiro.unidades_7_dias)
+          : null,
+        // O impacto depende das vendas: com ele, vale a menor entre a confiança do custo e a do giro.
+        confianca: usaGiro ? menorConhecida(v.menor_confianca, giro.menor_confianca) : v.menor_confianca,
         metricasApoio: {
           produto_nome: v.nome,
           variacao_bps: v.variacao_bps,
@@ -75,6 +82,7 @@ export const regraReajusteDeCusto: RegraDeAlerta = {
           compra_anterior_data: v.compra_anterior_data,
           compra_atual_data: v.compra_atual_data,
           fonte: fonteDe(variacoes),
+          ...(usaGiro ? { unidades_7_dias: doGiro.unidades_7_dias, giro_fonte: fonteDe(giro) } : {}),
         },
       });
     }
@@ -168,8 +176,7 @@ export const regraEspacoParaSubirPreco: RegraDeAlerta = {
     const confiancaDe = (produtoId: string): number | null => {
       const margem = margens.find((m) => m.produto_id === produtoId)?.resultado;
       const doProduto = !margem || ehDadoAusente(margem) ? null : margem.menor_confianca;
-      const conhecidas = [confiancaDoGiro, doProduto].filter((c): c is number => c !== null);
-      return conhecidas.length === 0 ? null : Math.min(...conhecidas);
+      return menorConhecida(confiancaDoGiro, doProduto);
     };
     return {
       ausentes: [],

@@ -75,6 +75,9 @@ const esquemaEnv = z.object({
 
 export type Env = z.infer<typeof esquemaEnv>;
 
+/** Nomes das variáveis que o esquema lê; o teste confere cada uma contra o .env.example. */
+export const CHAVES_DO_ENV: readonly string[] = Object.keys(esquemaEnv.shape);
+
 export function carregarEnv(origem: NodeJS.ProcessEnv = process.env): Env {
   // "CHAVE=" vazio no .env conta como não definida, para valer o padrão ou o opcional.
   const preenchidas = Object.fromEntries(Object.entries(origem).filter(([, v]) => v !== ""));

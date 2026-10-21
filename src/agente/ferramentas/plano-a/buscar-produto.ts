@@ -1,7 +1,12 @@
 import { sql } from "drizzle-orm";
 import { LIMITE_SIMILARIDADE_PADRAO } from "../../../config/env";
 import type { Db } from "../../../infra/database/database.module";
-import { decidirPorSimilaridade, type CandidatoProduto } from "../../../ingestao/vinculo/vincular-produto";
+import {
+  buscarDescricaoConfirmada,
+  decidirPorSimilaridade,
+  textosDosProdutos,
+  type CandidatoProduto,
+} from "../../../ingestao/vinculo/vincular-produto";
 import { normalizarDescricao } from "../../../ingestao/normalizar-descricao";
 
 /**
@@ -9,11 +14,6 @@ import { normalizarDescricao } from "../../../ingestao/normalizar-descricao";
  * variável `LIMITE_SIMILARIDADE` não é lida aqui (as ferramentas só recebem o `db`).
  */
 export const SIMILARIDADE_PARA_ESCOLHER_PRODUTO = LIMITE_SIMILARIDADE_PADRAO;
-
-/** Mesmo recorte de acentos de `normalizarDescricao`, para comparar o nome do catálogo em SQL. */
-const NOME_NORMALIZADO = sql.raw(
-  "translate(upper(p.nome), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')",
-);
 
 /** Candidato da busca do agente: o código de barras é o que o dono vê para distinguir nomes iguais. */
 export interface CandidatoDaBusca extends CandidatoProduto {
@@ -45,6 +45,8 @@ export async function buscarProdutoPorId(
 /**
  * Procura um produto do comerciante pelo nome aproximado (`pg_trgm`), com o mesmo critério do
  * vínculo de notas: só escolhe sozinho se for claramente o melhor, senão devolve sugestões.
+ * Compara também com as descrições que o dono já confirmou nas notas, e uma descrição confirmada
+ * igual à digitada liga sozinha, como no vínculo de notas.
  * A nota traz a descrição inteira; o dono digita só uma palavra ("arroz"), que a similaridade pelo
  * nome todo subestima. Quando nenhum nome chega ao limite pela similaridade do nome todo, vale a
  * `word_similarity` (a palavra dentro do nome). Se algum chega, a similaridade do nome todo decide
@@ -57,6 +59,8 @@ export async function buscarProdutoPorNome(
   nome: string,
 ): Promise<ProdutoAchado> {
   const consulta = normalizarDescricao(nome);
+  const confirmado = await buscarDescricaoConfirmada(db, comercianteId, consulta, null);
+  if (confirmado) return buscarProdutoPorId(db, comercianteId, confirmado);
   const resultado = await db.execute<{
     produto_id: string;
     nome: string;
@@ -64,14 +68,15 @@ export async function buscarProdutoPorNome(
     sim: number;
     palavra: number;
   }>(sql`
-    select p.id as produto_id, p.nome, p.codigo_barras,
-           similarity(${NOME_NORMALIZADO}, ${consulta})::float8 as sim,
-           word_similarity(${consulta}, ${NOME_NORMALIZADO})::float8 as palavra
-      from produto p
-     where p.comerciante_id = ${comercianteId}
-     order by greatest(similarity(${NOME_NORMALIZADO}, ${consulta}), word_similarity(${consulta}, ${NOME_NORMALIZADO})) desc,
-              p.nome asc, p.id asc
-     limit 20
+    select * from (
+      select produto_id, max(nome) as nome, max(codigo_barras) as codigo_barras,
+             max(similarity(texto, ${consulta}))::float8 as sim,
+             max(word_similarity(${consulta}, texto))::float8 as palavra
+        from (${textosDosProdutos(comercianteId)}) fonte
+       group by produto_id
+    ) t
+    order by greatest(sim, palavra) desc, nome asc, produto_id asc
+    limit 20
   `);
   const pelaPalavra = resultado.rows.every((l) => l.sim < SIMILARIDADE_PARA_ESCOLHER_PRODUTO);
   const candidatos = resultado.rows

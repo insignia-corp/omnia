@@ -320,18 +320,23 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     const NOME = "Arroz tipo 1 5kg";
     const CODIGOS = ["7891000100103", "7891000100110"];
     let dono: ContextoSessao;
+    let produtoIds: string[];
 
     beforeAll(async () => {
       const [c] = await db.insert(schema.comerciante).values({ nome: "E2E Nomes Iguais" }).returning();
       dono = { comercianteId: c!.id, nomeComercio: "E2E Nomes Iguais", dataReferencia: REF };
-      await db.insert(schema.produto).values(
-        CODIGOS.map((codigoBarras) => ({
-          comercianteId: c!.id,
-          nome: NOME,
-          codigoBarras,
-          origem: "planilha" as const,
-        })),
-      );
+      const linhas = await db
+        .insert(schema.produto)
+        .values(
+          CODIGOS.map((codigoBarras) => ({
+            comercianteId: c!.id,
+            nome: NOME,
+            codigoBarras,
+            origem: "planilha" as const,
+          })),
+        )
+        .returning({ id: schema.produto.id, codigoBarras: schema.produto.codigoBarras });
+      produtoIds = CODIGOS.map((codigo) => linhas.find((l) => l.codigoBarras === codigo)!.id);
     });
 
     afterAll(async () => {
@@ -366,6 +371,40 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       const aut = new NumerosAutorizados([ambiguo]);
       expect(verificarNumeros("É o de código 7891000100103?", aut).aprovado).toBe(true);
       expect(verificarNumeros("É o de código 7891000100999?", aut).aprovado).toBe(false);
+    });
+
+    it("descrição confirmada pelo dono desempata nomes iguais: liga sozinho ao produto do vínculo", async () => {
+      await db.insert(schema.vinculoDescricaoProduto).values({
+        comercianteId: dono.comercianteId,
+        descricaoNormalizada: "ARROZ TIPO 1 5KG",
+        produtoId: produtoIds[0]!,
+        metodo: "dono",
+        confianca: 1,
+        confirmadoPeloDono: true,
+      });
+      const saida = await chamar(dono, "get_product_margin", { produto: "arroz tipo 1 5kg" });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(saida).toMatchObject({ ausente: true, produto_id: produtoIds[0], nome: NOME });
+    });
+  });
+
+  describe("descrições confirmadas da nota", () => {
+    const achado = (saida: Saida & { nome?: string }) =>
+      (saida.valor as { nome?: string } | undefined)?.nome ?? saida.nome;
+
+    it.each([
+      ["leite uht", "Leite integral 1L"],
+      ["salg milho", "Salgadinho de milho 100g"],
+    ])("%s, como vem na nota, liga a %s", async (digitado, esperado) => {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: digitado });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(achado(saida)).toBe(esperado);
+    });
+
+    it("descrição confirmada igual à digitada liga com confiança 1", async () => {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: "REFRIG COLA LT 350ML" });
+      expect(saida.confianca_da_busca).toBe(1);
+      expect(achado(saida)).toBe("Refrigerante cola lata 350ml");
     });
   });
 });

@@ -132,7 +132,7 @@ O agente é um modelo de linguagem com chamada de ferramentas (tool use), rodand
 | --- | --- | --- | --- |
 | `get_daily_summary` | data | Faturamento, gastos, saldo e comparação com dias anteriores | Nenhum |
 | `get_top_products` | período, critério (giro ou receita) | Ranking de produtos | Nenhum |
-| `get_product_margin` | produto, período | Margem, custo, preço e confiança | Nenhum |
+| `get_product_margin` | produto ou produto_id, período | Margem, custo, preço e confiança | Nenhum |
 | `get_cost_changes` | período | Reajustes por produto e fornecedor | Nenhum |
 | `list_alert_candidates` | data | Candidatos a alerta com prioridade e métricas de apoio | Nenhum |
 | `ask_owner` | campo, produto, fornecedor (quando há mais de um) | Registra a pergunta pendente e devolve `pergunta_id` e o texto, sem valor de exemplo; o envio é do canal | Grava a pergunta |

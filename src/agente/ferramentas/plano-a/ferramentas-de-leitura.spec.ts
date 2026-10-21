@@ -70,8 +70,17 @@ const margem = (produtoId: string) => ({
 /** `sim` é a similaridade do nome todo; `palavra` (word_similarity) vale `sim` quando não é dada. */
 const dbCom = (
   linhas: Array<{ produto_id: string; nome: string; sim: number; palavra?: number; codigo_barras?: string }>,
+  confirmado?: string,
 ) =>
   ({
+    // A descrição confirmada pelo dono: select().from().where().orderBy().limit() devolve o produto do vínculo.
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          orderBy: () => ({ limit: async () => (confirmado ? [{ produtoId: confirmado }] : []) }),
+        }),
+      }),
+    }),
     execute: jest.fn(async () => ({
       rows: linhas.map((l) => ({ codigo_barras: null, ...l, palavra: l.palavra ?? l.sim })),
     })),
@@ -448,6 +457,18 @@ describe("ferramentas de leitura do plano A", () => {
       });
       expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
       expect(mock.margemDoProduto).not.toHaveBeenCalled();
+    });
+
+    it("descrição que o dono já confirmou na nota liga sozinha, com confiança 1", async () => {
+      const { mock, metricas: m } = servico();
+      const id = randomUUID();
+      const banco = dbCom([{ produto_id: id, nome: "Leite integral 1L", sim: 1 }], id);
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "leite uht" });
+      expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
+      expect(saida).toMatchObject({ confianca_da_busca: 1 });
+      expect(parametrosDe(banco.execute.mock.calls[0]?.[0])).toEqual(
+        expect.arrayContaining([id, contexto.comercianteId]),
+      );
     });
 
     it("nomes iguais voltam como candidatos distintos pelo código de barras", async () => {

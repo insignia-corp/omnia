@@ -68,7 +68,11 @@ const giroDoProduto = (id: string, extra: Partial<GiroDoProduto> = {}): GiroDoPr
   ...extra,
 });
 
-const giro = (produtos: GiroDoProduto[], altas = produtos, confianca = 1): ResultadoMetrica<Giro> =>
+const giro = (
+  produtos: GiroDoProduto[],
+  altas = produtos,
+  confianca: number | null = 1,
+): ResultadoMetrica<Giro> =>
   resultado(
     {
       periodos: { ultimos_7_dias: periodo, anteriores_28_dias: periodo },
@@ -140,6 +144,14 @@ describe("regra de reajuste de custo", () => {
     expect(candidatos).toEqual([]);
   });
 
+  it("compra com data depois da data de referência não conta", async () => {
+    const { candidatos } = await rodar(
+      regraReajusteDeCusto,
+      servicoCom([variacao({ compra_atual_data: "2026-10-20" })]),
+    );
+    expect(candidatos).toEqual([]);
+  });
+
   it("a compra de exatamente 7 dias ainda conta", async () => {
     const { candidatos } = await rodar(
       regraReajusteDeCusto,
@@ -180,6 +192,14 @@ describe("regra de margem abaixo da meta", () => {
       impactoCentavos: 7956, // preço-alvo 3720 (custo 2790 / 0,75), 221 centavos a mais x 36 unidades da semana
       metricasApoio: { margem_bps: 2026, meta_bps: 2500 },
     });
+  });
+
+  it("confiança do giro desconhecida vale como baixa quando o impacto depende dele", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: () => Promise.resolve(giro([giroDoProduto("p1")], undefined, null)),
+      margensDosProdutos: () => Promise.resolve([{ produto_id: "p1", resultado: resultado(margem(), 0.95) }]),
+    });
+    expect(candidatos[0]?.confianca).toBeNull();
   });
 
   it("sem giro o candidato sai sem impacto em reais (nunca zero) e com a confiança da margem", async () => {
@@ -225,6 +245,27 @@ describe("regra de margem abaixo da meta", () => {
 });
 
 describe("impacto até a meta de margem", () => {
+  it("preço já no preço-alvo (ou acima, por arredondamento da margem) não dá impacto negativo", async () => {
+    // Custo 2790 e meta 25%: preço-alvo 3720. Margem marcada abaixo da meta, mas o preço já é 3720.
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () =>
+        Promise.resolve([
+          { produto_id: "p1", resultado: resultado(margem({ preco_medio_venda_centavos: 3800 })) },
+        ]),
+    });
+    expect(candidatos[0]?.impactoCentavos).toBe(0);
+  });
+
+  it("meta acima de 100% não tem preço que a atinja: sem impacto", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () =>
+        Promise.resolve([{ produto_id: "p1", resultado: resultado(margem({ meta_bps: 12_000 })) }]),
+    });
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
+  });
+
   it("o preço-alvo arredonda para cima, para a meta de margem ficar garantida", async () => {
     // Custo 101 e meta 30%: 101 / 0,7 = 144,29. Com 144 a margem é 29,86%; só 145 atinge a meta.
     const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {

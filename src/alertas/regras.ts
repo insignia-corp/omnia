@@ -44,10 +44,12 @@ function mapaDoGiro(giro: ResultadoMetrica<Giro> | DadoAusente): Map<string, Gir
   return ehDadoAusente(giro) ? null : new Map(giro.valor.por_produto.map((g) => [g.produto_id, g]));
 }
 
-/** A menor das confianças conhecidas; nula quando nenhuma é conhecida. */
-function menorConhecida(...confiancas: Array<number | null>): number | null {
-  const conhecidas = confiancas.filter((c): c is number => c !== null);
-  return conhecidas.length === 0 ? null : Math.min(...conhecidas);
+/**
+ * A menor das confianças. Se alguma é desconhecida (nula), o resultado é desconhecido: o impacto
+ * depende de todas, e confiança desconhecida rebaixa a prioridade como se fosse baixa.
+ */
+function menorDasConfiancas(...confiancas: Array<number | null>): number | null {
+  return confiancas.some((c) => c === null) ? null : Math.min(...(confiancas as number[]));
 }
 
 /**
@@ -97,7 +99,7 @@ export const regraReajusteDeCusto: RegraDeAlerta = {
             )
           : null,
         // O impacto depende das vendas: com ele, vale a menor entre a confiança do custo e a do giro.
-        confianca: usaGiro ? menorConhecida(v.menor_confianca, giro.menor_confianca) : v.menor_confianca,
+        confianca: usaGiro ? menorDasConfiancas(v.menor_confianca, giro.menor_confianca) : v.menor_confianca,
         metricasApoio: {
           produto_nome: v.nome,
           variacao_bps: v.variacao_bps,
@@ -158,7 +160,7 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
             )
           : null,
         confianca: usaGiro
-          ? menorConhecida(resultado.menor_confianca, giro.menor_confianca)
+          ? menorDasConfiancas(resultado.menor_confianca, giro.menor_confianca)
           : resultado.menor_confianca,
         metricasApoio: {
           produto_nome: m.nome,
@@ -222,7 +224,7 @@ export const regraEspacoParaSubirPreco: RegraDeAlerta = {
     const confiancaDe = (produtoId: string): number | null => {
       const margem = margens.find((m) => m.produto_id === produtoId)?.resultado;
       const doProduto = !margem || ehDadoAusente(margem) ? null : margem.menor_confianca;
-      return menorConhecida(confiancaDoGiro, doProduto);
+      return menorDasConfiancas(confiancaDoGiro, doProduto);
     };
     return {
       ausentes: [],

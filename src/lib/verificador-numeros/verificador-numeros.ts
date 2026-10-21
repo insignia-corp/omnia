@@ -7,7 +7,9 @@
  * Convenções lidas nos resultados das ferramentas:
  * - chave terminada em `_centavos`: o valor também vale em reais (12990 -> 129,90);
  * - chave terminada em `_percentual`: valor já em pontos percentuais, pronto para exibir;
- * - números dentro de textos (datas "2026-10-15", nomes "Refrigerante 2L") também valem.
+ * - números dentro de textos (datas "2026-10-15", nomes "Refrigerante 2L") também valem;
+ * - identificadores não valem: valor de chave `id`, `*_id`, `*Id` (ou no plural) e UUID dentro de
+ *   texto são ignorados, porque os dígitos de um id aleatório não são números que o dono possa ouvir.
  * Ferramentas devem devolver valores já arredondados para exibição. O verificador preserva
  * sinal e valor, sem arredondar. Cardinais por extenso são bloqueados para regerar em algarismos.
  *
@@ -84,6 +86,12 @@ export function extrairNumeros(mensagem: string): NumeroEncontrado[] {
 
 const chave = (n: number): string => n.toString();
 
+/** Chave que guarda identificador: `id`, `produto_id`, `alertaId`, `alerta_ids`, `ids`. */
+const CHAVE_DE_ID = /(?:^|_)ids?$|[a-z]Ids?$/;
+
+/** UUID em qualquer posição do texto. */
+const UUID_NO_TEXTO = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
 /** Conjunto de valores que a mensagem pode citar, derivado dos resultados das ferramentas. */
 export class NumerosAutorizados {
   private readonly valores = new Set<string>();
@@ -98,11 +106,13 @@ export class NumerosAutorizados {
   }
 
   adicionarFonte(fonte: unknown, nomeChave = ""): void {
+    // Id é identificador, não número da mensagem: nem os dígitos de um UUID nem um id numérico valem.
+    if (CHAVE_DE_ID.test(nomeChave)) return;
     if (typeof fonte === "number") {
       this.adicionar(fonte);
       if (nomeChave.endsWith("_centavos") && Number.isInteger(fonte)) this.adicionar(fonte / 100);
     } else if (typeof fonte === "string") {
-      for (const n of extrairNumerosDeTexto(fonte)) this.adicionar(n);
+      for (const n of extrairNumerosDeTexto(fonte.replace(UUID_NO_TEXTO, " "))) this.adicionar(n);
     } else if (Array.isArray(fonte)) {
       for (const item of fonte) this.adicionarFonte(item, nomeChave);
     } else if (fonte !== null && typeof fonte === "object") {

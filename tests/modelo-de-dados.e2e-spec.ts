@@ -175,6 +175,8 @@ describe("modelo de dados e seed (e2e)", () => {
       expect(erro?.code).toBe("23503");
     });
 
+    // Lê o banco já migrado: vale para a imagem do banco de teste, que é recriada a cada execução da CI.
+    // Num banco local antigo, uma tabela de outra branch pode aparecer na lista; rode `npm run db:reset`.
     it("toda tabela do lojista tem comerciante_id obrigatório (regra inviolável 3)", async () => {
       const semComerciante = await consultar<{ table_name: string }>(
         `select t.table_name from information_schema.tables t

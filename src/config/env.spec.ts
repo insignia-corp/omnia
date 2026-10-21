@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { CHAVES_DO_ENV, carregarEnv } from "./env";
 
 const base = {
@@ -65,7 +66,7 @@ describe("carregarEnv", () => {
 });
 
 describe(".env.example (regra inviolável 12)", () => {
-  const linhas = readFileSync(".env.example", "utf8").split("\n");
+  const linhas = readFileSync(path.resolve(__dirname, "../../.env.example"), "utf8").split("\n");
   const valores = new Map<string, string>();
   for (const linha of linhas) {
     const achou = /^#?\s*([A-Z][A-Z0-9_]*)=(.*)$/.exec(linha);
@@ -78,8 +79,15 @@ describe(".env.example (regra inviolável 12)", () => {
 
   it("chave, token, senha ou segredo no .env.example vem vazio", () => {
     const comValor = [...valores].filter(
-      ([chave, valor]) => /KEY|TOKEN|SECRET|SENHA|PASSWORD/.test(chave) && valor.trim() !== "",
+      ([chave, valor]) => /KEY|CHAVE|TOKEN|SECRET|SENHA|PASSWORD/.test(chave) && valor.trim() !== "",
     );
     expect(comValor.map(([chave]) => chave)).toEqual([]);
+  });
+
+  it("nenhuma URL carrega usuário e senha de um servidor que não seja o local", () => {
+    // Usuário e senha de desenvolvimento em localhost (docker compose) são o padrão documentado.
+    const credencialRemota = /:\/\/[^/@\s:]+:[^/@\s]+@(?!localhost\b|127\.0\.0\.1\b)/;
+    const comCredencial = [...valores].filter(([, valor]) => credencialRemota.test(valor));
+    expect(comCredencial.map(([chave]) => chave)).toEqual([]);
   });
 });

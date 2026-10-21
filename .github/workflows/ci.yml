@@ -44,10 +44,21 @@ jobs:
       - run: npx prettier --check .
       - run: npm run typecheck
       - name: Migrações sem deriva (schema.ts contra os snapshots do drizzle)
+        shell: bash
         run: |
-          npx drizzle-kit generate
+          # drizzle-kit sai com 0 até quando falha (sem TTY, colisão de snapshots): por isso confere o texto.
+          npx drizzle-kit check </dev/null 2>&1 | tee "$RUNNER_TEMP/drizzle-check.txt" || true
+          if ! grep -q "Everything's fine" "$RUNNER_TEMP/drizzle-check.txt"; then
+            echo "::error::drizzle-kit check não aprovou os snapshots (colisão ou cadeia quebrada em drizzle/meta)."
+            exit 1
+          fi
+          npx drizzle-kit generate </dev/null 2>&1 | tee "$RUNNER_TEMP/drizzle-generate.txt" || true
+          if ! grep -q "No schema changes, nothing to migrate" "$RUNNER_TEMP/drizzle-generate.txt"; then
+            echo "::error::schema.ts mudou sem migração (rode npm run db:generate e commite o resultado) ou o drizzle-kit não conseguiu comparar (renomeação de coluna pede terminal interativo)."
+            exit 1
+          fi
           if [ -n "$(git status --porcelain -- drizzle)" ]; then
-            echo "schema.ts mudou sem migração: rode npm run db:generate e commite o resultado (ou ajuste o snapshot)."
+            echo "::error::o drizzle-kit alterou arquivos em drizzle/ mesmo sem mudança de schema."
             git status --porcelain -- drizzle
             exit 1
           fi

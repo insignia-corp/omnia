@@ -18,6 +18,6 @@ export function ferramentasPlanoA({ db }: DependenciasFerramentas): Ferramenta[]
     criarGetDailySummary(metricas),
     criarGetTopProducts(metricas),
     criarGetProductMargin(metricas, db),
-    criarGetCostChanges(metricas),
+    criarGetCostChanges(metricas, db),
   ];
 }

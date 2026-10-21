@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -5,10 +6,12 @@ import { Pool } from "pg";
 import { montarCatalogo } from "../../src/agente/ferramentas/catalogo";
 import type { ContextoSessao } from "../../src/agente/ferramentas/ferramenta";
 import { RegistroFerramentas } from "../../src/agente/ferramentas/registro-ferramentas";
+import { criarGetCostChanges } from "../../src/agente/ferramentas/plano-a/get-cost-changes";
 import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
 import { semear } from "../../src/infra/database/seed/semear";
+import type { MetricasService } from "../../src/metricas/metricas.service";
 import { NumerosAutorizados, verificarNumeros } from "../../src/lib/verificador-numeros/verificador-numeros";
 
 /**
@@ -18,6 +21,7 @@ import { NumerosAutorizados, verificarNumeros } from "../../src/lib/verificador-
 
 interface Gabarito {
   parametros: { data_referencia: string };
+  fornecedores: Array<{ id: string; nome: string }>;
   resumo_diario: {
     referencia: {
       faturamento_centavos: number;
@@ -36,6 +40,7 @@ interface Gabarito {
   }>;
   variacao_de_custo: Array<{
     produto_id: string;
+    fornecedor_id: string;
     custo_anterior_centavos: number;
     custo_atual_centavos: number;
     variacao_bps: number;
@@ -192,10 +197,57 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
         v.acima_do_limite,
       ]),
     );
+    // O nome do fornecedor é o do cadastro do comerciante da sessão.
+    const nomeEsperado = (idDoGabarito: string) =>
+      gabarito.fornecedores.find((f) => f.id === idDoGabarito)?.nome;
+    expect(
+      (saida.valor as unknown as Array<{ fornecedor_nome: string | null }>).map((v) => v.fornecedor_nome),
+    ).toEqual(gabarito.variacao_de_custo.map((v) => nomeEsperado(v.fornecedor_id)));
     const acima = await chamar(vilaNova, "get_cost_changes", { filtro: "acima_do_limite" });
     expect(
       (acima.valor as unknown as Array<{ acima_do_limite: boolean }>).every((v) => v.acima_do_limite),
     ).toBe(true);
+  });
+
+  it("isolamento: fornecedor de outro comerciante fica sem nome", async () => {
+    const [deOutro] = await db
+      .select({ id: schema.fornecedor.id })
+      .from(schema.fornecedor)
+      .where(eq(schema.fornecedor.comercianteId, vilaNova.comercianteId))
+      .limit(1);
+    const metricasFalsas = {
+      variacoesDeCusto: async () => ({
+        valor: [
+          {
+            produto_id: randomUUID(),
+            nome: "Produto",
+            fornecedor_id: deOutro!.id,
+            custo_anterior_centavos: 100,
+            custo_atual_centavos: 110,
+            compra_anterior_data: "2026-10-01",
+            compra_atual_data: "2026-10-10",
+            variacao_bps: 1000,
+            variacao_percentual: 10,
+            acima_do_limite: true,
+            recente: false,
+            menor_confianca: 1,
+          },
+        ],
+        periodo: { inicio: "2026-10-01", fim: REF },
+        n_registros: 2,
+        menor_confianca: 1,
+        origens: ["nfe"],
+      }),
+    } as unknown as MetricasService;
+    const ferramenta = criarGetCostChanges(metricasFalsas, db);
+    const doDono = (await ferramenta.executar(vilaNova, { filtro: "todos" })) as unknown as Saida;
+    const doEsquina = (await ferramenta.executar(esquina, { filtro: "todos" })) as unknown as Saida;
+    expect(
+      (doDono.valor as unknown as Array<{ fornecedor_nome: string | null }>)[0]?.fornecedor_nome,
+    ).toEqual(expect.any(String));
+    expect(
+      (doEsquina.valor as unknown as Array<{ fornecedor_nome: string | null }>)[0]?.fornecedor_nome,
+    ).toBeNull();
   });
 
   it("isolamento: nenhuma ferramenta devolve produto de outro comerciante", async () => {

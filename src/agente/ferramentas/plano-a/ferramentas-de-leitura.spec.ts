@@ -68,6 +68,12 @@ const margem = (produtoId: string) => ({
 const dbCom = (linhas: Array<{ produto_id: string; nome: string; sim: number }>) =>
   ({ execute: jest.fn(async () => ({ rows: linhas })) }) as unknown as Db & { execute: jest.Mock };
 
+/** db falso para a consulta de nomes de fornecedor: select().from().where() devolve as linhas dadas. */
+const dbDeFornecedores = (linhas: Array<{ id: string; nome: string }> = []) =>
+  ({
+    select: () => ({ from: () => ({ where: async () => linhas }) }),
+  }) as unknown as Db;
+
 const esperadoDoGiro = [giroDoProduto("Cerveja Lata", 120, 3000), giroDoProduto("Água 500ml", 90, 1500)];
 const servico = () => {
   const mock = {
@@ -96,7 +102,7 @@ describe("ferramentas de leitura do plano A", () => {
     { ferramenta: criarGetDailySummary(metricas), entrada: {} },
     { ferramenta: criarGetTopProducts(metricas), entrada: {} },
     { ferramenta: criarGetProductMargin(metricas, db), entrada: { produto: "Refrigerante" } },
-    { ferramenta: criarGetCostChanges(metricas), entrada: {} },
+    { ferramenta: criarGetCostChanges(metricas, dbDeFornecedores()), entrada: {} },
   ];
 
   it("têm os nomes do catálogo, efeito nenhum e entram no registro (sem comerciante_id no esquema)", () => {
@@ -132,7 +138,7 @@ describe("ferramentas de leitura do plano A", () => {
       criarGetDailySummary(m),
       criarGetTopProducts(m),
       criarGetProductMargin(m, banco),
-      criarGetCostChanges(m),
+      criarGetCostChanges(m, dbDeFornecedores()),
     ]);
     for (const [nome, entrada] of [
       ["get_daily_summary", {}],
@@ -186,7 +192,9 @@ describe("ferramentas de leitura do plano A", () => {
     });
 
     it("get_cost_changes: custos e variação", async () => {
-      const saida = await criarGetCostChanges(servico().metricas).executar(contexto, { filtro: "todos" });
+      const saida = await criarGetCostChanges(servico().metricas, dbDeFornecedores()).executar(contexto, {
+        filtro: "todos",
+      });
       const aut = autorizar(saida);
       expect(verificarNumeros("Subiu 20%, de R$ 20,00 para R$ 24,00.", aut).aprovado).toBe(true);
       expect(verificarNumeros("Subiu 25%.", aut).aprovado).toBe(false);
@@ -254,7 +262,7 @@ describe("ferramentas de leitura do plano A", () => {
     it("lista vazia da métrica vira dado ausente, não 'sem variação'", async () => {
       const m = { variacoesDeCusto: jest.fn(async () => metrica([])) } as unknown as MetricasService;
       for (const filtro of ["todos", "acima_do_limite", "recentes"] as const) {
-        const saida = await criarGetCostChanges(m).executar(contexto, { filtro });
+        const saida = await criarGetCostChanges(m, dbDeFornecedores()).executar(contexto, { filtro });
         expect(saida).toMatchObject({ ausente: true, codigo: "sem_variacao_calculavel" });
         expect((saida as { motivo: string }).motivo).toMatch(/não prova/);
       }
@@ -264,12 +272,28 @@ describe("ferramentas de leitura do plano A", () => {
       const m = {
         variacoesDeCusto: jest.fn(async () => metrica([variacao(false, false)])),
       } as unknown as MetricasService;
-      const saida = await criarGetCostChanges(m).executar(contexto, { filtro: "acima_do_limite" });
+      const saida = await criarGetCostChanges(m, dbDeFornecedores()).executar(contexto, {
+        filtro: "acima_do_limite",
+      });
       expect(saida).toMatchObject({ valor: [] });
     });
 
+    it("junta o nome do fornecedor do cadastro, e fica nulo sem cadastro", async () => {
+      const comNome = variacao(true, true);
+      const semNome = variacao(false, false);
+      const m = {
+        variacoesDeCusto: jest.fn(async () => metrica([comNome, semNome])),
+      } as unknown as MetricasService;
+      const saida = await criarGetCostChanges(
+        m,
+        dbDeFornecedores([{ id: comNome.fornecedor_id, nome: "Atacadão Teste" }]),
+      ).executar(contexto, { filtro: "todos" });
+      if (ehDadoAusente(saida)) throw new Error("dado ausente inesperado");
+      expect(saida.valor.map((v) => v.fornecedor_nome)).toEqual(["Atacadão Teste", null]);
+    });
+
     it("filtra pelas marcas da métrica e mantém a procedência", async () => {
-      const f = criarGetCostChanges(servico().metricas);
+      const f = criarGetCostChanges(servico().metricas, dbDeFornecedores());
       const comoMetrica = async (filtro: "todos" | "acima_do_limite" | "recentes") => {
         const saida = await f.executar(contexto, { filtro });
         if (ehDadoAusente(saida)) throw new Error("dado ausente inesperado");

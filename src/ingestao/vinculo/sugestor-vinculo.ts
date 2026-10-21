@@ -36,6 +36,17 @@ export interface ResultadoSugestao {
 
 type ProdutoCatalogo = { id: string; nome: string; unidade: string; categoria: string | null };
 
+/**
+ * JSON para dentro de `<dados>`: `<`, `>` e `&` viram escapes \u (JSON válido, que o modelo lê como os
+ * mesmos caracteres). Assim um `</dados>` vindo da nota não fecha o bloco antes da hora.
+ */
+function jsonSeguro(valor: unknown): string {
+  return JSON.stringify(valor).replace(
+    /[<>&]/g,
+    (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+}
+
 /** Tira caracteres de controle e corta: a descrição vem da nota e é dado, não instrução. */
 function limpar(texto: string): string {
   const semControle = [...texto].map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? " " : c));
@@ -71,7 +82,7 @@ export class SugestorVinculo {
     const refProduto = new Map(catalogo.map((p, n) => [`p${n + 1}`, p]));
     const usuario =
       "<dados>" +
-      JSON.stringify({
+      jsonSeguro({
         fornecedor: limpar(fornecedorNome),
         itens: [...refItem].map(([ref, i]) => ({
           ref,

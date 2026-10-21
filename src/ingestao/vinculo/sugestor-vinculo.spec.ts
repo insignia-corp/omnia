@@ -138,9 +138,11 @@ describe("SugestorVinculo", () => {
     const [pedido] = cliente.pedidos;
     expect(pedido!.sistema).toBe(carregarPromptVinculo().texto);
     expect(pedido!.sistema).not.toContain("IGNORE");
-    // O JSON escapa as aspas, então o texto da nota não consegue fechar a tag nem sair do bloco.
+    // `<` e `>` saem escapados: o texto da nota não consegue fechar a tag nem sair do bloco.
     expect(pedido!.usuario.startsWith("<dados>{")).toBe(true);
     expect(pedido!.usuario.endsWith("}</dados>")).toBe(true);
+    expect(pedido!.usuario.match(/<\/dados>/g)).toHaveLength(1);
+    expect(pedido!.usuario).toContain("\\u003c/dados\\u003e");
     expect(pedido!.usuario).not.toContain("id-arroz");
     expect(r.sugestoes.size).toBe(0);
   });

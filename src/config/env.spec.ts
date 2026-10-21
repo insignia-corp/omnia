@@ -1,4 +1,5 @@
-import { carregarEnv } from "./env";
+import { readFileSync } from "node:fs";
+import { CHAVES_DO_ENV, carregarEnv } from "./env";
 
 const base = {
   DATABASE_URL: "postgres://omnia:omnia@localhost:5432/omnia",
@@ -60,5 +61,25 @@ describe("carregarEnv", () => {
 
   it("rejeita URL de banco com protocolo errado", () => {
     expect(() => carregarEnv({ ...base, DATABASE_URL: "mysql://x@localhost/db" })).toThrow(/DATABASE_URL/);
+  });
+});
+
+describe(".env.example (regra inviolável 12)", () => {
+  const linhas = readFileSync(".env.example", "utf8").split("\n");
+  const valores = new Map<string, string>();
+  for (const linha of linhas) {
+    const achou = /^#?\s*([A-Z][A-Z0-9_]*)=(.*)$/.exec(linha);
+    if (achou?.[1]) valores.set(achou[1], achou[2] ?? "");
+  }
+
+  it("toda variável que o esquema lê aparece no .env.example", () => {
+    expect(CHAVES_DO_ENV.filter((chave) => !valores.has(chave))).toEqual([]);
+  });
+
+  it("chave, token, senha ou segredo no .env.example vem vazio", () => {
+    const comValor = [...valores].filter(
+      ([chave, valor]) => /KEY|TOKEN|SECRET|SENHA|PASSWORD/.test(chave) && valor.trim() !== "",
+    );
+    expect(comValor.map(([chave]) => chave)).toEqual([]);
   });
 });

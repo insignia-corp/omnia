@@ -329,7 +329,11 @@ export const regraGastoForaDoPadrao: RegraDeAlerta = {
           produtoId: null,
           fornecedorId: null,
           // O que o dia gastou acima da mediana, já arredondado uma vez só pela métrica.
-          impactoCentavos: g.diferenca_para_mediana_centavos,
+          impactoCentavos: impactoOuNulo(() => {
+            // A métrica faz 2 x valor para somar meios de centavo: os dois precisam caber.
+            centavos(2 * g.valor_centavos);
+            return centavos(g.diferenca_para_mediana_centavos);
+          }),
           confianca: gasto.menor_confianca,
           metricasApoio: {
             data: g.data,

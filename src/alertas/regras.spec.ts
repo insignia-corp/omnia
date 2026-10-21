@@ -458,6 +458,17 @@ describe("regra de gasto fora do padrão", () => {
     expect(candidatos[0]?.impactoCentavos).toBe(10_000);
   });
 
+  it("valor que não cabe em centavos seguros: candidato sem impacto", async () => {
+    for (const valor of [1e16, 5e15]) {
+      const { candidatos } = await rodar(regraGastoForaDoPadrao, {
+        gastoForaDoPadrao: () =>
+          Promise.resolve(gasto(54, { valor, mediana: 6093, diferenca: valor - 6093 })),
+      });
+      expect(candidatos).toHaveLength(1);
+      expect(candidatos[0]?.impactoCentavos).toBeNull();
+    }
+  });
+
   it("gera candidato com desvio acima do limite", async () => {
     const { candidatos } = await rodar(regraGastoForaDoPadrao, {
       gastoForaDoPadrao: () => Promise.resolve(gasto(54.62)),

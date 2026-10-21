@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/** Similaridade mínima (pg_trgm) para ligar sozinho; vale para a nota e para a busca de produto das ferramentas. */
+export const LIMITE_SIMILARIDADE_PADRAO = 0.45;
+
 /**
  * Esquema das variáveis de ambiente. A aplicação não sobe com configuração inválida.
  * Segredos ficam só no ambiente (regra inviolável 12); veja .env.example.
@@ -36,7 +39,7 @@ const esquemaEnv = z.object({
   // Ingestão
   LIMITE_CONFIANCA_ITEM: z.coerce.number().min(0).max(1).default(0.8),
   /** Similaridade (pg_trgm, 0 a 1) a partir da qual a descrição da nota liga sozinha a um produto. */
-  LIMITE_SIMILARIDADE: z.coerce.number().min(0).max(1).default(0.45),
+  LIMITE_SIMILARIDADE: z.coerce.number().min(0).max(1).default(LIMITE_SIMILARIDADE_PADRAO),
   EXTRATOR_MODELO: z.string().min(1).default("claude-sonnet-5-5"),
   /** Modelo que sugere o vínculo item-produto quando código de barras e similaridade falham. */
   VINCULO_MODELO: z.string().min(1).default("claude-haiku-5-5"),

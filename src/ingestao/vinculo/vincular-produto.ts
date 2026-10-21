@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Executor } from "../../infra/database/database.module";
-import { vinculoDescricaoProduto } from "../../infra/database/schema";
+import { produto, vinculoDescricaoProduto } from "../../infra/database/schema";
+import { normalizarGtin } from "../../lib/gtin/gtin";
 import { normalizarDescricao } from "../normalizar-descricao";
 
 /** Abaixo disto o candidato nem entra como sugestão: é ruído, não semelhança. */
@@ -17,8 +18,13 @@ export interface CandidatoProduto {
 }
 
 export type ResultadoVinculo =
-  /** Ligou sem perguntar: vínculo confirmado antes pelo dono, ou similaridade acima do limite. */
-  | { tipo: "vinculado"; produtoId: string; metodo: "dono" | "similaridade"; confianca: number }
+  /** Ligou sem perguntar: código de barras, vínculo confirmado antes pelo dono, ou similaridade acima do limite. */
+  | {
+      tipo: "vinculado";
+      produtoId: string;
+      metodo: "codigo_barras" | "dono" | "similaridade";
+      confianca: number;
+    }
   /** Há candidatos plausíveis, mas nenhum com certeza: o dono escolhe. */
   | { tipo: "sugestao"; candidatos: CandidatoProduto[] }
   | { tipo: "sem_candidato" };
@@ -46,10 +52,13 @@ export function decidirPorSimilaridade(candidatos: CandidatoProduto[], limite: n
 
 export interface BuscaVinculo {
   comercianteId: string;
-  fornecedorId: string;
+  /** Nulo quando o fornecedor da nota ainda não existe: só vale a memória de qualquer fornecedor. */
+  fornecedorId: string | null;
   /** Descrição como impressa na nota. */
   descricao: string;
   limiteSimilaridade: number;
+  /** Código de barras do item, quando a origem o traz (NF-e). Sem dígito verificador válido, é ignorado. */
+  codigoBarras?: string | null;
 }
 
 /** Mesmo recorte de acentos de `normalizarDescricao`, para comparar o nome do catálogo em SQL. */
@@ -59,12 +68,26 @@ const NOME_NORMALIZADO = sql.raw(
 
 /**
  * Liga a descrição de uma nota a um produto (issue #27), na ordem do guia sem o modelo:
- * 1. vínculo já confirmado pelo dono, do mesmo fornecedor e depois de qualquer fornecedor;
- * 2. similaridade `pg_trgm` contra o catálogo e contra descrições já confirmadas.
- * Tudo filtrado por `comerciante_id`. O código de barras não vem na nota de foto; entra com a NF-e (#29).
+ * 1. código de barras do item (GTIN válido) igual ao de um produto do comerciante;
+ * 2. vínculo já confirmado pelo dono, do mesmo fornecedor e depois de qualquer fornecedor;
+ * 3. similaridade `pg_trgm` contra o catálogo e contra descrições já confirmadas.
+ * Tudo filtrado por `comerciante_id`. A foto de nota não traz código de barras; a NF-e traz.
  */
 export async function buscarVinculo(db: Executor, busca: BuscaVinculo): Promise<ResultadoVinculo> {
   const descricao = normalizarDescricao(busca.descricao);
+
+  // O código identifica o produto sem ambiguidade, então vale mais que a memória do dono.
+  const gtin = normalizarGtin(busca.codigoBarras);
+  if (gtin) {
+    const [pelaEtiqueta] = await db
+      .select({ id: produto.id })
+      .from(produto)
+      .where(and(eq(produto.comercianteId, busca.comercianteId), eq(produto.codigoBarras, gtin)))
+      .limit(1);
+    if (pelaEtiqueta) {
+      return { tipo: "vinculado", produtoId: pelaEtiqueta.id, metodo: "codigo_barras", confianca: 1 };
+    }
+  }
 
   const [confirmado] = await db
     .select({ produtoId: vinculoDescricaoProduto.produtoId })
@@ -113,7 +136,7 @@ export interface NovoVinculo {
   fornecedorId: string;
   descricao: string;
   produtoId: string;
-  metodo: "similaridade" | "dono";
+  metodo: "similaridade" | "dono" | "modelo";
   confianca: number;
   confirmadoPeloDono: boolean;
 }

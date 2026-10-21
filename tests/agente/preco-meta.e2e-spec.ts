@@ -450,9 +450,7 @@ describe("ação com confirmação do dono: preço-meta (e2e)", () => {
     const loja = await criarLoja("Loja Custo");
     const modelo = new ModeloRoteirizado([
       chamar("ask_owner", { campo: "custo_unitario_produto", produto_id: loja.produtoId }, "t1"),
-      texto(
-        'Qual é o custo unitário atual de "Arroz Tipo 1 5kg"? Pode responder em reais, por exemplo 12,90.',
-      ),
+      texto('Qual é o custo unitário atual de "Arroz Tipo 1 5kg"? Pode responder em reais.'),
     ]);
     await dizer(montar(modelo), loja, "Qual a margem do arroz?");
     const [pergunta] = await db
@@ -469,7 +467,8 @@ describe("ação com confirmação do dono: preço-meta (e2e)", () => {
       chamar("save_owner_answer", {
         pergunta_id: pergunta!.id,
         campo: "custo_unitario_produto",
-        valor_centavos: 1290,
+        // O modelo repassa o que o dono escreveu; quem lê o valor e converte para centavos é o código.
+        valor_informado: "12,90",
       }),
       texto('Confirma que o custo unitário atual de "Arroz Tipo 1 5kg" é R$ 12,90? Responda sim ou não.'),
     ]);

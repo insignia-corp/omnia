@@ -2,9 +2,12 @@ import { Module } from "@nestjs/common";
 import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
 import { DB, type Db } from "../infra/database/database.module";
+import { SessaoGuard } from "../comerciante/sessao";
 import { AgenteService } from "./agente.service";
 import { ConfirmacaoDoDono, type ResolveConfirmacao } from "./confirmacao/confirmacao-dono";
 import { ConfirmacoesPostgres } from "./confirmacao/confirmacoes-postgres";
+import { CONSULTA_EXECUCOES, ConsultaExecucoesPostgres } from "./execucao/consulta-execucoes";
+import { ExecucoesController } from "./execucao/execucoes.controller";
 import {
   REGISTRO_EXECUCOES,
   RegistroExecucoesPostgres,
@@ -17,7 +20,10 @@ import { MODELO_LINGUAGEM, type ModeloLinguagem } from "./llm/modelo-linguagem";
 import { carregarPromptSistema } from "./prompts/prompt-sistema";
 
 @Module({
+  controllers: [ExecucoesController],
   providers: [
+    SessaoGuard,
+    { provide: CONSULTA_EXECUCOES, inject: [DB], useFactory: (db: Db) => new ConsultaExecucoesPostgres(db) },
     { provide: MODELO_LINGUAGEM, inject: [ENV], useFactory: (env: Env) => new ModeloAnthropic(env) },
     // Cada plano acrescenta as suas ferramentas no próprio arquivo; ver ferramentas/catalogo.ts.
     {
@@ -51,7 +57,16 @@ import { carregarPromptSistema } from "./prompts/prompt-sistema";
           ferramentas,
           registro,
           carregarPromptSistema(),
-          { maxIteracoes: env.AGENTE_MAX_ITERACOES, maxRegeracoes: env.AGENTE_MAX_REGERACOES },
+          {
+            maxIteracoes: env.AGENTE_MAX_ITERACOES,
+            maxRegeracoes: env.AGENTE_MAX_REGERACOES,
+            maxMs: env.AGENTE_TIMEOUT_MS,
+            esforcoPorGatilho: {
+              mensagem_dono: env.LLM_ESFORCO_CONVERSA,
+              relatorio_diario: env.LLM_ESFORCO,
+              nota_processada: env.LLM_ESFORCO,
+            },
+          },
           confirmacao,
         ),
     },

@@ -10,13 +10,19 @@ import type { ModeloLinguagem, PedidoModelo } from "./modelo-linguagem";
  * - `fallbacks: "default"`: se o modelo recusar por um classificador de segurança, a API
  *   refaz o pedido em outro modelo, dentro da mesma chamada.
  * - `cache_control` no topo: ferramentas e prompt de sistema estáveis ficam em cache.
- * - O SDK já repete 429, 5xx e erros de conexão; o timeout vem do .env.
+ * - O SDK repete 408, 409, 429, 5xx e erros de conexão com espera exponencial (`LLM_MAX_RETRIES`);
+ *   o timeout vem do .env. Esgotadas as tentativas o erro sobe e o loop responde com o fallback.
  */
 export class ModeloAnthropic implements ModeloLinguagem {
   private cliente: Anthropic | undefined;
 
   constructor(
-    private readonly env: Pick<Env, "ANTHROPIC_API_KEY" | "LLM_MODELO" | "LLM_ESFORCO" | "LLM_TIMEOUT_MS">,
+    private readonly env: Pick<
+      Env,
+      "ANTHROPIC_API_KEY" | "LLM_MODELO" | "LLM_ESFORCO" | "LLM_TIMEOUT_MS" | "LLM_MAX_RETRIES"
+    >,
+    /** Só os testes trocam o `fetch`, para simular falhas da API sem rede. */
+    private readonly fetchPersonalizado?: typeof fetch,
   ) {}
 
   get nome(): string {
@@ -28,18 +34,22 @@ export class ModeloAnthropic implements ModeloLinguagem {
     this.cliente ??= new Anthropic({
       ...(this.env.ANTHROPIC_API_KEY ? { apiKey: this.env.ANTHROPIC_API_KEY } : {}),
       timeout: this.env.LLM_TIMEOUT_MS,
-      maxRetries: 2,
+      maxRetries: this.env.LLM_MAX_RETRIES,
+      ...(this.fetchPersonalizado ? { fetch: this.fetchPersonalizado } : {}),
     });
-    return this.cliente.beta.messages.create({
-      model: this.env.LLM_MODELO,
-      max_tokens: 16000,
-      system: pedido.system,
-      messages: pedido.messages,
-      tools: pedido.tools,
-      output_config: { effort: this.env.LLM_ESFORCO },
-      cache_control: { type: "ephemeral" },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-    });
+    return this.cliente.beta.messages.create(
+      {
+        model: this.env.LLM_MODELO,
+        max_tokens: 16000,
+        system: pedido.system,
+        messages: pedido.messages,
+        tools: pedido.tools,
+        output_config: { effort: pedido.esforco ?? this.env.LLM_ESFORCO },
+        cache_control: { type: "ephemeral" },
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+      },
+      pedido.signal ? { signal: pedido.signal } : {},
+    );
   }
 }

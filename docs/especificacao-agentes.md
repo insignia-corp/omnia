@@ -99,7 +99,7 @@ Decisões do orquestrador:
 | Entrada | `ContextoSessao` montado pelo código (comerciante, nome do comércio, data de referência) e o texto do gatilho, com a mensagem do dono entre `<mensagem_do_dono>` |
 | Saída | Texto para o canal, já aprovado pelo verificador, ou um fallback sem números. Mais a escolha dos alertas registrada em `select_alerts` |
 | Modelo | Padrão proposto `claude-sonnet-5-5`; `claude-opus-5-5` só se o eval mostrar ganho. Hoje o padrão em `env.ts` é o Opus (decisão 0002); trocar é uma mudança de código listada na seção 9 |
-| Esforço | `low` na conversa e `medium` no relatório diário (**novo**: hoje `LLM_ESFORCO` é único) |
+| Esforço | `low` na conversa (`LLM_ESFORCO_CONVERSA`) e `medium` no relatório diário e na nota processada (`LLM_ESFORCO`); feito em `AgenteService` por gatilho |
 | Limites | `AGENTE_MAX_ITERACOES` (8) e `AGENTE_MAX_REGERACOES` (2) |
 
 **Como decide.**
@@ -125,7 +125,7 @@ Decisões do orquestrador:
 
 `send_message`, que o guia listava como ferramenta, **não é ferramenta** nesta arquitetura: o envio é feito pelo canal depois do verificador, e o `AgenteService` já devolve a mensagem pronta (`RespostaAgente`). Deixar o modelo enviar abriria um caminho que pula o verificador.
 
-**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A versão v2 acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; pedir confirmação só por `propose_target_price`. A versão fica gravada em cada execução.
+**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado, e número dito antes não vale sem buscar de novo. A `sistema-v3.md` (padrão) acrescenta: o preço-meta só muda por `propose_target_price` e pelo "sim" do dono (#104), e `ask_owner` e `save_owner_answer` cobrem o dado que só o dono sabe (#53). Cada versão é imutável depois de usada: mudar o comportamento é criar a seguinte, e a versão fica gravada em cada execução.
 
 **Falhas e comportamento.**
 
@@ -184,13 +184,13 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 
 | Mudança | Onde | Issue |
 | --- | --- | --- |
-| Padrão do modelo para `claude-sonnet-5-5` e esforço por gatilho | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
+| Esforço por gatilho (feito) e padrão do modelo para `claude-sonnet-5-5` (falta: só depois do eval #74) | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
 | Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
-| Ferramentas P0 e `select_alerts` | `src/agente/ferramentas/` | #50 a #53 |
-| `propose_target_price`, `historico_preco_meta` (migração 0009) e resolução do "sim" em código (feito) | `src/agente/confirmacao/`, `src/agente/ferramentas/`, `src/infra/database/schema.ts` | #104 |
+| Ferramentas P0 (`select_alerts` feito em `select-alerts.ts`; leitura são do plano A) | `src/agente/ferramentas/` | #50 a #53 |
+| `propose_target_price`, `historico_preco_meta` (migração `0008_historico_preco_meta`) e resolução do "sim" em código (feito) | `src/agente/confirmacao/`, `src/agente/ferramentas/`, `src/infra/database/schema.ts` | #104 |
 | Motor de alertas com impacto mensal em centavos e prioridade | `src/alertas/` | #43, #44 |
 | Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
-| Prompt `sistema-v2.md` | `src/agente/prompts/` | #54 |
+| Prompts `sistema-v2.md` e `sistema-v3.md` (feitos) | `src/agente/prompts/` | #54, #55, #104 |
 | Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |
 
 ## 10. Caminho de evolução: especialistas como ferramentas

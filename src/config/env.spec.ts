@@ -18,8 +18,21 @@ describe("carregarEnv", () => {
     const env = carregarEnv(base);
     expect(env.LIMITE_SIMILARIDADE).toBe(0.45);
     expect(env.EXTRATOR_MODELO).toBe("claude-sonnet-5-5");
+    expect(env.VINCULO_MODELO).toBe("claude-haiku-5-5");
     expect(env.ARMAZENAMENTO_DIR).toBe("./.dados/arquivos");
     expect(env.UPLOAD_MAX_BYTES).toBe(10_485_760);
+  });
+
+  it("aplica os padrões do relatório diário", () => {
+    const env = carregarEnv(base);
+    expect(env.FUSO_HORARIO).toBe("America/Sao_Paulo");
+    expect(env.RELATORIO_DIARIO_CRON).toBe("0 8 * * *");
+    expect(env.SILENCIO_INICIO).toBe("22:00");
+    expect(env.SILENCIO_FIM).toBe("07:00");
+  });
+
+  it("recusa horário de silêncio fora do formato HH:MM", () => {
+    expect(() => carregarEnv({ ...base, SILENCIO_INICIO: "25:00" })).toThrow(/SILENCIO_INICIO/);
   });
 
   it("trata variável vazia como não definida", () => {

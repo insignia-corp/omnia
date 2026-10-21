@@ -64,6 +64,7 @@ export const gatilhoExecucao = pgEnum("gatilho_execucao", [
   "mensagem_dono",
   "nota_processada",
   "extracao_nota",
+  "vinculo_produto",
 ]);
 export const resultadoExecucao = pgEnum("resultado_execucao", [
   "aprovada",

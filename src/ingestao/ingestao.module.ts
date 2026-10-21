@@ -18,6 +18,9 @@ import { PlanilhasController } from "./planilhas.controller";
 import { PlanilhasService } from "./planilhas.service";
 import { FilaExtracao, PROCESSADOR_EXTRACAO } from "./fila/fila-extracao";
 import { ProcessadorExtracao } from "./processador-extracao";
+import { ClienteSugestaoAnthropic } from "./vinculo/cliente-sugestao-anthropic";
+import { carregarPromptVinculo } from "./vinculo/prompt-vinculo";
+import { SugestorVinculo } from "./vinculo/sugestor-vinculo";
 
 export const CLIENTE_VISAO = Symbol("CLIENTE_VISAO");
 
@@ -63,8 +66,23 @@ export const CLIENTE_VISAO = Symbol("CLIENTE_VISAO");
           limiteConfiancaItem: env.LIMITE_CONFIANCA_ITEM,
           limiteSimilaridade: env.LIMITE_SIMILARIDADE,
           modeloConfigurado: env.EXTRATOR_MODELO,
+          // Sem chave não há como sugerir: a nota segue só com a pergunta ao dono.
+          ...(env.ANTHROPIC_API_KEY
+            ? {
+                sugestor: new SugestorVinculo(
+                  new ClienteSugestaoAnthropic({
+                    apiKey: env.ANTHROPIC_API_KEY,
+                    modelo: env.VINCULO_MODELO,
+                    timeoutMs: env.LLM_TIMEOUT_MS,
+                  }),
+                  carregarPromptVinculo(),
+                  { modeloConfigurado: env.VINCULO_MODELO },
+                ),
+              }
+            : {}),
         }),
     },
   ],
+  exports: [DocumentosService],
 })
 export class IngestaoModule {}

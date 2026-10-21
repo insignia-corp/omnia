@@ -1,4 +1,4 @@
-import { cnpjValido } from "../../lib/cnpj/cnpj";
+import { identificadorValido } from "../../lib/cnpj/cnpj";
 import { centavos, multiplicar, somar } from "../../lib/dinheiro/dinheiro";
 import { LIMITE_CONFIANCA_ITEM, type ExtracaoNota } from "../extracao/esquema-extracao";
 
@@ -33,6 +33,11 @@ export interface OpcoesValidacao {
   hoje: string;
   limiteConfiancaItem?: number;
   toleranciaSomaCentavos?: number;
+  /**
+   * Posições (a partir de 1) de itens cuja conta quantidade x unitário já foi conferida na origem com
+   * o unitário exato (NF-e traz até 10 casas, e o arredondamento a centavos distorce a conta).
+   */
+  itensConferidosNaOrigem?: ReadonlySet<number>;
 }
 
 export interface NotaValidada {
@@ -86,6 +91,7 @@ export function validarNota(entrada: ExtracaoNota, opcoes: OpcoesValidacao): Not
     const item = { ...original, quantidade: quantidadeGravavel(original.quantidade) };
     const esperado = multiplicar(centavos(item.valor_unitario_centavos), item.quantidade);
     if (Math.abs(esperado - item.valor_total_centavos) <= TOLERANCIA_ITEM_CENTAVOS) return item;
+    if (opcoes.itensConferidosNaOrigem?.has(indice + 1)) return item;
     motivos.push({
       codigo: "item_nao_confere",
       item: indice + 1,
@@ -103,8 +109,11 @@ export function validarNota(entrada: ExtracaoNota, opcoes: OpcoesValidacao): Not
     reduzirDocumento();
   }
 
-  if (!cnpjValido(entrada.fornecedor.cnpj)) {
-    motivos.push({ codigo: "cnpj_invalido", mensagem: "CNPJ do fornecedor com dígito verificador inválido" });
+  if (!identificadorValido(entrada.fornecedor.cnpj)) {
+    motivos.push({
+      codigo: "cnpj_invalido",
+      mensagem: "CNPJ ou CPF do fornecedor com dígito verificador inválido",
+    });
     reduzirDocumento();
   }
 

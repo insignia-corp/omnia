@@ -1,6 +1,6 @@
 {
-  "id": "d5aa3293-2c9c-4eac-9071-65cc62948ed0",
-  "prevId": "7f6c18af-62b6-4411-b76c-402c1e7884a0",
+  "id": "99f22bc3-993a-4bce-a93b-ab64a1251dc0",
+  "prevId": "b96fb8a1-4298-4137-bb9e-0452af71a93f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2999,7 +2999,8 @@
         "relatorio_diario",
         "mensagem_dono",
         "nota_processada",
-        "extracao_nota"
+        "extracao_nota",
+        "vinculo_produto"
       ]
     },
     "public.metodo_vinculo": {

@@ -111,6 +111,18 @@ Cada métrica é uma função pura em TypeScript, com testes unitários, que dev
 A margem usa o custo da compra mais recente porque é o que a reposição vai custar. Sem dado de estoque, o giro vira um ranking de quantidade vendida; estoque parado só funciona com PDV ou planilha de estoque.
  
 O motor de alertas apenas lista candidatos com prioridade. Quem decide o que entra na mensagem do dia é o agente, e quem calcula cada número é a função.
+
+O código aplica estas regras além da tabela. Os valores iniciais ficam nas constantes `PARAMETROS_*` de [src/metricas](../src/metricas/README.md), e o teste de regressão confere que são os do gabarito.
+
+- Sem custo ou sem venda a margem não sai: a métrica devolve dado ausente, com a pergunta ao dono, nunca uma estimativa.
+- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio, gasto fora do padrão) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. No resumo, o extrato tem o próprio intervalo: sem extrato para o dia, `gastos_centavos` e `saldo_do_dia_centavos` são dado ausente. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias.
+- Venda de planilha cuja importação ainda pede revisão do dono (documento fora de `extraido`) entra nas métricas com confiança 0,5, não 1; volta ao valor original quando o documento é resolvido.
+- O custo de cada item de compra vale pela leitura mais recente de `historico_custo`, então a correção do dono prevalece sem apagar a leitura do modelo. O custo mais recente de um produto é o de maior data; o empate desempata pela criação.
+- A variação de custo compara notas diferentes: duas linhas do mesmo produto na mesma nota não são um reajuste.
+- Razões em pontos-base e preço médio arredondam meio para cima, afastando do zero. Somas de quantidade são arredondadas em 3 casas, para o ruído de ponto flutuante não decidir um limite.
+- Mediana e desvio absoluto mediano são calculados em inteiros (meios e quartos de centavo) e saem em centavos inteiros; o desvio sai exato.
+- Nos rankings, o desempate é pelo nome em ordem alfabética do português e depois pelo id.
+- Produto nunca comprado ou nunca vendido na base fica fora do estoque parado: sem compra não há estoque a parar, e sem a última venda não há como medir os dias.
  
 ## O agente
  
@@ -123,8 +135,8 @@ O agente é um modelo de linguagem com chamada de ferramentas (tool use), rodand
 | `get_product_margin` | produto, período | Margem, custo, preço e confiança | Nenhum |
 | `get_cost_changes` | período | Reajustes por produto e fornecedor | Nenhum |
 | `list_alert_candidates` | data | Candidatos a alerta com prioridade e métricas de apoio | Nenhum |
-| `ask_owner` | campo, produto | Registra a pergunta pendente e devolve `pergunta_id` e o texto; o envio é do canal | Grava a pergunta |
-| `save_owner_answer` | pergunta, campo, valor em centavos | Grava o dado informado como linha nova do histórico, com origem "dono" e confiança 1 | Escreve no banco, só depois de o dono confirmar |
+| `ask_owner` | campo, produto, fornecedor (quando há mais de um) | Registra a pergunta pendente e devolve `pergunta_id` e o texto, sem valor de exemplo; o envio é do canal | Grava a pergunta |
+| `save_owner_answer` | campo, valor como o dono escreveu, pergunta (só se houver mais de uma pendente) | O código lê o valor em centavos e grava linha nova do histórico, com origem "dono" e confiança 1, ligada ao fornecedor da pergunta | Escreve no banco, só depois de o dono confirmar |
  
 A execução diária segue este roteiro: o job dispara, o agente chama `list_alert_candidates`, escolhe até 3 alertas, busca o detalhe de cada um, escreve a mensagem e a devolve. O verificador confere os números e só então o canal envia e registra o custo (`send_message` não é ferramenta: ver `docs/especificacao-agentes.md` seção 4).
  

@@ -71,4 +71,4 @@ Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem
 
 ## Pendente nesta etapa
 
-Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso de falha só sai pelo chat web; no WhatsApp ele depende de a nota entrar pela conversa (#66). O estado continua em `documento.status` e `documento.erro`.
+Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso de falha só sai pelo chat web; no WhatsApp ele depende de a foto chegar pela conversa (#63). O estado continua em `documento.status` e `documento.erro`.

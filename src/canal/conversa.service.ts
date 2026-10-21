@@ -10,10 +10,6 @@ import { MESSAGE_CHANNEL, type MessageChannel } from "./message-channel";
 import { PORTA_AGENTE, type PortaAgente } from "./porta-agente";
 import { dataLocal, RELOGIO, type Relogio } from "./relogio";
 
-/**
- * Modo conversa: mensagem do dono entra, o agente responde, a resposta sai pelo canal. O
- * `comercianteId` vem da sessão (ou do remetente já resolvido pelo canal), nunca do modelo.
- */
 /** Aviso fixo, sem números e sem texto do modelo (regra 1): a leitura da nota falhou de vez. */
 export const TEXTO_FALHA_NOTA =
   "Não consegui ler esta nota. Pode mandar outra foto, com a nota inteira, reta e bem iluminada?";
@@ -22,6 +18,10 @@ const INTERVALO_ESPERA_MS = 250;
 /** Folga sobre o tempo limite do modelo para a primeira chamada gravar a resposta. */
 const ESPERA_FOLGA_MS = 5_000;
 
+/**
+ * Modo conversa: mensagem do dono entra, o agente responde, a resposta sai pelo canal. O
+ * `comercianteId` vem da sessão (ou do remetente já resolvido pelo canal), nunca do modelo.
+ */
 @Injectable()
 export class ConversaService implements OnModuleInit {
   constructor(

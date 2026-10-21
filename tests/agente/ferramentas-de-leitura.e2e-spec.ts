@@ -1,0 +1,222 @@
+import { readFileSync } from "node:fs";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import { montarCatalogo } from "../../src/agente/ferramentas/catalogo";
+import type { ContextoSessao } from "../../src/agente/ferramentas/ferramenta";
+import { RegistroFerramentas } from "../../src/agente/ferramentas/registro-ferramentas";
+import { carregarEnv } from "../../src/config/env";
+import { migrar } from "../../src/infra/database/migrar";
+import * as schema from "../../src/infra/database/schema";
+import { semear } from "../../src/infra/database/seed/semear";
+import { NumerosAutorizados, verificarNumeros } from "../../src/lib/verificador-numeros/verificador-numeros";
+
+/**
+ * As ferramentas de leitura do plano A (issues #50 e #51) pelo registro, como o agente as chama,
+ * contra o seed e o gabarito das métricas (fixtures/gabarito/metricas.json).
+ */
+
+interface Gabarito {
+  parametros: { data_referencia: string };
+  resumo_diario: {
+    referencia: {
+      faturamento_centavos: number;
+      gastos_centavos: number;
+      saldo_do_dia_centavos: number;
+      cupons: number;
+    };
+  };
+  margem_por_produto: Array<{
+    produto_id: string;
+    nome: string;
+    situacao: string;
+    margem_bps: number | null;
+    preco_medio_venda_centavos: number | null;
+    custo_compra_mais_recente_centavos: number | null;
+  }>;
+  variacao_de_custo: Array<{
+    produto_id: string;
+    custo_anterior_centavos: number;
+    custo_atual_centavos: number;
+    variacao_bps: number;
+    acima_do_limite: boolean;
+  }>;
+  giro: {
+    maior_alta: Array<{ produto_id: string; alta_bps: number | null }>;
+    maior_volume: Array<{ produto_id: string; unidades_7_dias: number }>;
+  };
+}
+
+const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf8")) as Gabarito;
+const REF = gabarito.parametros.data_referencia;
+
+/** O que o teste lê da saída: valor da métrica, dado ausente ou lista de candidatos. */
+interface Saida {
+  valor: Record<string, unknown>;
+  menor_confianca?: number | null;
+  ausente?: true;
+  ambiguo?: true;
+  codigo?: string;
+  candidatos?: Array<{ nome: string }>;
+}
+
+describe("ferramentas de leitura do plano A (e2e)", () => {
+  const url = carregarEnv().DATABASE_URL;
+  const pool = new Pool({ connectionString: url, max: 4 });
+  const db = drizzle(pool, { schema });
+  const registro = new RegistroFerramentas(montarCatalogo({ db }));
+
+  let vilaNova: ContextoSessao;
+  let esquina: ContextoSessao;
+  const skuPorProduto = new Map<string, string>();
+
+  const chamar = async (contexto: ContextoSessao, nome: string, entrada: unknown) => {
+    const r = await registro.executar(contexto, nome, entrada);
+    if (!r.ok) throw new Error(r.erro);
+    return r.saida as Saida;
+  };
+
+  beforeAll(async () => {
+    await migrar(url);
+    const resumo = await semear(db);
+    const contextoDe = (nome: string): ContextoSessao => {
+      const linha = resumo.find((r) => r.comerciante === nome);
+      if (!linha) throw new Error(`Comerciante ${nome} não está no seed`);
+      return { comercianteId: linha.comercianteId, nomeComercio: nome, dataReferencia: REF };
+    };
+    vilaNova = contextoDe("Mercadinho Vila Nova");
+    esquina = contextoDe("Conveniência Esquina 24h");
+    const produtos = await db
+      .select({ id: schema.produto.id, sku: schema.produto.sku })
+      .from(schema.produto)
+      .where(eq(schema.produto.comercianteId, vilaNova.comercianteId));
+    for (const p of produtos) if (p.sku) skuPorProduto.set(p.id, p.sku);
+  });
+
+  afterAll(() => pool.end());
+
+  it("o catálogo registra as quatro ferramentas de leitura", () => {
+    expect(registro.nomes).toEqual(
+      expect.arrayContaining([
+        "get_daily_summary",
+        "get_top_products",
+        "get_product_margin",
+        "get_cost_changes",
+      ]),
+    );
+  });
+
+  it("get_daily_summary devolve os números do gabarito, e o verificador os aceita", async () => {
+    const saida = await chamar(vilaNova, "get_daily_summary", {});
+    const esperado = gabarito.resumo_diario.referencia;
+    expect(saida.valor).toMatchObject({
+      data: REF,
+      faturamento_centavos: esperado.faturamento_centavos,
+      gastos_centavos: esperado.gastos_centavos,
+      saldo_do_dia_centavos: esperado.saldo_do_dia_centavos,
+      cupons: esperado.cupons,
+    });
+    const mensagem = "Você faturou R$ 1.221,51 em 78 cupons e gastou R$ 1.015,34.";
+    expect(verificarNumeros(mensagem, new NumerosAutorizados([saida])).aprovado).toBe(true);
+    expect(verificarNumeros("Você faturou R$ 1.300,00.", new NumerosAutorizados([saida])).aprovado).toBe(
+      false,
+    );
+  });
+
+  it("get_daily_summary de um dia sem dados devolve dado ausente, não zero", async () => {
+    const saida = await chamar(vilaNova, "get_daily_summary", { data: "2020-01-01" });
+    expect(saida.ausente).toBe(true);
+  });
+
+  it("get_top_products devolve os rankings do gabarito", async () => {
+    const volume = await chamar(vilaNova, "get_top_products", { criterio: "volume" });
+    const produtosVolume = volume.valor.produtos as Array<{ produto_id: string; unidades_7_dias: number }>;
+    expect(produtosVolume.map((p) => [skuPorProduto.get(p.produto_id), p.unidades_7_dias])).toEqual(
+      gabarito.giro.maior_volume.map((p) => [p.produto_id, p.unidades_7_dias]),
+    );
+    const alta = await chamar(vilaNova, "get_top_products", { criterio: "alta" });
+    const produtosAlta = alta.valor.produtos as Array<{ produto_id: string; alta_bps: number | null }>;
+    expect(produtosAlta.map((p) => [skuPorProduto.get(p.produto_id), p.alta_bps])).toEqual(
+      gabarito.giro.maior_alta.map((p) => [p.produto_id, p.alta_bps]),
+    );
+  });
+
+  it("get_product_margin acha o produto pelo nome aproximado e bate com o gabarito", async () => {
+    const esperado = gabarito.margem_por_produto.find((m) => m.nome === "Refrigerante cola 2L");
+    expect(esperado?.situacao).toBe("ok");
+    for (const nome of ["Refrigerante cola 2L", "refrigerante cola 2 l", "REFRIGERANTE COLA"]) {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: nome });
+      expect(saida.valor).toMatchObject({
+        nome: "Refrigerante cola 2L",
+        margem_bps: esperado?.margem_bps,
+        preco_medio_venda_centavos: esperado?.preco_medio_venda_centavos,
+        custo_compra_mais_recente_centavos: esperado?.custo_compra_mais_recente_centavos,
+      });
+      expect(saida.menor_confianca).toEqual(expect.any(Number));
+    }
+  });
+
+  it("get_product_margin: nome sem parecido é dado ausente e nome vago traz candidatos", async () => {
+    const nada = await chamar(vilaNova, "get_product_margin", { produto: "Zzzzzz Qqqqq" });
+    expect(nada).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+    const vago = await chamar(vilaNova, "get_product_margin", { produto: "Refrigerante" });
+    expect(vago.ambiguo).toBe(true);
+    expect((vago.candidatos ?? []).map((c) => c.nome)).toEqual(
+      expect.arrayContaining(["Refrigerante cola 2L", "Refrigerante guaraná 2L"]),
+    );
+  });
+
+  it("get_cost_changes devolve as variações do gabarito", async () => {
+    const saida = await chamar(vilaNova, "get_cost_changes", {});
+    const valor = saida.valor as unknown as Array<{
+      produto_id: string;
+      custo_anterior_centavos: number;
+      custo_atual_centavos: number;
+      variacao_bps: number;
+      acima_do_limite: boolean;
+    }>;
+    expect(
+      valor.map((v) => [
+        skuPorProduto.get(v.produto_id),
+        v.custo_anterior_centavos,
+        v.custo_atual_centavos,
+        v.variacao_bps,
+        v.acima_do_limite,
+      ]),
+    ).toEqual(
+      gabarito.variacao_de_custo.map((v) => [
+        v.produto_id,
+        v.custo_anterior_centavos,
+        v.custo_atual_centavos,
+        v.variacao_bps,
+        v.acima_do_limite,
+      ]),
+    );
+    const acima = await chamar(vilaNova, "get_cost_changes", { filtro: "acima_do_limite" });
+    expect(
+      (acima.valor as unknown as Array<{ acima_do_limite: boolean }>).every((v) => v.acima_do_limite),
+    ).toBe(true);
+  });
+
+  it("isolamento: nenhuma ferramenta devolve produto de outro comerciante", async () => {
+    const doEsquina = new Set(
+      (
+        await db
+          .select({ id: schema.produto.id })
+          .from(schema.produto)
+          .where(eq(schema.produto.comercianteId, esquina.comercianteId))
+      ).map((p) => p.id),
+    );
+    const resultados = [
+      await chamar(esquina, "get_top_products", { criterio: "volume" }),
+      await chamar(esquina, "get_cost_changes", {}),
+      await chamar(esquina, "get_product_margin", { produto: "Refrigerante cola 2L" }),
+    ];
+    const ids =
+      JSON.stringify(resultados).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [];
+    const proprios = new Set(skuPorProduto.keys());
+    for (const id of ids) {
+      if (proprios.has(id)) expect(doEsquina.has(id)).toBe(true);
+    }
+  });
+});

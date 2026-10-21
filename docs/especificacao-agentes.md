@@ -99,7 +99,7 @@ Decisões do orquestrador:
 | Entrada | `ContextoSessao` montado pelo código (comerciante, nome do comércio, data de referência) e o texto do gatilho, com a mensagem do dono entre `<mensagem_do_dono>` |
 | Saída | Texto para o canal, já aprovado pelo verificador, ou um fallback sem números. Mais a escolha dos alertas registrada em `select_alerts` |
 | Modelo | Padrão proposto `claude-sonnet-5-5`; `claude-opus-5-5` só se o eval mostrar ganho. Hoje o padrão em `env.ts` é o Opus (decisão 0002); trocar é uma mudança de código listada na seção 9 |
-| Esforço | `low` na conversa e `medium` no relatório diário (**novo**: hoje `LLM_ESFORCO` é único) |
+| Esforço | `low` na conversa (`LLM_ESFORCO_CONVERSA`) e `medium` no relatório diário e na nota processada (`LLM_ESFORCO`); feito em `AgenteService` por gatilho |
 | Limites | `AGENTE_MAX_ITERACOES` (8) e `AGENTE_MAX_REGERACOES` (2) |
 
 **Como decide.**
@@ -184,7 +184,7 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 
 | Mudança | Onde | Issue |
 | --- | --- | --- |
-| Padrão do modelo para `claude-sonnet-5-5` e esforço por gatilho | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
+| Esforço por gatilho (feito) e padrão do modelo para `claude-sonnet-5-5` (falta: só depois do eval #74) | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
 | Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
 | Ferramentas P0 e `select_alerts` | `src/agente/ferramentas/` | #50 a #53 |
 | `propose_target_price`, tabela `confirmacao_pendente` e resolução do "sim" em código | `src/agente/`, `src/infra/database/schema.ts` | #104 |

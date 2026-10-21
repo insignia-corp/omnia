@@ -23,7 +23,9 @@ import {
   acumularConsumo,
   consumoZerado,
   custoMicrodolares,
+  temPreco,
   type ConsumoTokens,
+  type Esforco,
   type ModeloLinguagem,
 } from "./llm/modelo-linguagem";
 import type { PromptSistema } from "./prompts/prompt-sistema";
@@ -45,6 +47,8 @@ export interface RespostaAgente {
 export interface LimitesAgente {
   maxIteracoes: number;
   maxRegeracoes: number;
+  /** Esforço do modelo por gatilho (conversa curta, relatório mais cuidadoso); sem entrada, vale o padrão. */
+  esforcoPorGatilho?: Partial<Record<Gatilho, Esforco>>;
 }
 
 /** Mensagens de fallback seguro: nunca contêm números. */
@@ -89,6 +93,7 @@ export class AgenteService {
     const messages: BetaMessageParam[] = [{ role: "user", content: montarEntrada(pedido) }];
     const system = this.prompt.renderizar({ nomeComercio: contexto.nomeComercio });
     const tools = this.ferramentas.definicoesParaModelo();
+    const esforco = this.limites.esforcoPorGatilho?.[pedido.gatilho];
 
     let resultado: ResultadoExecucao = "fallback_erro";
     let mensagem: string = FALLBACK.erro;
@@ -100,7 +105,12 @@ export class AgenteService {
     try {
       while (iteracoes < this.limites.maxIteracoes) {
         iteracoes++;
-        const resposta: BetaMessage = await this.modelo.gerar({ system, messages, tools });
+        const resposta: BetaMessage = await this.modelo.gerar({
+          system,
+          messages,
+          tools,
+          ...(esforco ? { esforco } : {}),
+        });
         const consumoDoModelo = consumoPorModelo.get(resposta.model) ?? consumoZerado();
         acumularConsumo(consumoDoModelo, resposta.usage);
         consumoPorModelo.set(resposta.model, consumoDoModelo);
@@ -175,6 +185,11 @@ export class AgenteService {
 
     const consumo = [...consumoPorModelo.values()].reduce(somarConsumo, consumoZerado());
     const modelos = consumoPorModelo.size > 0 ? [...consumoPorModelo.keys()] : [this.modelo.nome];
+    for (const nome of modelos) {
+      if (!temPreco(nome)) {
+        this.logger.warn(`Modelo "${nome}" sem preço cadastrado: custo da execução registrado como 0`);
+      }
+    }
     const custoEstimadoMicrodolares = [...consumoPorModelo].reduce(
       (total, [nome, c]) => total + custoMicrodolares(nome, c),
       0,

@@ -15,8 +15,13 @@ const esquemaEnv = z.object({
   // Agente e modelo de linguagem
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   LLM_MODELO: z.string().min(1).default("claude-opus-5-5"),
+  /** Esforço do modelo no relatório diário e na nota processada. */
   LLM_ESFORCO: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
+  /** Esforço na conversa com o dono: resposta curta, latência menor (especificação dos agentes, seção 4). */
+  LLM_ESFORCO_CONVERSA: z.enum(["low", "medium", "high", "xhigh", "max"]).default("low"),
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  /** Novas tentativas do SDK em 408, 409, 429, 5xx e erro de conexão, com espera exponencial. */
+  LLM_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
   AGENTE_MAX_ITERACOES: z.coerce.number().int().min(1).max(20).default(8),
   AGENTE_MAX_REGERACOES: z.coerce.number().int().min(0).max(5).default(2),
 

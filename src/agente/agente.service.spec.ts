@@ -4,11 +4,13 @@ import type {
   BetaStopReason,
 } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import { z } from "zod";
+import { dadoAusente } from "../metricas/resultado-metrica";
+import { NumerosAutorizados, verificarNumeros } from "../lib/verificador-numeros/verificador-numeros";
 import { AgenteService, FALLBACK } from "./agente.service";
 import { RegistroExecucoesMemoria } from "./execucao/registro-execucoes";
-import { definirFerramenta, type ContextoSessao } from "./ferramentas/ferramenta";
+import { definirFerramenta, type ContextoSessao, type Ferramenta } from "./ferramentas/ferramenta";
 import { RegistroFerramentas } from "./ferramentas/registro-ferramentas";
-import type { ModeloLinguagem, PedidoModelo } from "./llm/modelo-linguagem";
+import type { Esforco, ModeloLinguagem, PedidoModelo } from "./llm/modelo-linguagem";
 import { carregarPromptSistema } from "./prompts/prompt-sistema";
 
 const contexto: ContextoSessao = {
@@ -274,5 +276,128 @@ describe("AgenteService", () => {
     expect(primeira).toContain("<conteudo_de_documento>");
     expect(primeira.match(/<\/conteudo_de_documento>/g)).toHaveLength(1);
     expect(primeira.trim().endsWith("</conteudo_de_documento>")).toBe(true);
+  });
+});
+
+const custoSemDado = definirFerramenta({
+  nome: "get_product_margin",
+  descricao: "Margem de um produto.",
+  entrada: z.strictObject({ produto: z.string() }),
+  efeito: "nenhum",
+  executar: async () => dadoAusente("Produto sem nota de compra", "Qual o custo do produto?"),
+});
+
+function criarCom(
+  respostas: (BetaMessage | Error)[],
+  ferramentas: Ferramenta[] = [margem],
+  esforcoPorGatilho?: Partial<Record<"mensagem_dono" | "relatorio_diario" | "nota_processada", Esforco>>,
+) {
+  const modelo = new ModeloRoteirizado(respostas);
+  const registro = new RegistroExecucoesMemoria();
+  const agente = new AgenteService(
+    modelo,
+    new RegistroFerramentas(ferramentas),
+    registro,
+    carregarPromptSistema(),
+    { maxIteracoes: 6, maxRegeracoes: 1, ...(esforcoPorGatilho ? { esforcoPorGatilho } : {}) },
+  );
+  return { agente, modelo, registro };
+}
+
+describe("AgenteService: esforço por gatilho (#48)", () => {
+  it("passa ao modelo o esforço configurado para o gatilho", async () => {
+    const esforcos = { mensagem_dono: "low", relatorio_diario: "medium" } as const;
+    const conversa = criarCom([texto("Posso ajudar.")], [margem], esforcos);
+    await conversa.agente.executar(pergunta);
+    expect(conversa.modelo.pedidos[0]?.esforco).toBe("low");
+
+    const diario = criarCom([texto("Sem alertas hoje.")], [margem], esforcos);
+    await diario.agente.executar({ contexto, gatilho: "relatorio_diario", entrada: "{}" });
+    expect(diario.modelo.pedidos[0]?.esforco).toBe("medium");
+  });
+
+  it("sem configuração, o pedido não leva esforço e vale o padrão do modelo", async () => {
+    const { agente, modelo } = criarCom([texto("Posso ajudar.")]);
+    await agente.executar(pergunta);
+    expect(modelo.pedidos[0]).not.toHaveProperty("esforco");
+  });
+});
+
+describe("AgenteService: falhas que nunca enviam número (#105)", () => {
+  it("fallbacks fixos não contêm algarismo nem número por extenso", () => {
+    for (const texto of Object.values(FALLBACK)) {
+      expect(verificarNumeros(texto, new NumerosAutorizados()).aprovado).toBe(true);
+      expect(texto).not.toMatch(/\d/);
+    }
+  });
+
+  it("ferramenta sem dado: o agente diz que não sabe e pergunta, sem número", async () => {
+    const { agente, modelo, registro } = criarCom(
+      [
+        usarFerramenta("get_product_margin", { produto: "Arroz" }),
+        texto("Ainda não tenho o custo do Arroz. Qual é o custo dele?"),
+      ],
+      [custoSemDado],
+    );
+    const r = await agente.executar(pergunta);
+    expect(r.resultado).toBe("aprovada");
+    expect(JSON.stringify(modelo.pedidos[1]?.messages)).toContain("Produto sem nota de compra");
+    expect(registro.execucoes[0]?.chamadas[0]).toMatchObject({ erro: null, menorConfianca: null });
+  });
+
+  it("ferramenta sem dado: número inventado para preencher a lacuna é bloqueado", async () => {
+    const { agente, registro } = criarCom(
+      [
+        usarFerramenta("get_product_margin", { produto: "Arroz" }),
+        texto("A margem do Arroz deve estar em torno de 20%."),
+        texto("Não tenho o custo do Arroz para calcular a margem."),
+      ],
+      [custoSemDado],
+    );
+    const r = await agente.executar(pergunta);
+    expect(r.resultado).toBe("aprovada");
+    expect(r.mensagem).not.toMatch(/\d/);
+    expect(registro.execucoes[0]?.bloqueios).toEqual([{ tentativa: 1, numeros: ["20%"] }]);
+  });
+
+  it("entrada inválida da ferramenta volta ao modelo; se ele insistir, o fim é fallback sem número", async () => {
+    const invalida = (id: string) => usarFerramenta("get_product_margin", { produto: 123 }, id);
+    const { agente, registro } = criarCom([
+      invalida("a"),
+      invalida("b"),
+      invalida("c"),
+      invalida("d"),
+      invalida("e"),
+      invalida("f"),
+    ]);
+    const r = await agente.executar(pergunta);
+    expect(r.resultado).toBe("fallback_erro");
+    expect(r.mensagem).toBe(FALLBACK.erro);
+    expect(registro.execucoes[0]?.chamadas).toHaveLength(6);
+    expect(registro.execucoes[0]?.chamadas.every((c) => c.erro?.startsWith("Entrada inválida"))).toBe(true);
+  });
+
+  it("resposta sem texto vira fallback de erro registrado", async () => {
+    const { agente, registro } = criarCom([mensagem("end_turn", [])]);
+    const r = await agente.executar(pergunta);
+    expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
+    expect(registro.execucoes[0]?.erro).toMatch(/sem texto/);
+  });
+
+  it("stop_reason inesperado (ex.: max_tokens) vira fallback de erro, sem enviar o texto cortado", async () => {
+    const { agente } = criarCom([mensagem("max_tokens", [{ type: "text", text: "A margem é de 27" }])]);
+    const r = await agente.executar(pergunta);
+    expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
+  });
+
+  it.each([
+    ["timeout", Object.assign(new Error("Request timed out."), { name: "APIConnectionTimeoutError" })],
+    ["erro 500 da API", Object.assign(new Error("Internal server error"), { status: 500 })],
+    ["rede fora", new TypeError("fetch failed")],
+  ])("%s: fallback de erro registrado, sem número", async (_nome, falha) => {
+    const { agente, registro } = criarCom([falha]);
+    const r = await agente.executar(pergunta);
+    expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
+    expect(registro.execucoes[0]?.erro).toContain(falha.message);
   });
 });

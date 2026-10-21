@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
+import { LIMITE_SIMILARIDADE_PADRAO } from "../../../config/env";
 import type { Db } from "../../../infra/database/database.module";
 import { decidirPorSimilaridade, type ResultadoVinculo } from "../../../ingestao/vinculo/vincular-produto";
 import { normalizarDescricao } from "../../../ingestao/normalizar-descricao";
 
-/** Mais exigente que o vínculo de nota: aqui o dono digitou o nome, e errar o produto muda o número. */
-export const SIMILARIDADE_PARA_ESCOLHER_PRODUTO = 0.4;
+/** Mesmo limite do vínculo de nota: errar o produto muda o número que o dono recebe. */
+export const SIMILARIDADE_PARA_ESCOLHER_PRODUTO = LIMITE_SIMILARIDADE_PADRAO;
 
 /** Mesmo recorte de acentos de `normalizarDescricao`, para comparar o nome do catálogo em SQL. */
 const NOME_NORMALIZADO = sql.raw(

@@ -7,7 +7,9 @@ import type { ContextoSessao, Ferramenta } from "../ferramenta";
 import { RegistroFerramentas } from "../registro-ferramentas";
 import { criarGetCostChanges } from "./get-cost-changes";
 import { criarGetDailySummary } from "./get-daily-summary";
+import { LIMITE_SIMILARIDADE_PADRAO } from "../../../config/env";
 import { criarGetProductMargin } from "./get-product-margin";
+import { SIMILARIDADE_PARA_ESCOLHER_PRODUTO } from "./buscar-produto";
 import { criarGetTopProducts } from "./get-top-products";
 
 const contexto: ContextoSessao = {
@@ -287,6 +289,24 @@ describe("ferramentas de leitura do plano A", () => {
       expect(saida).toMatchObject({ ambiguo: true });
       expect((saida as { candidatos: unknown[] }).candidatos).toHaveLength(2);
       expect(mock.margemDoProduto).not.toHaveBeenCalled();
+    });
+
+    it("usa o mesmo limite de similaridade do vínculo de notas: 0,42 não liga sozinho, 0,46 liga", async () => {
+      expect(SIMILARIDADE_PARA_ESCOLHER_PRODUTO).toBe(LIMITE_SIMILARIDADE_PADRAO);
+      const fraco = servico();
+      const saidaFraca = await criarGetProductMargin(
+        fraco.metricas,
+        dbCom([{ produto_id: randomUUID(), nome: "Refrigerante 2L", sim: 0.42 }]),
+      ).executar(contexto, { produto: "Refri" });
+      expect(saidaFraca).toMatchObject({ ambiguo: true });
+      expect(fraco.mock.margemDoProduto).not.toHaveBeenCalled();
+
+      const forte = servico();
+      await criarGetProductMargin(
+        forte.metricas,
+        dbCom([{ produto_id: randomUUID(), nome: "Refrigerante 2L", sim: 0.46 }]),
+      ).executar(contexto, { produto: "Refri" });
+      expect(forte.mock.margemDoProduto).toHaveBeenCalledTimes(1);
     });
 
     it("produto claro vai para a métrica com o id achado", async () => {

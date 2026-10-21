@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { carregarEnv } from "../src/config/env";
-import { intervaloDeDatas, somarDias } from "../src/lib/datas/datas";
+import { intervaloDeDatas } from "../src/lib/datas/datas";
 import { migrar } from "../src/infra/database/migrar";
 import * as schema from "../src/infra/database/schema";
 import { MetricasService } from "../src/metricas/metricas.service";
@@ -15,6 +15,7 @@ import { ehDadoAusente } from "../src/metricas/resultado-metrica";
  */
 
 const INICIO = "2026-09-01";
+const PRIMEIRO_EXTRATO_DA_CONTA_B = "2026-09-10";
 const FIM_DA_CONTA_A = "2026-10-18";
 const DIA_SO_DA_CONTA_B = "2026-10-19";
 const GASTO_DIARIO = 1000;
@@ -27,7 +28,7 @@ describe("métricas e extrato por conta (e2e)", () => {
 
   let comercianteId: string;
 
-  async function novaConta(): Promise<string> {
+  async function novaConta(saldoInicialEm: string): Promise<string> {
     const [c] = await db
       .insert(schema.conta)
       .values({
@@ -35,15 +36,15 @@ describe("métricas e extrato por conta (e2e)", () => {
         instituicao: "Banco de teste",
         status: "ativo",
         saldoInicialCentavos: 1_000_000,
-        saldoInicialEm: INICIO,
+        saldoInicialEm,
       })
       .returning({ id: schema.conta.id });
     if (!c) throw new Error("conta não criada");
     return c.id;
   }
 
-  const gastosDiarios = (contaId: string, ate: string) =>
-    intervaloDeDatas(INICIO, ate).map((data) => ({
+  const gastosDiarios = (contaId: string, de: string, ate: string) =>
+    intervaloDeDatas(de, ate).map((data) => ({
       comercianteId,
       contaId,
       data,
@@ -71,10 +72,12 @@ describe("métricas e extrato por conta (e2e)", () => {
         origem: "planilha" as const,
       })),
     );
-    const contaA = await novaConta();
-    const contaB = await novaConta();
-    await db.insert(schema.transacao).values(gastosDiarios(contaA, FIM_DA_CONTA_A));
-    await db.insert(schema.transacao).values(gastosDiarios(contaB, DIA_SO_DA_CONTA_B));
+    const contaA = await novaConta(INICIO);
+    const contaB = await novaConta(INICIO); // aberta cedo, mas o extrato só foi importado a partir de 10/09
+    await db.insert(schema.transacao).values(gastosDiarios(contaA, INICIO, FIM_DA_CONTA_A));
+    await db
+      .insert(schema.transacao)
+      .values(gastosDiarios(contaB, PRIMEIRO_EXTRATO_DA_CONTA_B, DIA_SO_DA_CONTA_B));
   });
 
   afterAll(async () => {
@@ -111,13 +114,16 @@ describe("métricas e extrato por conta (e2e)", () => {
     });
   });
 
-  it("o histórico do gasto fora do padrão só conta dias que as duas contas cobrem", async () => {
-    // Nenhum dia anterior ao começo do extrato mais recente entra na janela: um dia só da conta A
-    // subestimaria a mediana.
-    const dia = somarDias(FIM_DA_CONTA_A, 0);
-    const r = await servico.gastoForaDoPadrao(contexto(dia), dia);
+  it("a janela de histórico começa no maior início de conta, e dia anterior a esse início fica ausente", async () => {
+    const r = await servico.gastoForaDoPadrao(contexto(FIM_DA_CONTA_A), FIM_DA_CONTA_A);
     if (ehDadoAusente(r)) throw new Error(`Esperava métrica, veio ausente: ${r.codigo}`);
-    expect(r.valor.dias_de_historico).toBeGreaterThanOrEqual(30);
+    // De 10/09 (primeiro extrato da conta B) até 17/10: 38 dias, nenhum só da conta A.
+    expect(r.valor.dias_de_historico).toBe(38);
     expect(r.valor.mediana_centavos).toBe(2 * GASTO_DIARIO);
+    // A conta A já tinha extrato em 05/09 e a B (aberta desde 01/09) ainda não: o dia não pode ter total.
+    expect(await servico.gastoForaDoPadrao(contexto("2026-09-05"), "2026-09-05")).toMatchObject({
+      ausente: true,
+      codigo: "dia_sem_dados",
+    });
   });
 });

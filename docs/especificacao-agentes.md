@@ -123,7 +123,7 @@ Decisões do orquestrador:
 | `simulate_price_change` | nenhum | P1 | **Novo.** Margem nova e ponto de equilíbrio de volume (quanto o volume pode cair sem reduzir o lucro bruto). Não prevê a reação das vendas: não há dado de elasticidade |
 | `compare_suppliers` | nenhum | P2 | **Novo.** Custo mais recente do mesmo produto por fornecedor, com data e confiança |
 
-`send_message`, que está na tabela do guia, **não é ferramenta** nesta arquitetura: o envio é feito pelo canal depois do verificador, e o `AgenteService` já devolve a mensagem pronta (`RespostaAgente`). Deixar o modelo enviar abriria um caminho que pula o verificador.
+`send_message`, que o guia listava como ferramenta, **não é ferramenta** nesta arquitetura: o envio é feito pelo canal depois do verificador, e o `AgenteService` já devolve a mensagem pronta (`RespostaAgente`). Deixar o modelo enviar abriria um caminho que pula o verificador.
 
 **Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado, e número dito antes não vale sem buscar de novo. A `sistema-v3.md` (padrão) acrescenta: o preço-meta só muda por `propose_target_price` e pelo "sim" do dono (#104), e `ask_owner` e `save_owner_answer` cobrem o dado que só o dono sabe (#53). Cada versão é imutável depois de usada: mudar o comportamento é criar a seguinte, e a versão fica gravada em cada execução.
 

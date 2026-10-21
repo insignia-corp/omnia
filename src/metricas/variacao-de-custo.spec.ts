@@ -47,6 +47,7 @@ describe("calcularVariacoesDeCusto", () => {
         custo_atual_centavos: 2790,
         compra_anterior_data: "2026-09-14",
         compra_atual_data: "2026-10-16",
+        compra_atual_id: "compra-2026-10-16",
         variacao_bps: 1205,
         variacao_percentual: 12.05,
         acima_do_limite: true,
@@ -173,6 +174,24 @@ describe("calcularVariacoesDeCusto", () => {
     it("custo anterior zero não gera variação infinita", () => {
       const r = calcular([custo("p-arroz", "2026-09-14", 0), custo("p-arroz", "2026-10-16", 2790)]);
       expect(r.valor).toEqual([]);
+    });
+  });
+
+  describe("duas compras do mesmo produto e fornecedor no mesmo dia", () => {
+    it("a variação traz o id da compra atual, a mais recente do dia", () => {
+      const r = calcular([
+        custo("p-arroz", "2026-09-14", 2490),
+        custo("p-arroz", "2026-10-16", 2790, {
+          compraId: "nota-a",
+          criadoEm: new Date("2026-10-16T09:00:00Z"),
+        }),
+        custo("p-arroz", "2026-10-16", 3000, {
+          compraId: "nota-b",
+          criadoEm: new Date("2026-10-16T15:00:00Z"),
+        }),
+      ]);
+      expect(r.valor).toHaveLength(1);
+      expect(r.valor[0]).toMatchObject({ compra_atual_id: "nota-b", custo_anterior_centavos: 2790 });
     });
   });
 

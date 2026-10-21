@@ -57,6 +57,7 @@ describe("calcularGastoForaDoPadrao", () => {
         data: DIA,
         valor_centavos: 10_000,
         mediana_centavos: 5000,
+        diferenca_para_mediana_centavos: 5000,
         desvio_absoluto_mediano_centavos: 1000,
         desvio: 5,
         dias_de_historico: 30,
@@ -121,6 +122,19 @@ describe("calcularGastoForaDoPadrao", () => {
         desvio: 5,
         acima_do_limite: true,
       });
+    });
+
+    it("a diferença para a mediana arredonda uma vez só: 15000 menos 5000,5 é 9999,5, ou seja 10000", () => {
+      const historico = metadeEMetade(30, 5000, 5001);
+      const r = gasto(entrada([...historico, saida(DIA, 15_000)]));
+      // Subtrair a mediana já arredondada (5001) daria 9999.
+      expect(r.valor).toMatchObject({ mediana_centavos: 5001, diferenca_para_mediana_centavos: 10_000 });
+    });
+
+    it("a diferença é negativa quando o dia gastou menos que a mediana", () => {
+      const historico = metadeEMetade(30, 5000, 5001);
+      const r = gasto(entrada([...historico, saida(DIA, 4000)]));
+      expect(r.valor.diferenca_para_mediana_centavos).toBe(-1001); // 4000 - 5000,5 = -1000,5, afastando do zero
     });
 
     it("reproduz o desvio de 54,62 do dia de referência do gabarito", () => {

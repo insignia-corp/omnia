@@ -14,8 +14,9 @@ import {
 } from "./gasto-fora-do-padrao";
 import { DIAS_DE_HISTORICO_DO_GIRO, calcularGiro, type Giro } from "./giro";
 import { PARAMETROS_MARGEM, calcularMargemDoProduto, type MargemDoProduto } from "./margem-por-produto";
+import { produtoNaoEncontrado } from "./produto-nao-encontrado";
 import type { FonteDeDadosMetricas } from "./repositorio-metricas";
-import { dadoAusente, ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "./resultado-metrica";
+import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "./resultado-metrica";
 import { DIAS_DE_COMPARACAO_DO_RESUMO, calcularResumoDiario, type ResumoDiario } from "./resumo-diario";
 import { DIAS_DE_HISTORICO_DO_TICKET, calcularTicketMedio, type TicketMedio } from "./ticket-medio";
 import { calcularVariacoesDeCusto, type VariacaoDeCusto } from "./variacao-de-custo";
@@ -53,10 +54,7 @@ export class MetricasService {
     produtoId: string,
   ): Promise<ResultadoMetrica<MargemDoProduto> | DadoAusente> {
     const { comercianteId, dataReferencia } = contexto;
-    const naoEncontrado = dadoAusente(
-      "produto_nao_encontrado",
-      "Não encontrei esse produto no seu cadastro.",
-    );
+    const naoEncontrado = produtoNaoEncontrado();
     if (!UUID.test(produtoId)) return naoEncontrado;
 
     const [produtos, meta] = await Promise.all([

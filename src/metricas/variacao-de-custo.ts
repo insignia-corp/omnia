@@ -27,6 +27,8 @@ export interface VariacaoDeCusto {
   custo_atual_centavos: number;
   compra_anterior_data: string;
   compra_atual_data: string;
+  /** A compra atual, para distinguir duas compras do mesmo produto e fornecedor no mesmo dia. */
+  compra_atual_id: string;
   /** Positiva no reajuste, negativa quando o custo caiu. */
   variacao_bps: number;
   variacao_percentual: number;
@@ -89,6 +91,7 @@ export function calcularVariacoesDeCusto(
       custo_atual_centavos: atual.custoUnitarioCentavos,
       compra_anterior_data: anterior.data,
       compra_atual_data: atual.data,
+      compra_atual_id: atual.compraId,
       variacao_bps: variacaoBps,
       variacao_percentual: percentualDeBps(variacaoBps),
       acima_do_limite: variacaoBps > parametros.limiteBps,

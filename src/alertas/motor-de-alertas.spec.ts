@@ -1,0 +1,313 @@
+import type { Giro, GiroDoProduto } from "../metricas/giro";
+import type { MetricasService } from "../metricas/metricas.service";
+import type { ResultadoMetrica } from "../metricas/resultado-metrica";
+import type { VariacaoDeCusto } from "../metricas/variacao-de-custo";
+import type { FonteDeLimites } from "./limites";
+import type { TipoAlerta } from "./tipos";
+import { MotorDeAlertas } from "./motor-de-alertas";
+import type { AlertaGravado, AlertaJaTratado, NovoAlerta, RepositorioAlertas } from "./repositorio-alertas";
+import type { RegraDeAlerta } from "./regra";
+import { regraReajusteDeCusto } from "./regras";
+
+const REF = "2026-10-19";
+const periodo = { inicio: "2026-09-20", fim: REF };
+const resultado = <T>(valor: T, menor_confianca: number | null = 1): ResultadoMetrica<T> => ({
+  valor,
+  periodo,
+  n_registros: 10,
+  menor_confianca,
+  origens: ["planilha"],
+});
+
+const variacao = (extra: Partial<VariacaoDeCusto> = {}): VariacaoDeCusto => ({
+  produto_id: "p1",
+  nome: "Arroz",
+  fornecedor_id: "f1",
+  custo_anterior_centavos: 100,
+  custo_atual_centavos: 115,
+  compra_anterior_data: "2026-09-14",
+  compra_atual_data: "2026-10-16",
+  compra_atual_id: "compra-16",
+  variacao_bps: 1500,
+  variacao_percentual: 15,
+  acima_do_limite: true,
+  recente: true,
+  menor_confianca: 1,
+  ...extra,
+});
+
+const giro = (unidades: number, confianca: number | null = 1): ResultadoMetrica<Giro> => {
+  const g: GiroDoProduto = {
+    produto_id: "p1",
+    nome: "Arroz",
+    unidades_7_dias: unidades,
+    unidades_28_dias_anteriores: 100,
+    media_semanal_28_dias: 25,
+    alta_bps: 100,
+    alta_percentual: 1,
+    elegivel_para_alta: true,
+  };
+  return resultado(
+    {
+      periodos: { ultimos_7_dias: periodo, anteriores_28_dias: periodo },
+      por_produto: [g],
+      maior_alta: [],
+      maior_volume: [],
+      giro_alto: [],
+    },
+    confianca,
+  );
+};
+
+/** Repositório em memória só para este teste: guarda o que o motor grava. */
+class RepositorioFalso implements RepositorioAlertas {
+  gravados: NovoAlerta[] = [];
+  tratados: AlertaJaTratado[] = [];
+  /** Filtra como o repositório real: por data (desde inclusive, ate exclusive). */
+  /** Os comerciantes com que o motor chamou o repositório, para provar que é o da sessão. */
+  chamadasDe: string[] = [];
+  jaTratados(
+    comercianteId: string,
+    filtro: { desde: string | null; ate: string; tipos: readonly TipoAlerta[] },
+  ) {
+    this.chamadasDe.push(comercianteId);
+    return Promise.resolve(
+      this.tratados.filter(
+        (t) =>
+          filtro.tipos.includes(t.tipo) &&
+          (filtro.desde === null || t.dataReferencia >= filtro.desde) &&
+          t.dataReferencia < filtro.ate,
+      ),
+    );
+  }
+  gravarCandidatos(comercianteId: string, _d: string, novos: NovoAlerta[]) {
+    this.chamadasDe.push(comercianteId);
+    this.gravados.push(...novos);
+    return Promise.resolve(novos.length);
+  }
+  candidatosDoDia(comercianteId: string) {
+    this.chamadasDe.push(comercianteId);
+    return Promise.resolve([] as AlertaGravado[]);
+  }
+}
+
+const semLimites: FonteDeLimites = { limitesDoComerciante: () => Promise.resolve({}) };
+
+function motorCom(
+  variacoes: VariacaoDeCusto[],
+  giroResultado: ResultadoMetrica<Giro>,
+  limites: FonteDeLimites = semLimites,
+) {
+  const repositorio = new RepositorioFalso();
+  const servico = {
+    variacoesDeCusto: () => Promise.resolve(resultado(variacoes)),
+    giro: () => Promise.resolve(giroResultado),
+  } as unknown as MetricasService;
+  return { repositorio, motor: new MotorDeAlertas(servico, repositorio, limites, [regraReajusteDeCusto]) };
+}
+
+describe("motor de alertas: dinheiro e prioridade", () => {
+  it("o impacto com unidades fracionadas arredonda como dinheiro (15 centavos x 4,1 = 62) e decide a prioridade", async () => {
+    const limites: FonteDeLimites = {
+      limitesDoComerciante: () => Promise.resolve({ prioridade2MinCentavos: 62 }),
+    };
+    const { motor, repositorio } = motorCom([variacao()], giro(4.1), limites);
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados).toHaveLength(1);
+    expect(repositorio.gravados[0]?.metricasApoio.impacto_centavos).toBe(62);
+    // Com 61 centavos (o erro do ponto flutuante) a prioridade cairia para 3.
+    expect(repositorio.gravados[0]?.prioridade).toBe(2);
+  });
+});
+
+describe("motor de alertas: confiança para o agente", () => {
+  it("grava a confiança como menor_confianca, o campo que select_alerts lê", async () => {
+    const { motor, repositorio } = motorCom([variacao({ menor_confianca: 0.6 })], giro(10));
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados[0]?.metricasApoio).toMatchObject({ menor_confianca: 0.6 });
+    expect(repositorio.gravados[0]?.metricasApoio).not.toHaveProperty("confianca");
+  });
+});
+
+describe("motor de alertas: confiança do giro no reajuste", () => {
+  const grande = variacao({ custo_atual_centavos: 15_100 });
+
+  it("giro de baixa confiança rebaixa a prioridade um nível, e a procedência do giro vai nas métricas", async () => {
+    const confiavel = motorCom([grande], giro(10, 1));
+    await confiavel.motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(confiavel.repositorio.gravados[0]).toMatchObject({ prioridade: 1 });
+
+    const duvidoso = motorCom([grande], giro(10, 0.5));
+    await duvidoso.motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    const gravado = duvidoso.repositorio.gravados[0];
+    expect(gravado?.prioridade).toBe(2);
+    expect(gravado?.metricasApoio).toMatchObject({
+      menor_confianca: 0.5,
+      unidades_7_dias: 10,
+      giro_fonte: { menor_confianca: 0.5, n_registros: 10 },
+    });
+  });
+
+  it("sem giro não há impacto, e a confiança é só a da variação de custo", async () => {
+    const servico = {
+      variacoesDeCusto: () => Promise.resolve(resultado([variacao({ menor_confianca: 0.9 })])),
+      giro: () => Promise.resolve({ ausente: true, codigo: "historico_insuficiente", motivo: "sem giro" }),
+    } as unknown as MetricasService;
+    const repositorio = new RepositorioFalso();
+    await new MotorDeAlertas(servico, repositorio, semLimites, [regraReajusteDeCusto]).executar({
+      comercianteId: "c1",
+      dataReferencia: REF,
+    });
+    expect(repositorio.gravados[0]?.metricasApoio).toMatchObject({
+      impacto_centavos: null,
+      menor_confianca: 0.9,
+    });
+  });
+});
+
+describe("motor de alertas: supressão do reajuste já tratado", () => {
+  const chave = "p1:f1:compra-16";
+  const tratadoHa = (dias: number): AlertaJaTratado => ({
+    tipo: "reajuste_de_custo",
+    chave,
+    dataReferencia: new Date(Date.parse(`${REF}T00:00:00Z`) - dias * 86_400_000).toISOString().slice(0, 10),
+  });
+
+  it.each([2, 7, 30, 90])(
+    "reajuste enviado ou descartado há %i dias com a mesma chave continua suprimido",
+    async (dias) => {
+      const { motor, repositorio } = motorCom([variacao()], giro(10));
+      repositorio.tratados = [tratadoHa(dias)];
+      const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+      expect(r.suprimidos.map((c) => c.chave)).toEqual([chave]);
+      expect(repositorio.gravados).toEqual([]);
+    },
+  );
+
+  it("outra compra do mesmo produto e fornecedor (outra chave) não é suprimida", async () => {
+    const { motor, repositorio } = motorCom([variacao({ compra_atual_id: "compra-17" })], giro(10));
+    repositorio.tratados = [tratadoHa(30)];
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados.map((g) => g.chave)).toEqual(["p1:f1:compra-17"]);
+  });
+});
+
+describe("motor de alertas: limite da janela de supressão", () => {
+  const regra = (tipo: TipoAlerta): RegraDeAlerta => ({
+    tipo,
+    avaliar: () =>
+      Promise.resolve({
+        ausentes: [],
+        candidatos: [
+          {
+            tipo,
+            chave: "p1",
+            produtoId: null,
+            fornecedorId: null,
+            metricasApoio: {},
+            impactoCentavos: 0,
+            confianca: 1,
+          },
+        ],
+      }),
+  });
+  const tratadoHa = (dias: number): AlertaJaTratado => ({
+    tipo: "estoque_parado",
+    chave: "p1",
+    dataReferencia: new Date(Date.parse(`${REF}T00:00:00Z`) - dias * 86_400_000).toISOString().slice(0, 10),
+  });
+  const rodar = async (dias: number) => {
+    const repositorio = new RepositorioFalso();
+    repositorio.tratados = [tratadoHa(dias)];
+    const motor = new MotorDeAlertas({} as MetricasService, repositorio, semLimites, [
+      regra("estoque_parado"),
+    ]);
+    const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    return { r, repositorio };
+  };
+
+  it("enviado há 6 dias suprime (menos de 7 dias)", async () => {
+    const { r, repositorio } = await rodar(6);
+    expect(r.suprimidos).toHaveLength(1);
+    expect(repositorio.gravados).toEqual([]);
+  });
+
+  it.each([7, 8])("enviado há %i dias já não suprime", async (dias) => {
+    const { r, repositorio } = await rodar(dias);
+    expect(r.suprimidos).toEqual([]);
+    expect(repositorio.gravados).toHaveLength(1);
+  });
+});
+
+describe("motor de alertas: a supressão discrimina o tipo", () => {
+  it("alerta tratado de um tipo não suprime outro tipo com a mesma chave (o produto)", async () => {
+    const regra = (tipo: TipoAlerta): RegraDeAlerta => ({
+      tipo,
+      avaliar: () =>
+        Promise.resolve({
+          ausentes: [],
+          candidatos: [
+            {
+              tipo,
+              chave: "p1",
+              produtoId: null,
+              fornecedorId: null,
+              metricasApoio: {},
+              impactoCentavos: 0,
+              confianca: 1,
+            },
+          ],
+        }),
+    });
+    const repositorio = new RepositorioFalso();
+    // Giro em alta do produto p1 enviado ontem, dentro da janela: a margem do mesmo p1 é outro alerta.
+    repositorio.tratados = [{ tipo: "giro_em_alta", chave: "p1", dataReferencia: "2026-10-18" }];
+    const motor = new MotorDeAlertas({} as MetricasService, repositorio, semLimites, [
+      regra("giro_em_alta"),
+      regra("margem_abaixo_da_meta"),
+    ]);
+    const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(r.suprimidos.map((c) => c.tipo)).toEqual(["giro_em_alta"]);
+    expect(repositorio.gravados.map((g) => g.tipo)).toEqual(["margem_abaixo_da_meta"]);
+  });
+});
+
+describe("motor de alertas: o comerciante é o da sessão", () => {
+  it("métricas, limites, regras e repositório recebem só o comerciante do contexto", async () => {
+    const vistos: string[] = [];
+    const registrar = (ctx: { comercianteId: string }) => {
+      vistos.push(ctx.comercianteId);
+    };
+    const servico = {
+      variacoesDeCusto: (ctx: { comercianteId: string }) => {
+        registrar(ctx);
+        return Promise.resolve(resultado([variacao()]));
+      },
+      giro: (ctx: { comercianteId: string }) => {
+        registrar(ctx);
+        return Promise.resolve(giro(10));
+      },
+    } as unknown as MetricasService;
+    const limites: FonteDeLimites = {
+      limitesDoComerciante: (comercianteId) => {
+        vistos.push(comercianteId);
+        return Promise.resolve({});
+      },
+    };
+    const regra: RegraDeAlerta = {
+      tipo: "estoque_parado",
+      avaliar: (contexto) => {
+        vistos.push(contexto.comercianteId);
+        return Promise.resolve({ candidatos: [], ausentes: [] });
+      },
+    };
+    const repositorio = new RepositorioFalso();
+    await new MotorDeAlertas(servico, repositorio, limites, [regraReajusteDeCusto, regra]).executar({
+      comercianteId: "c-sessao",
+      dataReferencia: REF,
+    });
+    expect(vistos.length).toBeGreaterThanOrEqual(4);
+    expect([...new Set([...vistos, ...repositorio.chamadasDe])]).toEqual(["c-sessao"]);
+    expect(repositorio.chamadasDe.length).toBeGreaterThanOrEqual(3);
+  });
+});

@@ -47,7 +47,7 @@ Cada plano tem 3 fases: **Desenvolver** (P0 ponta a ponta com dublês), **Refina
 
 ### Plano A: dados e alertas
 
-Pastas: `src/metricas`, `src/alertas`, `src/agente/ferramentas/ferramentas-plano-a.ts`, `tests/metricas`, `tests/alertas`.
+Pastas: `src/metricas`, `src/alertas`, `src/agente/ferramentas/ferramentas-plano-a.ts`, `src/agente/ferramentas/plano-a/`, `tests/metricas`, `tests/alertas`.
 
 | Fase | Issues | Pronto quando |
 | --- | --- | --- |

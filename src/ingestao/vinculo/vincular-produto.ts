@@ -62,7 +62,7 @@ export interface BuscaVinculo {
 }
 
 /** Mesmo recorte de acentos de `normalizarDescricao`, para comparar o nome do catálogo em SQL. */
-const NOME_NORMALIZADO = sql.raw(
+export const NOME_NORMALIZADO = sql.raw(
   "translate(upper(p.nome), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')",
 );
 

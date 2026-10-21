@@ -21,6 +21,7 @@ import {
 import type {
   ContaParaMetrica,
   CustoDeCompra,
+  IntervaloDaConta,
   IntervaloDeDados,
   MovimentoDoDia,
   ProdutoParaMetrica,
@@ -48,8 +49,8 @@ export interface FonteDeDadosMetricas {
   custosDeCompra(comercianteId: string, ate: string, produtoId?: string): Promise<CustoDeCompra[]>;
   /** Movimentos de todas as contas, ativas ou não, de `desde` (ou da abertura) até a data, somados por conta, dia, sentido e categoria. */
   movimentosPorDia(comercianteId: string, ate: string, desde?: string): Promise<MovimentoDoDia[]>;
-  /** Primeiro e último dia com transação em qualquer conta do comerciante; nulo sem nenhuma. */
-  intervaloDeMovimentos(comercianteId: string): Promise<IntervaloDeDados | null>;
+  /** Primeiro e último dia com transação de cada conta do comerciante; conta sem transação não aparece. */
+  intervalosDeMovimentosPorConta(comercianteId: string): Promise<IntervaloDaConta[]>;
   /** Todas as contas do comerciante: a conexão revogada ou expirada não apaga o extrato já importado. */
   contas(comercianteId: string): Promise<ContaParaMetrica[]>;
 }
@@ -86,7 +87,13 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
 
   async produtos(comercianteId: string, produtoId?: string): Promise<ProdutoParaMetrica[]> {
     return this.db
-      .select({ id: produto.id, nome: produto.nome, margemMetaBps: produto.margemMetaBps })
+      .select({
+        id: produto.id,
+        nome: produto.nome,
+        margemMetaBps: produto.margemMetaBps,
+        origem: produto.origem,
+        confianca: produto.confianca,
+      })
       .from(produto)
       .where(and(eq(produto.comercianteId, comercianteId), produtoId ? eq(produto.id, produtoId) : undefined))
       .orderBy(asc(produto.nome), asc(produto.id));
@@ -229,25 +236,18 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
     }));
   }
 
-  async intervaloDeMovimentos(comercianteId: string): Promise<IntervaloDeDados | null> {
-    const todasAsContas = await this.contas(comercianteId);
-    if (todasAsContas.length === 0) return null;
-    const [linha] = await this.db
+  async intervalosDeMovimentosPorConta(comercianteId: string): Promise<IntervaloDaConta[]> {
+    const linhas = await this.db
       .select({
-        primeira: sql<string | null>`min(${transacao.data})`,
-        ultima: sql<string | null>`max(${transacao.data})`,
+        contaId: transacao.contaId,
+        primeira: sql<string>`min(${transacao.data})`,
+        ultima: sql<string>`max(${transacao.data})`,
       })
       .from(transacao)
-      .where(
-        and(
-          eq(transacao.comercianteId, comercianteId),
-          inArray(
-            transacao.contaId,
-            todasAsContas.map((c) => c.id),
-          ),
-        ),
-      );
-    return linha?.primeira && linha.ultima ? { primeira: linha.primeira, ultima: linha.ultima } : null;
+      .where(eq(transacao.comercianteId, comercianteId))
+      .groupBy(transacao.contaId)
+      .orderBy(asc(transacao.contaId));
+    return linhas;
   }
 
   async movimentosPorDia(comercianteId: string, ate: string, desde?: string): Promise<MovimentoDoDia[]> {
@@ -285,6 +285,7 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
     return this.db
       .select({
         id: conta.id,
+        ativa: sql<boolean>`${conta.status} = 'ativo'`,
         saldoInicialCentavos: conta.saldoInicialCentavos,
         saldoInicialEm: conta.saldoInicialEm,
       })

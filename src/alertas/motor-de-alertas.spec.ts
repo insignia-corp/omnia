@@ -6,6 +6,7 @@ import type { FonteDeLimites } from "./limites";
 import type { TipoAlerta } from "./tipos";
 import { MotorDeAlertas } from "./motor-de-alertas";
 import type { AlertaGravado, AlertaJaTratado, NovoAlerta, RepositorioAlertas } from "./repositorio-alertas";
+import type { RegraDeAlerta } from "./regra";
 import { regraReajusteDeCusto } from "./regras";
 
 const REF = "2026-10-19";
@@ -181,5 +182,52 @@ describe("motor de alertas: supressão do reajuste já tratado", () => {
     repositorio.tratados = [tratadoHa(30)];
     await motor.executar({ comercianteId: "c1", dataReferencia: REF });
     expect(repositorio.gravados.map((g) => g.chave)).toEqual(["p1:f1:compra-17"]);
+  });
+});
+
+describe("motor de alertas: limite da janela de supressão", () => {
+  const regra = (tipo: TipoAlerta): RegraDeAlerta => ({
+    tipo,
+    avaliar: () =>
+      Promise.resolve({
+        ausentes: [],
+        candidatos: [
+          {
+            tipo,
+            chave: "p1",
+            produtoId: null,
+            fornecedorId: null,
+            metricasApoio: {},
+            impactoCentavos: 0,
+            confianca: 1,
+          },
+        ],
+      }),
+  });
+  const tratadoHa = (dias: number): AlertaJaTratado => ({
+    tipo: "estoque_parado",
+    chave: "p1",
+    dataReferencia: new Date(Date.parse(`${REF}T00:00:00Z`) - dias * 86_400_000).toISOString().slice(0, 10),
+  });
+  const rodar = async (dias: number) => {
+    const repositorio = new RepositorioFalso();
+    repositorio.tratados = [tratadoHa(dias)];
+    const motor = new MotorDeAlertas({} as MetricasService, repositorio, semLimites, [
+      regra("estoque_parado"),
+    ]);
+    const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    return { r, repositorio };
+  };
+
+  it("enviado há 6 dias suprime (menos de 7 dias)", async () => {
+    const { r, repositorio } = await rodar(6);
+    expect(r.suprimidos).toHaveLength(1);
+    expect(repositorio.gravados).toEqual([]);
+  });
+
+  it.each([7, 8])("enviado há %i dias já não suprime", async (dias) => {
+    const { r, repositorio } = await rodar(dias);
+    expect(r.suprimidos).toEqual([]);
+    expect(repositorio.gravados).toHaveLength(1);
   });
 });

@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import type { Executor } from "../../infra/database/database.module";
 import { produto, vinculoDescricaoProduto } from "../../infra/database/schema";
 import { normalizarGtin } from "../../lib/gtin/gtin";
@@ -62,9 +62,52 @@ export interface BuscaVinculo {
 }
 
 /** Mesmo recorte de acentos de `normalizarDescricao`, para comparar o nome do catálogo em SQL. */
-const NOME_NORMALIZADO = sql.raw(
+export const NOME_NORMALIZADO = sql.raw(
   "translate(upper(p.nome), 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'AAAAAEEEEIIIIOOOOOUUUUC')",
 );
+
+/** Vínculo confirmado pelo dono para a descrição exata: o do fornecedor vale mais; entre iguais, o mais recente. */
+export async function buscarDescricaoConfirmada(
+  db: Executor,
+  comercianteId: string,
+  descricaoNormalizada: string,
+  fornecedorId: string | null,
+): Promise<string | null> {
+  const [confirmado] = await db
+    .select({ produtoId: vinculoDescricaoProduto.produtoId })
+    .from(vinculoDescricaoProduto)
+    .where(
+      and(
+        eq(vinculoDescricaoProduto.comercianteId, comercianteId),
+        eq(vinculoDescricaoProduto.descricaoNormalizada, descricaoNormalizada),
+        eq(vinculoDescricaoProduto.confirmadoPeloDono, true),
+      ),
+    )
+    // O do mesmo fornecedor vale mais; entre iguais, o mais recente.
+    .orderBy(
+      sql`(${vinculoDescricaoProduto.fornecedorId} = ${fornecedorId}) desc nulls last`,
+      desc(vinculoDescricaoProduto.criadoEm),
+    )
+    .limit(1);
+  return confirmado?.produtoId ?? null;
+}
+
+/**
+ * Textos que identificam cada produto do comerciante: o nome do catálogo (com o recorte de
+ * `normalizarDescricao`) e as descrições que o dono já confirmou. Base da similaridade do vínculo de
+ * nota e da busca por nome das ferramentas do agente.
+ */
+export function textosDosProdutos(comercianteId: string): SQL {
+  return sql`
+    select p.id as produto_id, p.nome, p.codigo_barras, ${NOME_NORMALIZADO} as texto
+      from produto p
+     where p.comerciante_id = ${comercianteId}
+    union all
+    select v.produto_id, p.nome, p.codigo_barras, v.descricao_normalizada as texto
+      from vinculo_descricao_produto v
+      join produto p on p.id = v.produto_id and p.comerciante_id = v.comerciante_id
+     where v.comerciante_id = ${comercianteId} and v.confirmado_pelo_dono`;
+}
 
 /**
  * Liga a descrição de uma nota a um produto (issue #27), na ordem do guia sem o modelo:
@@ -89,41 +132,15 @@ export async function buscarVinculo(db: Executor, busca: BuscaVinculo): Promise<
     }
   }
 
-  const [confirmado] = await db
-    .select({ produtoId: vinculoDescricaoProduto.produtoId })
-    .from(vinculoDescricaoProduto)
-    .where(
-      and(
-        eq(vinculoDescricaoProduto.comercianteId, busca.comercianteId),
-        eq(vinculoDescricaoProduto.descricaoNormalizada, descricao),
-        eq(vinculoDescricaoProduto.confirmadoPeloDono, true),
-      ),
-    )
-    // O do mesmo fornecedor vale mais; entre iguais, o mais recente.
-    .orderBy(
-      sql`(${vinculoDescricaoProduto.fornecedorId} = ${busca.fornecedorId}) desc nulls last`,
-      desc(vinculoDescricaoProduto.criadoEm),
-    )
-    .limit(1);
-  if (confirmado) {
-    return { tipo: "vinculado", produtoId: confirmado.produtoId, metodo: "dono", confianca: 1 };
-  }
+  const confirmado = await buscarDescricaoConfirmada(db, busca.comercianteId, descricao, busca.fornecedorId);
+  if (confirmado) return { tipo: "vinculado", produtoId: confirmado, metodo: "dono", confianca: 1 };
 
   const resultado = await db.execute<{ produto_id: string; nome: string; sim: number }>(sql`
-    select produto_id, max(nome) as nome, max(sim)::float8 as sim
-    from (
-      select p.id as produto_id, p.nome, similarity(${NOME_NORMALIZADO}, ${descricao}) as sim
-        from produto p
-       where p.comerciante_id = ${busca.comercianteId}
-      union all
-      select v.produto_id, p.nome, similarity(v.descricao_normalizada, ${descricao}) as sim
-        from vinculo_descricao_produto v
-        join produto p on p.id = v.produto_id and p.comerciante_id = v.comerciante_id
-       where v.comerciante_id = ${busca.comercianteId} and v.confirmado_pelo_dono
-    ) fonte
-    group by produto_id
-    order by sim desc
-    limit 5
+    select produto_id, max(nome) as nome, max(similarity(texto, ${descricao}))::float8 as sim
+      from (${textosDosProdutos(busca.comercianteId)}) fonte
+     group by produto_id
+     order by sim desc
+     limit 5
   `);
   return decidirPorSimilaridade(
     resultado.rows.map((l) => ({ produtoId: l.produto_id, nome: l.nome, similaridade: l.sim })),

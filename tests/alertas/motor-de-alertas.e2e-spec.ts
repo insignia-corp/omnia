@@ -237,10 +237,12 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
         chave: "qualquer",
         metricasApoio: {},
       });
-      expect(await repositorio.jaTratados(esquina, "2026-10-01", REF)).toEqual([]);
-      expect(await repositorio.jaTratados(vilaNova, "2026-10-01", REF)).toEqual([
-        { tipo: "estoque_parado", chave: "qualquer", dataReferencia: "2026-10-18" },
-      ]);
+      expect(
+        await repositorio.jaTratados(esquina, { desde: "2026-10-01", ate: REF, tipos: ["estoque_parado"] }),
+      ).toEqual([]);
+      expect(
+        await repositorio.jaTratados(vilaNova, { desde: "2026-10-01", ate: REF, tipos: ["estoque_parado"] }),
+      ).toEqual([{ tipo: "estoque_parado", chave: "qualquer", dataReferencia: "2026-10-18" }]);
     });
   });
 
@@ -281,11 +283,11 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       };
       const compraDoArroz = compraDe("2026-10-16");
       const compraDoOleo = compraDe("2026-10-13");
-      // O reajuste do arroz foi enviado há 2 dias; o do óleo foi descartado há 6 (ainda na semana).
+      // O reajuste do arroz foi enviado há 30 dias (mesma chave: nunca volta); o do óleo foi descartado há 6.
       await tratado(
         "reajuste_de_custo",
         `${id("P01")}:${fornecedor("AUR")}:${compraDoArroz}`,
-        "2026-10-17",
+        "2026-09-19",
         "enviado",
       );
       await tratado(
@@ -329,7 +331,7 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
           and(
             eq(schema.alerta.comercianteId, vilaNova),
             eq(schema.alerta.tipo, "reajuste_de_custo"),
-            eq(schema.alerta.dataReferencia, "2026-10-17"),
+            eq(schema.alerta.dataReferencia, "2026-09-19"),
           ),
         );
       expect(arroz?.status).toBe("enviado");

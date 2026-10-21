@@ -3,8 +3,10 @@ import type { MetricasService } from "../metricas/metricas.service";
 import type { ResultadoMetrica } from "../metricas/resultado-metrica";
 import type { VariacaoDeCusto } from "../metricas/variacao-de-custo";
 import type { FonteDeLimites } from "./limites";
+import type { TipoAlerta } from "./tipos";
 import { MotorDeAlertas } from "./motor-de-alertas";
-import type { AlertaGravado, NovoAlerta, RepositorioAlertas } from "./repositorio-alertas";
+import type { AlertaGravado, AlertaJaTratado, NovoAlerta, RepositorioAlertas } from "./repositorio-alertas";
+import type { RegraDeAlerta } from "./regra";
 import { regraReajusteDeCusto } from "./regras";
 
 const REF = "2026-10-19";
@@ -60,7 +62,21 @@ const giro = (unidades: number, confianca: number | null = 1): ResultadoMetrica<
 /** Repositório em memória só para este teste: guarda o que o motor grava. */
 class RepositorioFalso implements RepositorioAlertas {
   gravados: NovoAlerta[] = [];
-  jaTratados = () => Promise.resolve([]);
+  tratados: AlertaJaTratado[] = [];
+  /** Filtra como o repositório real: por data (desde inclusive, ate exclusive). */
+  jaTratados(
+    _comercianteId: string,
+    filtro: { desde: string | null; ate: string; tipos: readonly TipoAlerta[] },
+  ) {
+    return Promise.resolve(
+      this.tratados.filter(
+        (t) =>
+          filtro.tipos.includes(t.tipo) &&
+          (filtro.desde === null || t.dataReferencia >= filtro.desde) &&
+          t.dataReferencia < filtro.ate,
+      ),
+    );
+  }
   gravarCandidatos(_c: string, _d: string, novos: NovoAlerta[]) {
     this.gravados.push(...novos);
     return Promise.resolve(novos.length);
@@ -139,5 +155,79 @@ describe("motor de alertas: confiança do giro no reajuste", () => {
       impacto_centavos: null,
       menor_confianca: 0.9,
     });
+  });
+});
+
+describe("motor de alertas: supressão do reajuste já tratado", () => {
+  const chave = "p1:f1:compra-16";
+  const tratadoHa = (dias: number): AlertaJaTratado => ({
+    tipo: "reajuste_de_custo",
+    chave,
+    dataReferencia: new Date(Date.parse(`${REF}T00:00:00Z`) - dias * 86_400_000).toISOString().slice(0, 10),
+  });
+
+  it.each([2, 7, 30, 90])(
+    "reajuste enviado ou descartado há %i dias com a mesma chave continua suprimido",
+    async (dias) => {
+      const { motor, repositorio } = motorCom([variacao()], giro(10));
+      repositorio.tratados = [tratadoHa(dias)];
+      const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+      expect(r.suprimidos.map((c) => c.chave)).toEqual([chave]);
+      expect(repositorio.gravados).toEqual([]);
+    },
+  );
+
+  it("outra compra do mesmo produto e fornecedor (outra chave) não é suprimida", async () => {
+    const { motor, repositorio } = motorCom([variacao({ compra_atual_id: "compra-17" })], giro(10));
+    repositorio.tratados = [tratadoHa(30)];
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados.map((g) => g.chave)).toEqual(["p1:f1:compra-17"]);
+  });
+});
+
+describe("motor de alertas: limite da janela de supressão", () => {
+  const regra = (tipo: TipoAlerta): RegraDeAlerta => ({
+    tipo,
+    avaliar: () =>
+      Promise.resolve({
+        ausentes: [],
+        candidatos: [
+          {
+            tipo,
+            chave: "p1",
+            produtoId: null,
+            fornecedorId: null,
+            metricasApoio: {},
+            impactoCentavos: 0,
+            confianca: 1,
+          },
+        ],
+      }),
+  });
+  const tratadoHa = (dias: number): AlertaJaTratado => ({
+    tipo: "estoque_parado",
+    chave: "p1",
+    dataReferencia: new Date(Date.parse(`${REF}T00:00:00Z`) - dias * 86_400_000).toISOString().slice(0, 10),
+  });
+  const rodar = async (dias: number) => {
+    const repositorio = new RepositorioFalso();
+    repositorio.tratados = [tratadoHa(dias)];
+    const motor = new MotorDeAlertas({} as MetricasService, repositorio, semLimites, [
+      regra("estoque_parado"),
+    ]);
+    const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    return { r, repositorio };
+  };
+
+  it("enviado há 6 dias suprime (menos de 7 dias)", async () => {
+    const { r, repositorio } = await rodar(6);
+    expect(r.suprimidos).toHaveLength(1);
+    expect(repositorio.gravados).toEqual([]);
+  });
+
+  it.each([7, 8])("enviado há %i dias já não suprime", async (dias) => {
+    const { r, repositorio } = await rodar(dias);
+    expect(r.suprimidos).toEqual([]);
+    expect(repositorio.gravados).toHaveLength(1);
   });
 });

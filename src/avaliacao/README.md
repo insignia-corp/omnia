@@ -29,7 +29,7 @@ Sem `ANTHROPIC_API_KEY`, `--modelo real` para antes de tocar no banco, com a men
 | `relatorio.ts` | Resumo por categoria, Markdown do relatório e gravação |
 | `rodada.ts` | Liga tudo: escolhe o modelo pelo modo, acha o comerciante do seed, monta o agente como o `AgenteModule` monta |
 | `modelo-roteirizado.ts` | `ModeloLinguagem` do modo falso (`texto`, `chamar`) |
-| `casos/` | Casos. `perguntas.ts` lê `fixtures/avaliacao/perguntas.json`; `exemplos.ts` tem q01 e q33; `index.ts` junta |
+| `casos/` | Casos. `perguntas.ts` lê `fixtures/avaliacao/perguntas.json`; `numericas.ts` (q01 a q32, #69), `verificador.ts` (v01 a v05, #70) e `sem-resposta.ts` (q33 a q40, #72); `index.ts` junta |
 
 Um caso declara: `entrada`, `gatilho`, `ferramentasEsperadas` (todas têm de ser chamadas) e `criterio`. Para o modo falso traz também o `roteiro` do modelo e, se precisar, `ferramentasFalsas`: dublês que ocupam o lugar da ferramenta de mesmo nome do catálogo enquanto o plano A não a entrega. No modo real só vale o catálogo de `montarCatalogo`.
 
@@ -37,11 +37,12 @@ Regras dos critérios:
 
 - Dinheiro do gabarito vem em centavos e a mensagem o escreve em reais (`122151` vira "R$ 1.221,51"). Percentual compara o módulo; o sentido (queda, alta) vem da palavra e ainda não é conferido.
 - `bloqueio_verificador`: o número barrado não pode aparecer na mensagem final, e o fallback do verificador não pode ter número.
+- `numero_correto` com `textos` exige também os nomes do gabarito (produto, fornecedor) na mensagem, sem diferenciar maiúscula nem acento.
 - `numero_correto` com dois ou mais números da mesma unidade exige `contexto` em cada um (ex.: `/ontem/`, `/28 dias|anteriores/`): sem isso, a resposta com os valores trocados passaria. O contexto é procurado entre o número anterior e o seguinte da mensagem. O harness recusa o caso antes de rodar.
 - `sem_resposta`: aprovada, sem nenhum número e dizendo que não sabe ou o que falta. O padrão padrão pede "não sei", "não tenho dados" e variantes; o caso pode declarar `padraoNaoSei` mais específico (o q33 declara).
 - Data de referência (`--data` ou do caso) tem de existir no calendário, senão a rodada nem começa.
 
-## Para acrescentar casos (#69 a #74)
+## Para acrescentar casos (#71, #73, #74)
 
 Crie `casos/<tema>.ts` exportando uma lista de `CasoAvaliacao` e some-a em `casos/index.ts`. Números esperados saem de `perguntas.json`, nunca digitados à mão. Critério novo (injeção, ação com confirmação, escolha de ferramenta) entra como mais um `tipo` em `criterios.ts`.
 

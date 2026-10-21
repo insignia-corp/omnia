@@ -19,6 +19,10 @@ const PADRAO_NAO_SEI = new RegExp(
   "i",
 );
 
+/** Minúsculas e sem acento: "Água" e "agua" são o mesmo nome para quem lê a mensagem. */
+const normalizar = (t: string): string =>
+  t.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("pt-BR");
+
 const JANELA_ANTES = 80;
 const JANELA_DEPOIS = 40;
 
@@ -116,6 +120,11 @@ export function avaliarCriterios(caso: CasoAvaliacao, execucao: ExecucaoRegistra
           motivos.push(
             `Número ausente ou errado na mensagem: ${esperado.rotulo} (${esperado.valor} ${esperado.unidade})`,
           );
+        }
+      }
+      for (const nome of criterio.textos ?? []) {
+        if (!normalizar(mensagem).includes(normalizar(nome))) {
+          motivos.push(`Nome ausente na mensagem: ${nome}`);
         }
       }
       break;

@@ -23,8 +23,11 @@ export interface NumeroEsperado {
 
 /** Como o caso é julgado, além de chamar as ferramentas esperadas. */
 export type Criterio =
-  /** Mensagem aprovada pelo verificador, com cada número esperado escrito nela. */
-  | { tipo: "numero_correto"; numeros: NumeroEsperado[] }
+  /**
+   * Mensagem aprovada pelo verificador, com cada número esperado escrito nela e, em `textos`, os nomes
+   * (produto, fornecedor) que o gabarito espera citados, sem diferenciar maiúscula nem acento.
+   */
+  | { tipo: "numero_correto"; numeros: NumeroEsperado[]; textos?: string[] }
   /** O modelo roteirizado inventa um número: o verificador tem de barrar e nada fora das ferramentas sai. */
   | {
       tipo: "bloqueio_verificador";

@@ -10,7 +10,7 @@ Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara c
 
 | Tipo | Vira candidato quando | Chave |
 | --- | --- | --- |
-| `reajuste_de_custo` | variação de custo acima de 5% e compra de no máximo 7 dias | produto, fornecedor e data da compra |
+| `reajuste_de_custo` | variação de custo acima de 5% e compra de no máximo 7 dias | produto, fornecedor e id da compra atual |
 | `margem_abaixo_da_meta` | margem do produto abaixo da meta | produto |
 | `espaco_para_subir_preco` | giro alto e margem abaixo da meta | produto |
 | `giro_em_alta` | entre os de maior alta do giro, com alta acima de 0 | produto |
@@ -28,19 +28,19 @@ Nível de 1 (mais importante) a 3, por critério em `prioridade.ts`:
 
 1. **Impacto em reais**, calculado em código com inteiros em centavos:
    - reajuste: diferença de custo por unidade vezes as unidades vendidas nos últimos 7 dias;
-   - margem abaixo da meta: perda por unidade até a meta vezes as unidades da janela de preço;
-   - espaço para subir preço: perda por unidade até a meta vezes as unidades dos últimos 7 dias;
+   - margem abaixo da meta: (preço-alvo menos preço médio) vezes as unidades da janela de preço, com preço-alvo = custo / (1 menos a meta);
+   - espaço para subir preço: o mesmo ganho por unidade vezes as unidades dos últimos 7 dias;
    - ticket médio: (média de 28 dias menos ticket do dia) vezes os cupons do dia;
    - gasto fora do padrão: valor do dia menos a mediana.
 2. Impacto de R$ 500 ou mais é prioridade 1; de R$ 100 a R$ 499,99, prioridade 2; abaixo disso, 3.
 3. Sem impacto em reais (giro em alta, estoque parado, ou reajuste sem giro) o candidato fica em 3: sem número, sem urgência.
 4. **Confiança** abaixo de 0,8, ou desconhecida, rebaixa um nível (até o 3).
 
-Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave; `candidatos` do resultado do motor já vem nessa ordem. O impacto e a confiança ficam em `metricas_apoio` (`impacto_centavos`, `confianca`) junto com a procedência da métrica (`fonte`).
+Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave; `candidatos` do resultado do motor já vem nessa ordem. O impacto e a confiança ficam em `metricas_apoio` (`impacto_centavos`, `menor_confianca`) junto com a procedência da métrica (`fonte`).
 
 ## Supressão (#44)
 
-Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. Como a chave do reajuste inclui a data da compra, uma nota nova com outro reajuste do mesmo produto é um alerta novo.
+Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. A supressão só tem efeito depois que quem envia ou descarta grava o status final (`enviado` ou `descartado`) no alerta: o motor só cria `candidato` e ainda não há quem grave esse status (relatório diário e fluxo do `select_alerts`), então até lá nada é suprimido. Como a chave do reajuste inclui o id da compra atual (duas compras do mesmo produto e fornecedor no mesmo dia são alertas distintos), uma nota nova com outro reajuste do mesmo produto é um alerta novo.
 
 ## Job de reajuste após cada nota (#45)
 

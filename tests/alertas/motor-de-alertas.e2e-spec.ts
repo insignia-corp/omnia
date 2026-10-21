@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { fonteDeLimitesPadrao } from "../../src/alertas/limites";
 import { MotorDeAlertas } from "../../src/alertas/motor-de-alertas";
 import { RepositorioAlertasPostgres } from "../../src/alertas/repositorio-alertas";
+import { criarSelectAlerts } from "../../src/agente/ferramentas/select-alerts";
 import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
@@ -161,6 +162,18 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       expect(r.candidatos.every((c) => [1, 2, 3].includes(c.prioridade))).toBe(true);
     });
 
+    it("select_alerts sobre as linhas do motor devolve a confiança real, não nula", async () => {
+      const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      const escolhidos = r.candidatos.slice(0, 3);
+      const guardada = escolhidos.map((c) => c.metricasApoio.menor_confianca);
+      expect(guardada.every((v) => typeof v === "number")).toBe(true);
+      const saida = await criarSelectAlerts(db).executar(
+        { comercianteId: vilaNova, nomeComercio: "Vila Nova", dataReferencia: REF },
+        { alertas: escolhidos.map((c) => ({ alerta_id: c.id, justificativa: "teste" })) },
+      );
+      expect(saida.menor_confianca).toBe(Math.min(...(guardada as number[])));
+    });
+
     it("é idempotente: repetir no mesmo dia não cria nem altera candidato", async () => {
       const antes = await linhasDoBanco(vilaNova);
       const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
@@ -260,16 +273,24 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
 
     beforeAll(async () => {
       await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, vilaNova));
+      const compras = await db.select().from(schema.compra).where(eq(schema.compra.comercianteId, vilaNova));
+      const compraDe = (data: string): string => {
+        const c = compras.find((x) => x.data === data && x.fornecedorId === fornecedor("AUR"));
+        if (!c) throw new Error(`Sem compra da Aurora em ${data}`);
+        return c.id;
+      };
+      const compraDoArroz = compraDe("2026-10-16");
+      const compraDoOleo = compraDe("2026-10-13");
       // O reajuste do arroz foi enviado há 2 dias; o do óleo foi descartado há 6 (ainda na semana).
       await tratado(
         "reajuste_de_custo",
-        `${id("P01")}:${fornecedor("AUR")}:2026-10-16`,
+        `${id("P01")}:${fornecedor("AUR")}:${compraDoArroz}`,
         "2026-10-17",
         "enviado",
       );
       await tratado(
         "reajuste_de_custo",
-        `${id("P03")}:${fornecedor("AUR")}:2026-10-13`,
+        `${id("P03")}:${fornecedor("AUR")}:${compraDoOleo}`,
         "2026-10-13",
         "descartado",
       );
@@ -332,5 +353,67 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
         expect(doDia).toEqual([]);
       }
     });
+  });
+
+  describe("duas compras no mesmo dia (reajuste)", () => {
+    it("a segunda compra do mesmo produto e fornecedor no dia vira outro candidato, não é descartada", async () => {
+      await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, vilaNova));
+      const arroz = produtoPorSku.get("P01");
+      const aurora = gabaritoPorFornecedor.get("AUR");
+      if (!arroz || !aurora) throw new Error("Seed sem P01 ou Aurora");
+      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect((await reajustesDoArroz()).length).toBe(1);
+
+      // Outra nota da Aurora no mesmo dia 16/10, com o arroz a R$ 30,00 (7,5% sobre os R$ 27,90).
+      const [novaCompra] = await db
+        .insert(schema.compra)
+        .values({
+          comercianteId: vilaNova,
+          fornecedorId: aurora,
+          data: "2026-10-16",
+          totalCentavos: 3000,
+          somaItensCentavos: 3000,
+          origem: "foto_nota",
+          confianca: 1,
+        })
+        .returning({ id: schema.compra.id });
+      const [item] = await db
+        .insert(schema.itemDeCompra)
+        .values({
+          comercianteId: vilaNova,
+          compraId: novaCompra!.id,
+          produtoId: arroz,
+          ordem: 1,
+          descricaoNota: "ARROZ 5KG",
+          quantidade: 1,
+          unidade: "un",
+          valorUnitarioCentavos: 3000,
+          valorTotalCentavos: 3000,
+          confianca: 1,
+          origem: "foto_nota",
+        })
+        .returning({ id: schema.itemDeCompra.id });
+      await db.insert(schema.historicoCusto).values({
+        comercianteId: vilaNova,
+        produtoId: arroz,
+        fornecedorId: aurora,
+        data: "2026-10-16",
+        custoUnitarioCentavos: 3000,
+        itemDeCompraId: item!.id,
+        origem: "foto_nota",
+        confianca: 1,
+      });
+
+      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      const linhas = await reajustesDoArroz();
+      expect(linhas).toHaveLength(2);
+      expect(new Set(linhas.map((l) => l.chave)).size).toBe(2);
+      expect(linhas.some((l) => l.chave.endsWith(`:${novaCompra!.id}`))).toBe(true);
+    });
+
+    const reajustesDoArroz = async () =>
+      (await linhasDoBanco(vilaNova)).filter(
+        (l) => l.tipo === "reajuste_de_custo" && l.produtoId === produtoPorSku.get("P01"),
+      );
   });
 });

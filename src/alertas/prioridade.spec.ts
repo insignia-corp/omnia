@@ -91,11 +91,16 @@ describe("ordenarGravados", () => {
     dataReferencia: "2026-10-19",
     produtoId: null,
     fornecedorId: null,
-    metricasApoio: { impacto_centavos: impacto, confianca },
+    metricasApoio: { impacto_centavos: impacto, menor_confianca: confianca },
   });
 
   it("devolve na ordem do critério, lendo impacto e confiança das métricas de apoio", () => {
     const lista = [gravado("c", 3, null), gravado("b", 2, 100), gravado("a", 2, 450), gravado("d", 1, 1)];
     expect(ordenarGravados(lista).map((l) => l.chave)).toEqual(["d", "a", "b", "c"]);
+  });
+
+  it("no empate de impacto, a maior menor_confianca vem primeiro", () => {
+    const lista = [gravado("x", 2, 100, 0.7), gravado("y", 2, 100, 0.9)];
+    expect(ordenarGravados(lista).map((l) => l.chave)).toEqual(["y", "x"]);
   });
 });

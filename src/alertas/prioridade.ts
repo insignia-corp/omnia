@@ -26,14 +26,14 @@ export function prioridadeDe(
   return nivel;
 }
 
-/** Ordena as linhas lidas do banco pelo mesmo critério; impacto e confiança vêm de `metricas_apoio`. */
+/** Ordena as linhas lidas do banco pelo mesmo critério; impacto e confiança (`menor_confianca`, o campo que `select_alerts` lê) vêm de `metricas_apoio`. */
 export function ordenarGravados<T extends AlertaGravado>(linhas: readonly T[]): T[] {
   const numero = (valor: unknown): number | null => (typeof valor === "number" ? valor : null);
   return linhas
     .map((l) => ({
       ...l,
       impactoCentavos: numero(l.metricasApoio.impacto_centavos),
-      confianca: numero(l.metricasApoio.confianca),
+      confianca: numero(l.metricasApoio.menor_confianca),
     }))
     .sort(compararCandidatos)
     .map(({ impactoCentavos: _i, confianca: _c, ...l }) => l as unknown as T);

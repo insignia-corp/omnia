@@ -46,6 +46,7 @@ const variacao = (extra: Partial<VariacaoDeCusto> = {}): VariacaoDeCusto => ({
   custo_atual_centavos: 2790,
   compra_anterior_data: "2026-09-14",
   compra_atual_data: "2026-10-16",
+  compra_atual_id: "compra-16",
   variacao_bps: 1205,
   variacao_percentual: 12.05,
   acima_do_limite: true,
@@ -105,13 +106,21 @@ describe("regra de reajuste de custo", () => {
     expect(candidatos).toHaveLength(1);
     expect(candidatos[0]).toMatchObject({
       tipo: "reajuste_de_custo",
-      chave: "p1:f1:2026-10-16",
+      chave: "p1:f1:compra-16",
       produtoId: "p1",
       fornecedorId: "f1",
       // 300 centavos a mais por unidade, 36 unidades na semana
       impactoCentavos: 10_800,
       metricasApoio: { variacao_bps: 1205, custo_anterior_centavos: 2490, custo_atual_centavos: 2790 },
     });
+  });
+
+  it("duas compras do mesmo produto e fornecedor no mesmo dia têm chaves diferentes", async () => {
+    const a = await rodar(regraReajusteDeCusto, servicoCom([variacao({ compra_atual_id: "compra-a" })]));
+    const b = await rodar(regraReajusteDeCusto, servicoCom([variacao({ compra_atual_id: "compra-b" })]));
+    expect(a.candidatos[0]?.chave).toBe("p1:f1:compra-a");
+    expect(b.candidatos[0]?.chave).toBe("p1:f1:compra-b");
+    expect(a.candidatos[0]?.metricasApoio).toMatchObject({ compra_atual_id: "compra-a" });
   });
 
   it("não gera abaixo do limite, em queda ou com a compra fora da janela", async () => {
@@ -161,7 +170,7 @@ describe("regra de margem abaixo da meta", () => {
     });
     expect(candidatos.map((c) => c.chave)).toEqual(["p1"]);
     expect(candidatos[0]).toMatchObject({
-      impactoCentavos: 24_878, // 3499 x 474 bps x 150 unidades, arredondado no fim
+      impactoCentavos: 33_150, // preço-alvo 3720 (custo 2790 / 0,75), 221 centavos a mais x 150 unidades
       metricasApoio: { margem_bps: 2026, meta_bps: 2500 },
     });
   });
@@ -179,6 +188,18 @@ describe("regra de margem abaixo da meta", () => {
     expect(r.ausentes).toEqual([
       { tipo: "margem_abaixo_da_meta", codigo: "sem_custo", motivo: "Sem nota de compra." },
     ]);
+  });
+});
+
+describe("impacto até a meta de margem", () => {
+  it("meta de 100% não tem preço que a atinja: sem impacto em reais, nunca zero", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      margensDosProdutos: () =>
+        Promise.resolve([
+          { produto_id: "p1", resultado: resultado(margem({ meta_bps: 10_000, margem_bps: 2026 })) },
+        ]),
+    });
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
   });
 });
 
@@ -234,7 +255,7 @@ describe("regra de espaço para subir preço", () => {
     expect(candidatos[0]).toMatchObject({
       tipo: "espaco_para_subir_preco",
       chave: "p1",
-      impactoCentavos: 5971, // 3499 x 474 bps x 36 unidades, arredondado no fim
+      impactoCentavos: 7956, // preço-alvo 3720 (custo 2790 / 0,75), 221 centavos a mais x 36 unidades
       metricasApoio: { margem_bps: 2026, meta_bps: 2500, unidades_7_dias: 36 },
     });
   });

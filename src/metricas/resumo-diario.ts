@@ -170,14 +170,17 @@ export function calcularResumoDiario(
     intervaloDoExtrato !== null && data >= intervaloDoExtrato.primeira && data <= intervaloDoExtrato.ultima;
   const semExtrato = dadoAusente(
     "dia_sem_extrato",
-    `Não há extrato bancário importado para ${data}, então os gastos do dia são desconhecidos.`,
+    `Não há extrato bancário importado para ${data}, então os gastos e o saldo desse dia são desconhecidos.`,
     "Pode conectar o banco ou enviar o extrato mais recente?",
   );
   const saidasDoDia = extratoCobreODia
     ? entrada.movimentos.filter((m) => m.data === data && m.tipo === "saida")
     : [];
   const gastos = saidasDoDia.reduce((soma, m) => soma + m.totalCentavos, 0);
-  const saldoDaConta = calcularSaldoDaConta(data, entrada.contas, entrada.movimentos);
+  const saldoCalculado = calcularSaldoDaConta(data, entrada.contas, entrada.movimentos);
+  // Extrato que termina antes do dia não traz os movimentos dele: o saldo calculado estaria defasado.
+  const saldoDefasado = intervaloDoExtrato !== null && data > intervaloDoExtrato.ultima;
+  const saldoDaConta = !("ausente" in saldoCalculado) && saldoDefasado ? semExtrato : saldoCalculado;
   for (const m of saidasDoDia) fontes.add(m);
   if (!("ausente" in saldoDaConta)) for (const m of saldoDaConta.usados) fontes.add(m);
 

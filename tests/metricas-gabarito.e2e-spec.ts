@@ -356,6 +356,10 @@ describe("métricas contra o gabarito (e2e)", () => {
       giro = valorDe<Giro>(await servico.giro(vilaNova));
     });
 
+    it("só lista produtos da própria Vila Nova", () => {
+      for (const g of giro.valor.por_produto) expect(skuPorProduto.has(g.produto_id)).toBe(true);
+    });
+
     it("usa as mesmas janelas do gabarito", () => {
       expect(giro.valor.periodos.ultimos_7_dias).toEqual(gabarito.giro.periodo.ultimos_7_dias);
       expect(giro.valor.periodos.anteriores_28_dias).toEqual(gabarito.giro.periodo.anteriores_28_dias);

@@ -12,12 +12,14 @@ import { ehDadoAusente } from "../src/metricas/resultado-metrica";
 /**
  * Importação de planilha que ainda pede revisão do dono (regras invioláveis 3 e 4): as vendas
  * que ela gravou entram nas métricas, mas nunca com confiança 1, e a confiança volta quando o
- * dono resolve a pendência. Venda de outro comerciante nunca entra na conta.
+ * documento passa a extraído. Venda de outro comerciante nunca entra na conta.
  */
 
 const DIA_CONFIAVEL = "2026-10-10";
 const DIA_SEM_DOCUMENTO = "2026-10-11";
 const DIA_PARCIAL = "2026-10-12";
+const DIA_COM_FALHA = "2026-10-13";
+const DIA_DE_CONFIANCA_BAIXA = "2026-10-14";
 
 describe("métricas e importação parcial de planilha (e2e)", () => {
   const url = carregarEnv().DATABASE_URL;
@@ -31,7 +33,11 @@ describe("métricas e importação parcial de planilha (e2e)", () => {
   let produtoId: string;
   let documentoParcialId: string;
 
-  async function novoDocumento(dono: string, hash: string, status: "extraido" | "revisao") {
+  async function novoDocumento(
+    dono: string,
+    hash: string,
+    status: "pendente" | "processando" | "extraido" | "revisao" | "falha",
+  ) {
     const [doc] = await db
       .insert(schema.documento)
       .values({
@@ -46,7 +52,13 @@ describe("métricas e importação parcial de planilha (e2e)", () => {
     return doc.id;
   }
 
-  async function novaVenda(dono: string, produto: string, documentoId: string | null, data: string) {
+  async function novaVenda(
+    dono: string,
+    produto: string,
+    documentoId: string | null,
+    data: string,
+    confianca = 1,
+  ) {
     const [v] = await db
       .insert(schema.venda)
       .values({
@@ -56,7 +68,7 @@ describe("métricas e importação parcial de planilha (e2e)", () => {
         numeroCupom: `cupom-${data}`,
         totalCentavos: 1000,
         origem: "planilha",
-        confianca: 1,
+        confianca,
       })
       .returning({ id: schema.venda.id });
     if (!v) throw new Error("venda não criada");
@@ -92,6 +104,10 @@ describe("métricas e importação parcial de planilha (e2e)", () => {
     await novaVenda(comercianteId, produtoId, resolvido, DIA_CONFIAVEL);
     await novaVenda(comercianteId, produtoId, null, DIA_SEM_DOCUMENTO);
     await novaVenda(comercianteId, produtoId, documentoParcialId, DIA_PARCIAL);
+    const comFalha = await novoDocumento(comercianteId, "hash-falha", "falha");
+    await novaVenda(comercianteId, produtoId, comFalha, DIA_COM_FALHA);
+    // A confiança da própria venda já é menor que o teto: o teto não a sobe.
+    await novaVenda(comercianteId, produtoId, documentoParcialId, DIA_DE_CONFIANCA_BAIXA, 0.3);
 
     // Outro lojista, com planilha em revisão no mesmo dia: não pode contaminar o primeiro.
     const parcialDoOutro = await novoDocumento(outroId, "hash-parcial-outro", "revisao");
@@ -116,6 +132,14 @@ describe("métricas e importação parcial de planilha (e2e)", () => {
       [DIA_SEM_DOCUMENTO]: 1,
       [DIA_PARCIAL]: CONFIANCA_REDUZIDA,
     });
+  });
+
+  it("documento com falha também reduz, e o teto nunca sobe uma confiança que já era menor", async () => {
+    const dias = await repositorio.vendasPorDia(comercianteId, DIA_COM_FALHA, DIA_DE_CONFIANCA_BAIXA);
+    expect(dias.map((d) => [d.data, d.menorConfianca])).toEqual([
+      [DIA_COM_FALHA, CONFIANCA_REDUZIDA],
+      [DIA_DE_CONFIANCA_BAIXA, 0.3],
+    ]);
   });
 
   it("vendas por produto e última venda do produto carregam a mesma confiança reduzida", async () => {
@@ -146,7 +170,7 @@ describe("métricas e importação parcial de planilha (e2e)", () => {
     expect((await confiancaPorDia())[DIA_CONFIAVEL]).toBe(1);
   });
 
-  it("quando o dono resolve a pendência e o documento fica extraído, a confiança volta a 1", async () => {
+  it("quando o documento passa a extraído, a confiança volta ao valor original", async () => {
     await db
       .update(schema.documento)
       .set({ statusExtracao: "extraido" })

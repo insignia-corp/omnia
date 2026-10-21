@@ -219,7 +219,9 @@ describe("loop do agente com banco real (e2e)", () => {
         },
       );
       expect(r.ok).toBe(true);
-      expect(JSON.stringify(r)).not.toContain("99");
+      // O texto do modelo não volta (conferir "99" solto falharia às vezes: o UUID do alerta pode conter "99").
+      expect(JSON.stringify(r)).not.toContain("99%");
+      expect(JSON.stringify(r)).not.toContain("O custo subiu");
       expect(JSON.stringify(r)).not.toContain("justificativa");
 
       const modelo = new ModeloRoteirizado([

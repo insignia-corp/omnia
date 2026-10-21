@@ -159,6 +159,40 @@ describe("bastidores (e2e)", () => {
     });
   });
 
+  it("a versão do painel muda quando a decisão de um alerta muda sem execução nova", async () => {
+    const antes = await painel(a);
+    expect((await painel(a)).versao).toBe(antes.versao);
+    await db
+      .update(schema.alerta)
+      .set({ justificativa: "Reajuste confirmado pelo dono" })
+      .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+    const depois = await painel(a);
+    expect(depois.versao).not.toBe(antes.versao);
+    const e = depois.execucoes.find((x) => x.id === execucaoId)!;
+    expect(e.decisoes_alerta[0]!.justificativa).toBe("Reajuste confirmado pelo dono");
+    await db
+      .update(schema.alerta)
+      .set({ justificativa: "Maior variação do dia" })
+      .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+  });
+
+  it("a versão do painel muda quando só as métricas de apoio do alerta mudam", async () => {
+    const antes = await painel(a);
+    const [linha] = await db
+      .select({ metricasApoio: schema.alerta.metricasApoio })
+      .from(schema.alerta)
+      .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+    await db
+      .update(schema.alerta)
+      .set({ metricasApoio: { variacao_bps: 12345 } })
+      .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+    expect((await painel(a)).versao).not.toBe(antes.versao);
+    await db
+      .update(schema.alerta)
+      .set({ metricasApoio: linha!.metricasApoio })
+      .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+  });
+
   it("um comerciante não vê as execuções, nem os alertas do outro", async () => {
     const p = await painel(b);
     expect(p.execucoes).toEqual([]);

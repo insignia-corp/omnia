@@ -46,6 +46,13 @@ describe("carregarEnv", () => {
     expect(() => carregarEnv({ ...base, DEMO_DATA_REFERENCIA: "2026-13-40" })).toThrow(
       /DEMO_DATA_REFERENCIA/,
     );
+    // Data que não existe no calendário não pode virar outro dia em silêncio.
+    expect(() => carregarEnv({ ...base, DEMO_DATA_REFERENCIA: "2026-02-30" })).toThrow(
+      /DEMO_DATA_REFERENCIA/,
+    );
+    expect(carregarEnv({ ...base, DEMO_DATA_REFERENCIA: "2028-02-29" }).DEMO_DATA_REFERENCIA).toBe(
+      "2028-02-29",
+    );
   });
 
   it("trata variável vazia como não definida", () => {

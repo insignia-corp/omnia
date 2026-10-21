@@ -201,6 +201,79 @@ describe("ferramentas de leitura do plano A", () => {
     });
   });
 
+  describe("regra 8: os ids das saídas não autorizam números", () => {
+    const ID_COM_99 = "f0e1d2c3-99ab-4cde-8f01-23456789abcd";
+    const afirma99 = "O custo do arroz subiu 99%.";
+
+    it("get_product_margin: produto_id e fornecedor_id com 99 não autorizam 99", async () => {
+      const m = {
+        margemDoProduto: jest.fn(async () => metrica({ ...margem(ID_COM_99), fornecedor_id: ID_COM_99 })),
+      } as unknown as MetricasService;
+      const banco = dbCom([{ produto_id: ID_COM_99, nome: "Refrigerante 2L", sim: 0.9 }]);
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "Refrigerante 2L" });
+      const aut = new NumerosAutorizados([saida]);
+      expect(JSON.stringify(saida)).toContain(ID_COM_99);
+      expect(verificarNumeros(afirma99, aut).aprovado).toBe(false);
+      expect(verificarNumeros("A margem é de 27,7%.", aut).aprovado).toBe(true);
+    });
+
+    it("get_product_margin: candidatos ambíguos e dado ausente com id também não autorizam", async () => {
+      const ambiguo = await criarGetProductMargin(
+        servico().metricas,
+        dbCom([
+          { produto_id: ID_COM_99, nome: "Refrigerante Cola", sim: 0.55 },
+          { produto_id: randomUUID(), nome: "Refrigerante Guaraná", sim: 0.52 },
+        ]),
+      ).executar(contexto, { produto: "Refrigerante" });
+      expect(verificarNumeros(afirma99, new NumerosAutorizados([ambiguo])).aprovado).toBe(false);
+
+      const ausente = await criarGetProductMargin(
+        {
+          margemDoProduto: jest.fn(async () => dadoAusente("sem_custo", "Sem nota.")),
+        } as unknown as MetricasService,
+        dbCom([{ produto_id: ID_COM_99, nome: "Refrigerante 2L", sim: 0.9 }]),
+      ).executar(contexto, { produto: "Refrigerante 2L" });
+      expect(JSON.stringify(ausente)).toContain(ID_COM_99);
+      expect(verificarNumeros(afirma99, new NumerosAutorizados([ausente])).aprovado).toBe(false);
+    });
+
+    it("get_cost_changes: produto_id e fornecedor_id com 99 não autorizam 99", async () => {
+      const m = {
+        variacoesDeCusto: jest.fn(async () =>
+          metrica([{ ...variacao(true, true), produto_id: ID_COM_99, fornecedor_id: ID_COM_99 }]),
+        ),
+      } as unknown as MetricasService;
+      const saida = await criarGetCostChanges(
+        m,
+        dbDeFornecedores([{ id: ID_COM_99, nome: "Atacadão Teste" }]),
+      ).executar(contexto, { filtro: "todos" });
+      const aut = new NumerosAutorizados([saida]);
+      expect(JSON.stringify(saida)).toContain(ID_COM_99);
+      expect(verificarNumeros(afirma99, aut).aprovado).toBe(false);
+      expect(verificarNumeros("Subiu 20%, de R$ 20,00 para R$ 24,00.", aut).aprovado).toBe(true);
+    });
+
+    it("get_top_products: produto_id com 99 não autoriza 99", async () => {
+      const produtos = [{ ...giroDoProduto("Cerveja Lata", 120, 3000), produto_id: ID_COM_99 }];
+      const m = {
+        giro: jest.fn(async () =>
+          metrica({
+            periodos: { ultimos_7_dias: periodo, anteriores_28_dias: periodo },
+            por_produto: produtos,
+            maior_alta: produtos,
+            maior_volume: produtos,
+            giro_alto: [ID_COM_99],
+          }),
+        ),
+      } as unknown as MetricasService;
+      const saida = await criarGetTopProducts(m).executar(contexto, { criterio: "volume" });
+      const aut = new NumerosAutorizados([saida]);
+      expect(JSON.stringify(saida)).toContain(ID_COM_99);
+      expect(verificarNumeros(afirma99, aut).aprovado).toBe(false);
+      expect(verificarNumeros("Cerveja Lata vendeu 120 unidades.", aut).aprovado).toBe(true);
+    });
+  });
+
   describe("get_daily_summary", () => {
     it("repassa gastos e saldo ausentes sem trocar por zero", async () => {
       const ausente = dadoAusente("sem_extrato_no_dia", "Sem extrato para o dia.");

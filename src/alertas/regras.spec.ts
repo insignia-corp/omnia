@@ -215,6 +215,28 @@ describe("regra de margem abaixo da meta", () => {
 });
 
 describe("impacto até a meta de margem", () => {
+  it("o preço-alvo arredonda para cima, para a meta de margem ficar garantida", async () => {
+    // Custo 101 e meta 30%: 101 / 0,7 = 144,29. Com 144 a margem é 29,86%; só 145 atinge a meta.
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: () => Promise.resolve(giro([giroDoProduto("p1", { unidades_7_dias: 10 })])),
+      margensDosProdutos: () =>
+        Promise.resolve([
+          {
+            produto_id: "p1",
+            resultado: resultado(
+              margem({
+                preco_medio_venda_centavos: 140,
+                custo_compra_mais_recente_centavos: 101,
+                meta_bps: 3000,
+                margem_bps: 2786,
+              }),
+            ),
+          },
+        ]),
+    });
+    expect(candidatos[0]?.impactoCentavos).toBe(50); // (145 - 140) x 10 unidades
+  });
+
   it("meta de 100% não tem preço que a atinja: sem impacto em reais, nunca zero", async () => {
     const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
       giro: giroDe36,

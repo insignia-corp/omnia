@@ -28,7 +28,7 @@ Nível de 1 (mais importante) a 3, por critério em `prioridade.ts`:
 
 1. **Impacto em reais**, calculado em código com inteiros em centavos. Os que dependem de volume medem a **semana** (últimos 7 dias do giro); ticket e gasto medem o **dia** da data de referência, por natureza. Assim o mesmo fato tem a mesma prioridade em regras diferentes:
    - reajuste (semana): diferença de custo por unidade vezes as unidades vendidas nos últimos 7 dias;
-   - margem abaixo da meta (semana): (preço-alvo menos preço médio) vezes as unidades dos últimos 7 dias, com preço-alvo = custo / (1 menos a meta);
+   - margem abaixo da meta (semana): (preço-alvo menos preço médio) vezes as unidades dos últimos 7 dias, com preço-alvo = custo / (1 menos a meta), arredondado para cima para a meta ficar garantida;
    - espaço para subir preço (semana): o mesmo ganho por unidade vezes as unidades dos últimos 7 dias;
    - ticket médio (dia): (média de 28 dias menos ticket do dia) vezes os cupons do dia;
    - gasto fora do padrão (dia): valor do dia menos a mediana.

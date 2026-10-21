@@ -5,7 +5,6 @@
  */
 import { diasEntre } from "../lib/datas/datas";
 import { centavos, multiplicar } from "../lib/dinheiro/dinheiro";
-import { dividirArredondando } from "../metricas/pontos-base";
 import { ehDadoAusente, type DadoAusente } from "../metricas/resultado-metrica";
 import {
   fonteDe,
@@ -34,7 +33,7 @@ function menorConhecida(...confiancas: Array<number | null>): number | null {
 
 /**
  * O que as unidades vendidas renderiam a mais com o preço que dá a meta de margem. O preço-alvo sai
- * de custo / (1 - meta), em inteiros: a margem tem o preço no denominador, então diferença de margem
+ * de custo / (1 - meta), arredondado para cima: a margem tem o preço no denominador, então diferença de margem
  * vezes preço não é o aumento de preço necessário. Nulo quando a meta é 100% (sem preço que a atinja).
  */
 function impactoDeChegarNaMeta(
@@ -43,8 +42,11 @@ function impactoDeChegarNaMeta(
   metaBps: number,
   unidades: number,
 ): number | null {
-  const precoAlvo = dividirArredondando(custoCentavos * 10_000, 10_000 - metaBps);
-  if (precoAlvo === null) return null;
+  const denominador = 10_000 - metaBps;
+  if (denominador <= 0) return null;
+  // Para cima: arredondar para baixo deixaria a margem do preço-alvo um pouco abaixo da meta. Os
+  // dois lados são inteiros, e uma divisão exata de inteiros é exata em ponto flutuante.
+  const precoAlvo = Math.ceil((custoCentavos * 10_000) / denominador);
   return multiplicar(centavos(Math.max(0, precoAlvo - precoCentavos)), unidades);
 }
 

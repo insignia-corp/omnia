@@ -25,6 +25,7 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
       "produto como o dono disse; a busca é aproximada. Se mais de um produto couber, devolve " +
       "ambiguo: true com candidatos (pergunte ao dono qual, sem adivinhar). Pode vir como dado ausente " +
       "(ausente: true) sem venda na janela, sem custo ou produto não encontrado: diga isso ao dono. " +
+      "Confira o campo nome do resultado: a busca é aproximada, então cite o produto que foi de fato achado. " +
       "O produto_id do resultado serve para ask_owner.",
     entrada: z.strictObject({
       produto: z.string().trim().min(2).max(120).describe("Nome do produto, como o dono falou."),

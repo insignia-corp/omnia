@@ -207,10 +207,15 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
           .where(eq(schema.produto.comercianteId, esquina.comercianteId))
       ).map((p) => p.id),
     );
+    // O Esquina não vende refrigerante: o produto do Vila Nova não pode aparecer para ele.
+    const margemDeOutroLojista = await chamar(esquina, "get_product_margin", {
+      produto: "Refrigerante cola 2L",
+    });
+    expect(margemDeOutroLojista).toMatchObject({ ausente: true });
     const resultados = [
       await chamar(esquina, "get_top_products", { criterio: "volume" }),
       await chamar(esquina, "get_cost_changes", {}),
-      await chamar(esquina, "get_product_margin", { produto: "Refrigerante cola 2L" }),
+      margemDeOutroLojista,
     ];
     const ids =
       JSON.stringify(resultados).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [];

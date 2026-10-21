@@ -4,7 +4,7 @@
  * esses números. Dado ausente não vira candidato nem zero.
  */
 import { diasEntre } from "../lib/datas/datas";
-import { centavos, multiplicar } from "../lib/dinheiro/dinheiro";
+import { centavos, ErroDinheiro, multiplicar } from "../lib/dinheiro/dinheiro";
 import { ehDadoAusente, type DadoAusente } from "../metricas/resultado-metrica";
 import {
   fonteDe,
@@ -23,6 +23,19 @@ const semCandidato = (tipo: TipoAlerta, ausente: DadoAusente): ResultadoDaRegra 
 /** Um motivo por código: 50 produtos sem custo são um aviso só. */
 function motivosUnicos(motivos: MotivoAusente[]): MotivoAusente[] {
   return [...new Map(motivos.map((m) => [m.codigo, m])).values()];
+}
+
+/**
+ * Impacto em centavos. Um valor que não cabe em centavos inteiros seguros (soma enorme vinda de
+ * agregados do banco) vira impacto nulo, nunca um número impreciso gravado no alerta.
+ */
+function impactoOuNulo(calcular: () => number | null): number | null {
+  try {
+    return calcular();
+  } catch (e) {
+    if (e instanceof ErroDinheiro) return null;
+    throw e;
+  }
 }
 
 /** A menor das confianças conhecidas; nula quando nenhuma é conhecida. */
@@ -45,8 +58,9 @@ function impactoDeChegarNaMeta(
   const denominador = 10_000 - metaBps;
   if (denominador <= 0) return null;
   // Para cima: arredondar para baixo deixaria a margem do preço-alvo um pouco abaixo da meta. Os
-  // dois lados são inteiros, e uma divisão exata de inteiros é exata em ponto flutuante.
-  const precoAlvo = Math.ceil((custoCentavos * 10_000) / denominador);
+  // dois lados são inteiros seguros (`centavos` recusa o que não cabe), e uma divisão exata de
+  // inteiros é exata em ponto flutuante.
+  const precoAlvo = centavos(Math.ceil(centavos(custoCentavos * 10_000) / denominador));
   return multiplicar(centavos(Math.max(0, precoAlvo - precoCentavos)), unidades);
 }
 
@@ -71,7 +85,12 @@ export const regraReajusteDeCusto: RegraDeAlerta = {
         fornecedorId: v.fornecedor_id,
         // Quanto a semana de venda passa a custar a mais com o custo novo.
         impactoCentavos: doGiro
-          ? multiplicar(centavos(v.custo_atual_centavos - v.custo_anterior_centavos), doGiro.unidades_7_dias)
+          ? impactoOuNulo(() =>
+              multiplicar(
+                centavos(v.custo_atual_centavos - v.custo_anterior_centavos),
+                doGiro.unidades_7_dias,
+              ),
+            )
           : null,
         // O impacto depende das vendas: com ele, vale a menor entre a confiança do custo e a do giro.
         confianca: usaGiro ? menorConhecida(v.menor_confianca, giro.menor_confianca) : v.menor_confianca,
@@ -119,11 +138,13 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
         // Quanto a semana de venda (7 dias, a mesma base das outras regras) renderia a mais com o
         // preço na meta de margem. Sem giro não há volume da semana: sem impacto, nunca zero.
         impactoCentavos: doGiro
-          ? impactoDeChegarNaMeta(
-              m.preco_medio_venda_centavos,
-              m.custo_compra_mais_recente_centavos,
-              m.meta_bps,
-              doGiro.unidades_7_dias,
+          ? impactoOuNulo(() =>
+              impactoDeChegarNaMeta(
+                m.preco_medio_venda_centavos,
+                m.custo_compra_mais_recente_centavos,
+                m.meta_bps,
+                doGiro.unidades_7_dias,
+              ),
             )
           : null,
         confianca: usaGiro
@@ -201,11 +222,13 @@ export const regraEspacoParaSubirPreco: RegraDeAlerta = {
         produtoId: p.produto_id,
         fornecedorId: null,
         // O que a semana de venda renderia a mais com o preço na meta de margem.
-        impactoCentavos: impactoDeChegarNaMeta(
-          p.preco_medio_venda_centavos,
-          p.custo_compra_mais_recente_centavos,
-          p.meta_bps,
-          p.unidades_7_dias,
+        impactoCentavos: impactoOuNulo(() =>
+          impactoDeChegarNaMeta(
+            p.preco_medio_venda_centavos,
+            p.custo_compra_mais_recente_centavos,
+            p.meta_bps,
+            p.unidades_7_dias,
+          ),
         ),
         confianca: confiancaDe(p.produto_id),
         metricasApoio: {
@@ -270,7 +293,9 @@ export const regraTicketMedioEmQueda: RegraDeAlerta = {
           produtoId: null,
           fornecedorId: null,
           // O que os cupons do dia deixaram de render contra a média dos 28 dias.
-          impactoCentavos: (t.media_28_dias_centavos - t.ticket_medio_centavos) * t.cupons,
+          impactoCentavos: impactoOuNulo(() =>
+            multiplicar(centavos(t.media_28_dias_centavos - t.ticket_medio_centavos), t.cupons),
+          ),
           confianca: ticket.menor_confianca,
           metricasApoio: {
             data: t.data,

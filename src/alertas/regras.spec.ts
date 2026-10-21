@@ -249,6 +249,32 @@ describe("impacto até a meta de margem", () => {
   });
 });
 
+describe("valores que não cabem em centavos seguros", () => {
+  it("reajuste com volume absurdo não derruba o motor: candidato sem impacto", async () => {
+    const { candidatos } = await rodar(regraReajusteDeCusto, {
+      variacoesDeCusto: () => Promise.resolve(resultado([variacao()])),
+      giro: () => Promise.resolve(giro([giroDoProduto("p1", { unidades_7_dias: 1e18 })])),
+    });
+    expect(candidatos).toHaveLength(1);
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
+  });
+
+  it("preço-alvo cuja conta estoura os inteiros seguros: candidato sem impacto", async () => {
+    const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
+      giro: () => Promise.resolve(giro([giroDoProduto("p1")])),
+      margensDosProdutos: () =>
+        Promise.resolve([
+          {
+            produto_id: "p1",
+            resultado: resultado(margem({ custo_compra_mais_recente_centavos: 10 ** 14 })),
+          },
+        ]),
+    });
+    expect(candidatos).toHaveLength(1);
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
+  });
+});
+
 describe("regra de giro em alta", () => {
   it("gera candidato para os de maior alta, sem impacto em reais", async () => {
     const { candidatos } = await rodar(regraGiroEmAlta, {
@@ -363,6 +389,14 @@ describe("regra de ticket médio em queda", () => {
     expect(
       (await rodar(regraTicketMedioEmQueda, { ticketMedio: () => Promise.resolve(ticket(3000)) })).candidatos,
     ).toHaveLength(1);
+  });
+
+  it("soma enorme que não cabe em centavos seguros: candidato sem impacto, nunca um número inventado", async () => {
+    const { candidatos } = await rodar(regraTicketMedioEmQueda, {
+      ticketMedio: () => Promise.resolve(ticket(4312, { cupons: 4_000_000, media: 4_000_000_000_000 })),
+    });
+    expect(candidatos).toHaveLength(1);
+    expect(candidatos[0]?.impactoCentavos).toBeNull();
   });
 
   it("não gera abaixo do limite e respeita o limite do comerciante", async () => {

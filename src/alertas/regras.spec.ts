@@ -46,6 +46,7 @@ const variacao = (extra: Partial<VariacaoDeCusto> = {}): VariacaoDeCusto => ({
   custo_atual_centavos: 2790,
   compra_anterior_data: "2026-09-14",
   compra_atual_data: "2026-10-16",
+  compra_atual_id: "compra-16",
   variacao_bps: 1205,
   variacao_percentual: 12.05,
   acima_do_limite: true,

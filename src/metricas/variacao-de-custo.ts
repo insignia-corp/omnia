@@ -8,6 +8,7 @@ import {
   compararCustos,
   compararNomes,
   compararTexto,
+  procedenciaDoProduto,
   type CustoDeCompra,
   type ProdutoParaMetrica,
 } from "./dados-de-metricas";
@@ -55,7 +56,7 @@ export function calcularVariacoesDeCusto(
   parametros: ParametrosVariacaoCusto = PARAMETROS_VARIACAO_CUSTO,
 ): ResultadoMetrica<VariacaoDeCusto[]> {
   const { dataReferencia } = entrada;
-  const nomes = new Map(entrada.produtos.map((p) => [p.id, p.nome]));
+  const produtosPorId = new Map(entrada.produtos.map((p) => [p.id, p]));
 
   const pares = new Map<string, CustoDeCompra[]>();
   for (const custo of entrada.custos) {
@@ -66,6 +67,7 @@ export function calcularVariacoesDeCusto(
 
   const variacoes: VariacaoDeCusto[] = [];
   const usados: CustoDeCompra[] = [];
+  const produtosUsados = new Map<string, ProdutoParaMetrica>();
   for (const compras of pares.values()) {
     const emOrdem = [...compras].sort(compararCustos);
     const atual = emOrdem.at(-1);
@@ -81,7 +83,7 @@ export function calcularVariacoesDeCusto(
 
     variacoes.push({
       produto_id: atual.produtoId,
-      nome: nomes.get(atual.produtoId) ?? "",
+      nome: produtosPorId.get(atual.produtoId)?.nome ?? "",
       fornecedor_id: atual.fornecedorId,
       custo_anterior_centavos: anterior.custoUnitarioCentavos,
       custo_atual_centavos: atual.custoUnitarioCentavos,
@@ -91,9 +93,15 @@ export function calcularVariacoesDeCusto(
       variacao_percentual: percentualDeBps(variacaoBps),
       acima_do_limite: variacaoBps > parametros.limiteBps,
       recente: diasEntre(atual.data, dataReferencia) <= parametros.janelaAlertaDias,
-      menor_confianca: Math.min(atual.confianca, anterior.confianca),
+      menor_confianca: Math.min(
+        atual.confianca,
+        anterior.confianca,
+        produtosPorId.get(atual.produtoId)?.confianca ?? 1,
+      ),
     });
     usados.push(atual, anterior);
+    const produto = produtosPorId.get(atual.produtoId);
+    if (produto) produtosUsados.set(produto.id, produto);
   }
 
   variacoes.sort(
@@ -103,9 +111,8 @@ export function calcularVariacoesDeCusto(
       compararTexto(a.fornecedor_id, b.fornecedor_id),
   );
   const inicio = usados.map((c) => c.data).sort(compararTexto)[0] ?? dataReferencia;
-  return resultadoMetrica(
-    variacoes,
-    { inicio, fim: dataReferencia },
-    usados.map((c) => procedenciaDeUmRegistro(c.origem, c.confianca)),
-  );
+  return resultadoMetrica(variacoes, { inicio, fim: dataReferencia }, [
+    ...usados.map((c) => procedenciaDeUmRegistro(c.origem, c.confianca)),
+    ...[...produtosUsados.values()].map(procedenciaDoProduto),
+  ]);
 }

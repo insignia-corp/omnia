@@ -9,9 +9,9 @@ import {
 const REF = "2026-10-19";
 
 const produtos: ProdutoParaMetrica[] = [
-  { id: "p-arroz", nome: "Arroz 5kg", margemMetaBps: null },
-  { id: "p-oleo", nome: "Óleo 900ml", margemMetaBps: null },
-  { id: "p-cafe", nome: "Café 500g", margemMetaBps: null },
+  { id: "p-arroz", nome: "Arroz 5kg", margemMetaBps: null, origem: "dono", confianca: 1 },
+  { id: "p-oleo", nome: "Óleo 900ml", margemMetaBps: null, origem: "dono", confianca: 1 },
+  { id: "p-cafe", nome: "Café 500g", margemMetaBps: null, origem: "dono", confianca: 1 },
 ];
 
 const custo = (
@@ -231,6 +231,28 @@ describe("calcularVariacoesDeCusto", () => {
       ]);
     });
 
+    it("a confiança do cadastro do produto entra na variação e no resultado", () => {
+      const r = calcular(
+        [
+          custo("p-arroz", "2026-09-14", 2490),
+          custo("p-arroz", "2026-10-16", 2790),
+          custo("p-oleo", "2026-09-14", 520),
+          custo("p-oleo", "2026-10-13", 560),
+        ],
+        {
+          produtos: [
+            { id: "p-arroz", nome: "Arroz 5kg", margemMetaBps: null, origem: "foto_nota", confianca: 0.5 },
+            { id: "p-oleo", nome: "Óleo 900ml", margemMetaBps: null, origem: "dono", confianca: 1 },
+          ],
+        },
+      );
+      expect(r.valor.map((v) => [v.produto_id, v.menor_confianca])).toEqual([
+        ["p-arroz", 0.5],
+        ["p-oleo", 1],
+      ]);
+      expect(r.menor_confianca).toBe(0.5);
+    });
+
     it("conta as duas leituras de cada variação, herda a menor confiança e junta as origens", () => {
       const r = calcular([
         custo("p-arroz", "2026-09-14", 2490, { confianca: 0.6 }),
@@ -240,7 +262,7 @@ describe("calcularVariacoesDeCusto", () => {
       ]);
       expect(r.n_registros).toBe(4);
       expect(r.menor_confianca).toBe(0.6);
-      expect(r.origens).toEqual(["foto_nota", "nfe"]);
+      expect(r.origens).toEqual(["dono", "foto_nota", "nfe"]);
       expect(r.periodo).toEqual({ inicio: "2026-09-14", fim: REF });
     });
 

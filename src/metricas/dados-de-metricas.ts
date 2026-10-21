@@ -10,7 +10,21 @@ export interface ProdutoParaMetrica {
   nome: string;
   /** Meta de margem do produto, em bps; nula quando vale a do comerciante. */
   margemMetaBps: number | null;
+  /** De onde veio o cadastro do produto (regra inviolável 4). */
+  origem: OrigemDado;
+  /** Confiança do cadastro, de 0 a 1. */
+  confianca: number;
 }
+
+/**
+ * O que o cadastro do produto diz sobre si ao entrar num resultado: origem e confiança, sem contar
+ * como registro de origem (`n_registros` continua sendo vendas, itens de compra e transações).
+ */
+export const procedenciaDoProduto = (produto: ProdutoParaMetrica): Procedencia => ({
+  registros: 0,
+  menorConfianca: produto.confianca,
+  origens: [produto.origem],
+});
 
 /** Vendas de um produto num dia, somadas por quem leu o banco. `registros` conta as linhas de venda. */
 export interface VendaDoProdutoNoDia extends Procedencia {

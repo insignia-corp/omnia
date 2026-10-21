@@ -87,7 +87,13 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
 
   async produtos(comercianteId: string, produtoId?: string): Promise<ProdutoParaMetrica[]> {
     return this.db
-      .select({ id: produto.id, nome: produto.nome, margemMetaBps: produto.margemMetaBps })
+      .select({
+        id: produto.id,
+        nome: produto.nome,
+        margemMetaBps: produto.margemMetaBps,
+        origem: produto.origem,
+        confianca: produto.confianca,
+      })
       .from(produto)
       .where(and(eq(produto.comercianteId, comercianteId), produtoId ? eq(produto.id, produtoId) : undefined))
       .orderBy(asc(produto.nome), asc(produto.id));

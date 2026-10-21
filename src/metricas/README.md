@@ -16,7 +16,7 @@ O `MetricasModule` está no `AppModule`. Para usar fora do Nest: `new MetricasSe
 
 Toda métrica devolve um `ResultadoMetrica<T>` ou um `DadoAusente`.
 
-- `ResultadoMetrica`: `valor`, `periodo`, `n_registros` (linhas de origem usadas), `menor_confianca` (a pior entre vendas, item e nota) e `origens` (de onde vieram os dados: `planilha`, `foto_nota`, `nfe`, `banco`, `dono`).
+- `ResultadoMetrica`: `valor`, `periodo`, `n_registros` (linhas de origem usadas), `menor_confianca` (a pior entre vendas, item, nota e cadastro do produto) e `origens` (de onde vieram os dados, cadastro do produto incluído: `planilha`, `foto_nota`, `nfe`, `banco`, `dono`). O cadastro do produto pesa na confiança e na origem, mas não conta em `n_registros`.
 - `DadoAusente`: `codigo` estável para o código decidir (`sem_custo`, `sem_venda_na_janela`, `dia_sem_dados`, `historico_insuficiente`...), `motivo` para o agente e, quando o dono resolve, `pergunta_sugerida`. A métrica nunca estima: sem custo, a margem não sai e o agente pergunta.
 - Para o verificador de números: dinheiro em `*_centavos`, razões em `*_bps` inteiros e o mesmo valor pronto para exibir em `*_percentual` (2026 bps vira 20,26). O agente só pode citar números que estão no resultado.
 
@@ -30,7 +30,7 @@ Toda métrica devolve um `ResultadoMetrica<T>` ou um `DadoAusente`.
 | Resumo diário (#40) | `calcularResumoDiario` | Faturamento, gastos, saldo do dia e da conta, ticket médio. Compara com o dia anterior, o mesmo dia da semana anterior e a média da semana anterior. |
 | Espaço para subir preço (#36) | `calcularEspacoParaSubirPreco` | Derivada: junta o giro e a margem já calculados. Produto de giro alto com margem abaixo da meta; sem margem calculável fica de fora. |
 | Ticket médio (#38) | `calcularTicketMedio` | Faturamento do dia por cupom contra a média ponderada do histórico (faturamento total / cupons totais). Exige o histórico completo importado. |
-| Gasto fora do padrão (#39) | `calcularGastoForaDoPadrao` | Desvio robusto do gasto operacional do dia contra o histórico (mediana e desvio absoluto mediano), com mínimo de dias de extrato. Só categorias operacionais entram na série. |
+| Gasto fora do padrão (#39) | `calcularGastoForaDoPadrao` | Desvio robusto do gasto operacional do dia contra o histórico (mediana e desvio absoluto mediano), com mínimo de dias de extrato. Só categorias operacionais entram na série. O dia só vale quando todas as contas ativas abertas até ele têm extrato (cobertura por conta, `intervaloComumDeMovimentos`); o resumo diário segue a mesma regra para gastos e saldo. |
 | Estoque parado (#37) | `calcularEstoqueParado` | Dias desde a última venda de produto já comprado. Traz todo produto parado e completa com os mais próximos do limite até o top N. |
 
 ## Como conferir

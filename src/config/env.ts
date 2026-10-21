@@ -1,12 +1,12 @@
 import { z } from "zod";
 
+/** Similaridade mínima (pg_trgm) para ligar sozinho; vale para a nota e para a busca de produto das ferramentas. */
+export const LIMITE_SIMILARIDADE_PADRAO = 0.45;
+
 /**
  * Esquema das variáveis de ambiente. A aplicação não sobe com configuração inválida.
  * Segredos ficam só no ambiente (regra inviolável 12); veja .env.example.
  */
-/** Similaridade mínima (pg_trgm) para ligar sozinho; vale para a nota e para a busca de produto das ferramentas. */
-export const LIMITE_SIMILARIDADE_PADRAO = 0.45;
-
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const esquemaEnv = z.object({

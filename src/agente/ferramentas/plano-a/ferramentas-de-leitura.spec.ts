@@ -410,7 +410,7 @@ describe("ferramentas de leitura do plano A", () => {
       expect(mock.margemDoProduto).not.toHaveBeenCalled();
     });
 
-    it("usa o mesmo limite de similaridade do vínculo de notas: 0,42 não liga sozinho, 0,46 liga", async () => {
+    it("usa o limite padrão de similaridade do vínculo de notas: 0,42 não liga sozinho, 0,46 liga", async () => {
       expect(SIMILARIDADE_PARA_ESCOLHER_PRODUTO).toBe(LIMITE_SIMILARIDADE_PADRAO);
       const fraco = servico();
       const saidaFraca = await criarGetProductMargin(

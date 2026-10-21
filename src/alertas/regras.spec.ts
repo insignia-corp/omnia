@@ -487,6 +487,22 @@ describe("regra de gasto fora do padrão", () => {
 });
 
 describe("limites padrão", () => {
+  it("sobreposição com valor indefinido não apaga o padrão", () => {
+    const limites = mesclarLimites({
+      reajusteLimiteBps: undefined,
+      janelaSupressaoDias: { giro_em_alta: undefined, estoque_parado: 14 },
+    });
+    expect(limites.reajusteLimiteBps).toBe(LIMITES_PADRAO.reajusteLimiteBps);
+    expect(limites.janelaSupressaoDias.giro_em_alta).toBe(7);
+    expect(limites.janelaSupressaoDias.estoque_parado).toBe(14);
+  });
+
+  it("zero e nulo são valores válidos de sobreposição", () => {
+    const limites = mesclarLimites({ giroAltaMinimaBps: 0, janelaSupressaoDias: { reajuste_de_custo: 0 } });
+    expect(limites.giroAltaMinimaBps).toBe(0);
+    expect(limites.janelaSupressaoDias.reajuste_de_custo).toBe(0);
+  });
+
   it("sobreposição parcial mantém o resto", () => {
     const limites = mesclarLimites({ reajusteLimiteBps: 900, janelaSupressaoDias: { estoque_parado: 14 } });
     expect(limites.reajusteLimiteBps).toBe(900);

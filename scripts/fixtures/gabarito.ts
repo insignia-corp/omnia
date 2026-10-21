@@ -46,6 +46,12 @@ export const PARAMETROS = {
     top_n: 5,
     giro_alto: "entre os 5 de maior alta (com média semanal mínima) ou entre os 5 de maior volume em 7 dias",
   },
+  receita_por_produto: {
+    formula: "soma de preço unitário * quantidade das vendas dos últimos 7 dias",
+    janela_dias: 7,
+    top_n: 5,
+    desempate: "mesma receita: nome em ordem alfabética do português e depois o id",
+  },
   espaco_subir_preco: "giro_alto e margem_bps abaixo da meta, ao mesmo tempo",
   estoque_parado: {
     limite_dias: 30,
@@ -283,6 +289,26 @@ export function gerarGabarito(): void {
     .sort((a, b) => b.unidades_7_dias - a.unidades_7_dias || a.produto_id.localeCompare(b.produto_id))
     .slice(0, PARAMETROS.giro.top_n);
   const giroAlto = new Set([...topAlta, ...topVolume].map((g) => g.produto_id));
+
+  // Receita por produto nos últimos 7 dias.
+  const receitaPorProduto = catalogo
+    .map((produto) => ({
+      produto_id: produto.id,
+      nome: produto.nome,
+      receita_centavos: vendas
+        .filter((v) => v.produtoId === produto.id && v.data >= inicio7 && v.data <= ref)
+        .reduce((soma, v) => soma + v.precoUnitario * v.quantidade, 0),
+    }))
+    .sort((a, b) => a.produto_id.localeCompare(b.produto_id));
+  const maiorReceita = receitaPorProduto
+    .filter((r) => r.receita_centavos > 0)
+    .sort(
+      (a, b) =>
+        b.receita_centavos - a.receita_centavos ||
+        a.nome.localeCompare(b.nome, "pt-BR") ||
+        a.produto_id.localeCompare(b.produto_id),
+    )
+    .slice(0, PARAMETROS.receita_por_produto.top_n);
 
   // Espaço para subir preço.
   const margemPorProduto = new Map(margens.map((m) => [m.produto_id, m]));
@@ -571,6 +597,11 @@ export function gerarGabarito(): void {
       maior_alta: topAlta,
       maior_volume: topVolume,
       por_produto: giro,
+    },
+    receita_por_produto: {
+      periodo: { inicio: inicio7, fim: ref },
+      maior_receita: maiorReceita,
+      por_produto: receitaPorProduto,
     },
     espaco_para_subir_preco: espacoParaSubir.map((m) => ({
       produto_id: m.produto_id,

@@ -44,9 +44,9 @@ Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado 
 
 ## Job de reajuste após cada nota (#45)
 
-Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-nota` chama o gancho `APOS_EXTRACAO`, que enfileira o job `reajuste-pos-nota` (`jobs/fila-reajuste.ts`). O job (`jobs/verificar-reajuste.ts`) pega os produtos dos itens da nota, sempre com o `comerciante_id` do job, e roda no motor só a regra de reajuste restrita a eles, com a data de hoje.
+Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-nota` chama o gancho `APOS_EXTRACAO`, que enfileira o job `reajuste-pos-nota` (`jobs/fila-reajuste.ts`). O job (`jobs/verificar-reajuste.ts`) pega os produtos dos itens da nota, sempre com o `comerciante_id` do job, e roda no motor só a regra de reajuste restrita a eles, com a data de hoje. O filtro é por produto: se o mesmo produto já tiver uma compra mais recente do mesmo fornecedor, o candidato gravado é o dessa compra (a chave leva o id dela), que pode não ser a da nota recém-processada.
 
-- Idempotência: o `jobId` é comerciante + documento, e a unique de `alerta` segura qualquer repetição.
+- Idempotência: o `jobId` é comerciante + documento. A unique de `alerta` só segura a repetição no mesmo dia; por isso o job grava com `semRepetirGravados`, que não grava de novo um reajuste (tipo e chave) já existente em qualquer data. O motor diário não usa isso: o candidato de ontem que não foi enviado precisa voltar a ser candidato de hoje.
 - O job só grava o candidato. O envio fica no relatório diário, que respeita no máximo 1 mensagem proativa por dia.
 - Falha do gancho é registrada com o id do documento e não falha nem repete a extração: o relatório diário pega o mesmo reajuste de qualquer forma.
 - Nota confirmada depois pelo dono (`revisao` para `extraido`) não reenfileira o job.

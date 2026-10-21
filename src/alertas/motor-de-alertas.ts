@@ -24,6 +24,13 @@ export interface OpcoesDoMotor {
   tipos?: readonly TipoAlerta[];
   /** Grava só candidatos destes produtos (os itens da nota que acabou de ser processada). */
   produtoIds?: ReadonlySet<string>;
+  /**
+   * Não grava candidato cujo tipo e chave já existem em qualquer data e com qualquer status. A
+   * unique do banco só segura a repetição no mesmo dia; o job pós-nota roda uma vez por documento e
+   * não pode repetir o mesmo reajuste num dia seguinte. O motor diário não usa isto: o candidato de
+   * ontem que não foi enviado precisa voltar a ser candidato de hoje.
+   */
+  semRepetirGravados?: boolean;
 }
 
 export interface ResultadoDoMotor {
@@ -50,7 +57,7 @@ export class MotorDeAlertas {
     const limites = mesclarLimites(await this.limites.limitesDoComerciante(comercianteId));
     const metricas = new MetricasDaExecucao(this.metricas, { comercianteId, dataReferencia });
 
-    const { tipos, produtoIds } = opcoes;
+    const { tipos, produtoIds, semRepetirGravados } = opcoes;
     const regras = tipos ? this.regras.filter((r) => tipos.includes(r.tipo)) : this.regras;
     const resultados = await Promise.all(
       regras.map((regra) => regra.avaliar({ comercianteId, dataReferencia, limites, metricas })),
@@ -73,7 +80,11 @@ export class MotorDeAlertas {
       this.alertas.jaTratados(comercianteId, { desde: null, ate: dataReferencia, tipos: semLimite }),
     ]);
     const tratados = [...recentes, ...definitivos];
+    const jaGravados = semRepetirGravados
+      ? await this.alertas.jaGravados(comercianteId, [...new Set(achados.map((c) => c.tipo))])
+      : [];
     const barrado = (c: CandidatoDeAlerta): boolean => {
+      if (jaGravados.some((g) => g.tipo === c.tipo && g.chave === c.chave)) return true;
       const janela = limites.janelaSupressaoDias[c.tipo];
       return tratados.some(
         (t) =>

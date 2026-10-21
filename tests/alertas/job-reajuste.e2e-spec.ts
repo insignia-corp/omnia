@@ -183,6 +183,15 @@ describe("job de reajuste após cada nota (e2e)", () => {
       espiao.mockRestore();
     });
 
+    it("o mesmo documento verificado em outro dia não grava o mesmo reajuste de novo", async () => {
+      const documentoId = docDaNota("2026-10-16", "AUR");
+      const antes = await reajustes(vilaNova);
+      expect(antes.some((l) => chaveDe(l) === "P01|AUR")).toBe(true);
+      const r = await verificador.verificar({ documentoId, comercianteId: vilaNova }, "2026-10-20");
+      expect(r.gravados).toBe(0);
+      expect(await reajustes(vilaNova)).toHaveLength(antes.length);
+    });
+
     it("o comerciante é o do job: documento de um lojista com o id de outro não grava nada", async () => {
       const documentoId = docDaNota("2026-10-16", "AUR");
       const antes = await reajustes(esquina);

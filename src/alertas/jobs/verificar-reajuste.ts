@@ -47,7 +47,7 @@ export class VerificadorDeReajuste {
 
     const resultado = await this.motor.executar(
       { comercianteId, dataReferencia },
-      { tipos: ["reajuste_de_custo"], produtoIds },
+      { tipos: ["reajuste_de_custo"], produtoIds, semRepetirGravados: true },
     );
     return { produtos: produtoIds.size, gravados: resultado.gravados };
   }

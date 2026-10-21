@@ -36,6 +36,45 @@ export interface IntervaloDeDados {
   ultima: string;
 }
 
+/** Datas entre as quais uma conta tem transação importada. */
+export interface IntervaloDaConta extends IntervaloDeDados {
+  contaId: string;
+}
+
+/**
+ * As contas que precisam ter extrato para o dia valer como completo: as ativas abertas até a data.
+ * Sem nenhuma ativa, valem as abertas até a data, que só têm histórico.
+ */
+export function contasExigidasNoDia(data: string, contas: readonly ContaParaMetrica[]): ContaParaMetrica[] {
+  const abertas = contas.filter((c) => c.saldoInicialEm === null || c.saldoInicialEm <= data);
+  const ativas = abertas.filter((c) => c.ativa);
+  return ativas.length > 0 ? ativas : abertas;
+}
+
+/**
+ * O período em que todas as contas exigidas no dia têm extrato: da última primeira transação até a
+ * primeira última transação. Nulo quando não há conta exigida ou quando alguma delas não tem
+ * transação importada. Um intervalo único para o comerciante deixaria o extrato em dia de uma conta
+ * esconder o atraso da outra e o total de gastos sairia subestimado.
+ */
+export function intervaloComumDeMovimentos(
+  data: string,
+  contas: readonly ContaParaMetrica[],
+  intervalos: readonly IntervaloDaConta[],
+): IntervaloDeDados | null {
+  const exigidas = contasExigidasNoDia(data, contas);
+  if (exigidas.length === 0) return null;
+  let primeira = "";
+  let ultima = "9999-12-31";
+  for (const conta of exigidas) {
+    const intervalo = intervalos.find((i) => i.contaId === conta.id);
+    if (!intervalo) return null;
+    if (intervalo.primeira > primeira) primeira = intervalo.primeira;
+    if (intervalo.ultima < ultima) ultima = intervalo.ultima;
+  }
+  return { primeira, ultima };
+}
+
 /** A última venda de um produto na base até a data. Vale 1 registro: a linha dessa venda. */
 export interface UltimaVendaDoProduto extends Procedencia {
   produtoId: string;
@@ -67,6 +106,8 @@ export interface MovimentoDoDia extends Procedencia {
 
 export interface ContaParaMetrica {
   id: string;
+  /** Conexão ativa. Conta revogada, expirada ou com erro guarda o extrato já importado, mas não exige extrato novo. */
+  ativa: boolean;
   saldoInicialCentavos: number | null;
   /** O saldo inicial vale antes das transações deste dia, que já entram no cálculo. */
   saldoInicialEm: string | null;

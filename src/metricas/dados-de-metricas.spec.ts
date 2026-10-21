@@ -2,9 +2,13 @@ import {
   compararCustos,
   compararNomes,
   compararTexto,
+  contasExigidasNoDia,
   custoMaisRecente,
   indexarVendasPorDia,
+  intervaloComumDeMovimentos,
+  type ContaParaMetrica,
   type CustoDeCompra,
+  type IntervaloDaConta,
   type VendasDoDia,
 } from "./dados-de-metricas";
 
@@ -130,6 +134,75 @@ describe("dados-de-metricas", () => {
       const lista = [custo("2026-09-14", 1), custo("2026-10-16", 2), custo("2026-10-01", 3)];
       expect(custoMaisRecente([...lista].reverse(), "2026-10-19")?.custoUnitarioCentavos).toBe(2);
       expect(custoMaisRecente(lista, "2026-10-19")?.custoUnitarioCentavos).toBe(2);
+    });
+  });
+});
+
+describe("cobertura do extrato por conta", () => {
+  const conta = (id: string, extra: Partial<ContaParaMetrica> = {}): ContaParaMetrica => ({
+    id,
+    ativa: true,
+    saldoInicialCentavos: 0,
+    saldoInicialEm: "2026-09-01",
+    ...extra,
+  });
+  const intervalo = (contaId: string, primeira: string, ultima: string): IntervaloDaConta => ({
+    contaId,
+    primeira,
+    ultima,
+  });
+  const DIA = "2026-10-19";
+
+  describe("contasExigidasNoDia", () => {
+    it("exige as ativas abertas até a data e deixa de fora a conta aberta depois", () => {
+      const contas = [conta("a"), conta("b", { saldoInicialEm: "2026-10-25" })];
+      expect(contasExigidasNoDia(DIA, contas).map((c) => c.id)).toEqual(["a"]);
+    });
+
+    it("conta inativa não exige extrato novo quando há uma ativa", () => {
+      const contas = [conta("a"), conta("b", { ativa: false })];
+      expect(contasExigidasNoDia(DIA, contas).map((c) => c.id)).toEqual(["a"]);
+    });
+
+    it("sem nenhuma ativa, as inativas abertas até a data valem como histórico", () => {
+      const contas = [conta("a", { ativa: false }), conta("b", { ativa: false })];
+      expect(contasExigidasNoDia(DIA, contas).map((c) => c.id)).toEqual(["a", "b"]);
+    });
+
+    it("sem conta nenhuma, ninguém é exigido", () => {
+      expect(contasExigidasNoDia(DIA, [])).toEqual([]);
+    });
+  });
+
+  describe("intervaloComumDeMovimentos", () => {
+    it("é a interseção dos extratos: a conta em dia não esconde a atrasada", () => {
+      const contas = [conta("a"), conta("b")];
+      const intervalos = [
+        intervalo("a", "2026-09-01", "2026-10-18"),
+        intervalo("b", "2026-09-10", "2026-10-19"),
+      ];
+      expect(intervaloComumDeMovimentos(DIA, contas, intervalos)).toEqual({
+        primeira: "2026-09-10",
+        ultima: "2026-10-18",
+      });
+    });
+
+    it("conta ativa sem nenhuma transação importada deixa o intervalo nulo", () => {
+      const contas = [conta("a"), conta("b")];
+      expect(intervaloComumDeMovimentos(DIA, contas, [intervalo("a", "2026-09-01", DIA)])).toBeNull();
+    });
+
+    it("o histórico de conta inativa não puxa o fim do intervalo para trás", () => {
+      const contas = [conta("a"), conta("b", { ativa: false })];
+      const intervalos = [intervalo("a", "2026-09-01", DIA), intervalo("b", "2026-09-01", "2026-10-05")];
+      expect(intervaloComumDeMovimentos(DIA, contas, intervalos)).toEqual({
+        primeira: "2026-09-01",
+        ultima: DIA,
+      });
+    });
+
+    it("sem conta exigida o intervalo é nulo", () => {
+      expect(intervaloComumDeMovimentos(DIA, [], [])).toBeNull();
     });
   });
 });

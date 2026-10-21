@@ -107,6 +107,14 @@ interface ParadoGabarito {
   dispara_alerta: boolean;
 }
 
+/** Alerta que o gabarito espera (ou não espera) para a data de referência ou para um dia da série. */
+interface AlertaGabarito {
+  tipo: string;
+  produto_id?: string | null;
+  fornecedor_id?: string;
+  data?: string;
+}
+
 interface Gabarito {
   parametros: {
     data_referencia: string;
@@ -135,6 +143,8 @@ interface Gabarito {
   ticket_medio: { dias_com_queda_relevante: string[]; por_dia: DiaDoTicket[] };
   gasto_fora_do_padrao: { dias_que_disparam: string[]; por_dia: DesvioDoGasto[] };
   serie_diaria: DiaGabarito[];
+  alertas_esperados: AlertaGabarito[];
+  alertas_que_nao_devem_disparar: AlertaGabarito[];
 }
 
 const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf8")) as Gabarito;
@@ -611,6 +621,81 @@ describe("métricas contra o gabarito (e2e)", () => {
           dias_sem_venda: esperado.dias_sem_venda,
           parado: esperado.dispara_alerta,
         });
+      }
+    });
+  });
+
+  describe("alertas esperados (#41)", () => {
+    /** Chave do alerta: tipo, depois produto (e fornecedor) ou data, como o gabarito os identifica. */
+    const chave = (a: AlertaGabarito): string =>
+      [a.tipo, a.produto_id ?? a.data ?? "", a.fornecedor_id ?? ""].join("|");
+
+    /** Os alertas que as métricas dispararam, derivados só da saída do serviço, sem o motor de alertas. */
+    async function alertasDisparados(): Promise<string[]> {
+      const sku = (id: string): string => skuPorProduto.get(id) ?? id;
+      const idDoGabaritoDoFornecedor = new Map([...fornecedorPorGabarito].map(([g, id]) => [id, g]));
+      const chaves: string[] = [];
+      for (const m of margens) {
+        if (!ehDadoAusente(m.resultado) && m.resultado.valor.abaixo_da_meta) {
+          chaves.push(chave({ tipo: "margem_abaixo_da_meta", produto_id: sku(m.produto_id) }));
+        }
+      }
+      for (const v of (await servico.variacoesDeCusto(vilaNova)).valor) {
+        if (!v.acima_do_limite || !v.recente) continue;
+        chaves.push(
+          chave({
+            tipo: "reajuste_de_custo",
+            produto_id: sku(v.produto_id),
+            fornecedor_id: idDoGabaritoDoFornecedor.get(v.fornecedor_id),
+          }),
+        );
+      }
+      const giro = valorDe<Giro>(await servico.giro(vilaNova));
+      for (const g of giro.valor.maior_alta) {
+        chaves.push(chave({ tipo: "giro_em_alta", produto_id: sku(g.produto_id) }));
+      }
+      for (const p of valorDe(await servico.espacoParaSubirPreco(vilaNova)).valor) {
+        chaves.push(chave({ tipo: "espaco_para_subir_preco", produto_id: sku(p.produto_id) }));
+      }
+      for (const p of (await servico.estoqueParado(vilaNova)).valor) {
+        if (p.parado) chaves.push(chave({ tipo: "estoque_parado", produto_id: sku(p.produto_id) }));
+      }
+      return chaves;
+    }
+
+    it("os alertas que as métricas disparam na data de referência são exatamente os esperados", async () => {
+      const doDia = [...(await alertasDisparados())];
+      const ticket = valorDe<TicketMedio>(await servico.ticketMedio(vilaNova));
+      if (ticket.valor.queda_relevante) doDia.push(chave({ tipo: "ticket_medio_em_queda", data: REF }));
+      const gasto = valorDe<GastoForaDoPadrao>(await servico.gastoForaDoPadrao(vilaNova));
+      if (gasto.valor.acima_do_limite) doDia.push(chave({ tipo: "gasto_fora_do_padrao", data: REF }));
+
+      // O gabarito indica o dia pelo gatilho ("data 2026-10-19"), não pela chave `data`.
+      const esperados = gabarito.alertas_esperados.map((a) =>
+        chave(
+          a.tipo === "ticket_medio_em_queda" || a.tipo === "gasto_fora_do_padrao"
+            ? { tipo: a.tipo, data: REF }
+            : a,
+        ),
+      );
+      expect(doDia.sort()).toEqual(esperados.sort());
+    });
+
+    it("nenhum dos casos que não devem disparar dispara", async () => {
+      const disparados = new Set(await alertasDisparados());
+      for (const naoDispara of gabarito.alertas_que_nao_devem_disparar) {
+        if (naoDispara.data) continue;
+        expect(disparados.has(chave(naoDispara))).toBe(false);
+      }
+      for (const naoDispara of gabarito.alertas_que_nao_devem_disparar.filter((a) => a.data)) {
+        const contexto = { ...vilaNova, dataReferencia: naoDispara.data! };
+        if (naoDispara.tipo === "ticket_medio_em_queda") {
+          expect(valorDe<TicketMedio>(await servico.ticketMedio(contexto)).valor.queda_relevante).toBe(false);
+        } else {
+          expect(
+            valorDe<GastoForaDoPadrao>(await servico.gastoForaDoPadrao(contexto)).valor.acima_do_limite,
+          ).toBe(false);
+        }
       }
     });
   });

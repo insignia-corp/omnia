@@ -30,12 +30,12 @@ describe("perguntas do gabarito", () => {
 describe("casos da rodada", () => {
   const casos = todosOsCasos();
 
-  it("tem ids únicos; só os do verificador (#70) ficam fora do gabarito de perguntas", () => {
+  it("tem ids únicos; só os do verificador (#70) e de medição (#74) ficam fora do gabarito de perguntas", () => {
     const ids = casos.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
     const doGabarito = carregarPerguntas().map((p) => p.id);
     for (const c of casos) {
-      if (c.categoria === "verificador") expect(doGabarito).not.toContain(c.id);
+      if (c.categoria === "verificador" || c.categoria === "medicao") expect(doGabarito).not.toContain(c.id);
       else expect(doGabarito).toContain(c.id);
     }
   });
@@ -135,5 +135,30 @@ describe("casos da rodada", () => {
       await new ModeloRoteirizado(c.roteiro ?? []).gerar({ system: "", messages: [], tools: [] });
       expect(c.roteiro?.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("caso de medição do relatório diário (#74)", () => {
+  const d01 = todosOsCasos().find((c) => c.id === "d01");
+
+  it("usa o gatilho do relatório e mantém os dublês no modo real, ditos na descrição", () => {
+    expect(d01?.gatilho).toBe("relatorio_diario");
+    expect(d01?.dubleNoModoReal).toBe(true);
+    expect(d01?.descricao).toMatch(/dublês/);
+    expect(d01?.criterio).toEqual({ tipo: "medicao" });
+  });
+
+  it("os dublês cobrem exatamente as ferramentas que o caso espera", () => {
+    expect((d01?.ferramentasFalsas ?? []).map((f) => f.nome).sort()).toEqual(
+      [...(d01?.ferramentasEsperadas ?? [])].sort(),
+    );
+  });
+
+  it("só o caso de medição mantém dublê no modo real", () => {
+    expect(
+      todosOsCasos()
+        .filter((c) => c.dubleNoModoReal)
+        .map((c) => c.id),
+    ).toEqual(["d01"]);
   });
 });

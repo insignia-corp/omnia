@@ -8,7 +8,7 @@ Harness de avaliação do agente (`npm run eval`). Issue #68; os casos de verdad
 npm run seed:demo                          # carrega o mercadinho (uma vez)
 npm run eval                               # modo falso: modelo roteirizado, sem rede e sem custo
 npm run eval -- --modelo real              # API da Anthropic; exige ANTHROPIC_API_KEY
-npm run eval -- --caso q01,q33 --prompt v2
+npm run eval -- --caso q01,q33 --prompt v3
 ```
 
 Sem `ANTHROPIC_API_KEY`, `--modelo real` para antes de tocar no banco, com a mensagem do que falta. A CLI sai com 1 se algum caso falhar (serve de portão na CI) e com 2 em erro de uso.
@@ -29,7 +29,7 @@ Sem `ANTHROPIC_API_KEY`, `--modelo real` para antes de tocar no banco, com a men
 | `relatorio.ts` | Resumo por categoria, Markdown do relatório e gravação |
 | `rodada.ts` | Liga tudo: escolhe o modelo pelo modo, acha o comerciante do seed, monta o agente como o `AgenteModule` monta |
 | `modelo-roteirizado.ts` | `ModeloLinguagem` do modo falso (`texto`, `chamar`) |
-| `casos/` | Casos. `perguntas.ts` lê `fixtures/avaliacao/perguntas.json`; `numericas.ts` (q01 a q32, #69), `verificador.ts` (v01 a v05, #70) e `sem-resposta.ts` (q33 a q40, #72) e `injecao.ts` (q41 a q45, #73); `index.ts` junta |
+| `casos/` | Casos. `relatorio-diario.ts` é o `d01` (#74). `perguntas.ts` lê `fixtures/avaliacao/perguntas.json`; `numericas.ts` (q01 a q32, #69), `verificador.ts` (v01 a v05, #70) e `sem-resposta.ts` (q33 a q40, #72) e `injecao.ts` (q41 a q45, #73); `index.ts` junta |
 
 Um caso declara: `entrada`, `gatilho`, `ferramentasEsperadas` (todas têm de ser chamadas) e `criterio`. Para o modo falso traz também o `roteiro` do modelo e, se precisar, `ferramentasFalsas`: dublês que ocupam o lugar da ferramenta de mesmo nome do catálogo enquanto o plano A não a entrega. No modo real só vale o catálogo de `montarCatalogo`.
 
@@ -46,6 +46,22 @@ Regras dos critérios:
 ## Para acrescentar casos (#74)
 
 Crie `casos/<tema>.ts` exportando uma lista de `CasoAvaliacao` e some-a em `casos/index.ts`. Números esperados saem de `perguntas.json`, nunca digitados à mão. Critério novo (ação com confirmação, escolha de ferramenta) entra como mais um `tipo` em `criterios.ts`.
+
+## Custo e tempo (#74)
+
+`npm run eval:custo` lê a saída bruta de uma rodada **real** do agente (`npm run eval -- --modelo real`) e de uma rodada **real** da extração (`npm run eval:extracao -- --modelo real`) e escreve `docs/avaliacoes/AAAA-MM-DD-custo-<modelo>.md`: custo médio, tempo p50, p95 e máximo por gatilho (relatório diário, pergunta do dono, extração de nota) e o custo mensal por lojista. Sem `--agente` e `--extracao`, usa as rodadas reais mais recentes de `evidencias/`; rodada falsa é recusada, porque custo e tempo do modelo roteirizado não valem nada.
+
+```bash
+npm run eval:custo
+npm run eval:custo -- --lojistas 100 --agregador-usd-mes 460 --mensagem-usd 0.0068
+```
+
+- O uso mensal vem da especificação dos agentes (seção 4): 30 relatórios, 10 perguntas e 14 notas por mês (`--relatorios`, `--perguntas`, `--notas`). Mensagens enviadas por mês = relatórios + perguntas.
+- Mensagem do canal e agregador **não têm cotação no repositório**: sem `--mensagem-usd` e `--agregador-usd-mes` ficam fora do total e o relatório lista o que falta. `--lojistas` divide a mensalidade do agregador. Valores em dólares, convertidos a micro-dólares inteiros sem ponto flutuante.
+- Custo indisponível (modelo sem preço em `PRECOS`) nunca vira zero: o total do LLM sai "indisponível".
+- Meta de tempo: pergunta do dono com p95 em até 20 s (especificação, seção 8). A CLI sai com 1 se não for atingida e com 2 em erro de uso.
+- O caso `d01` (categoria `medicao`) mede o relatório diário, que é o gatilho que mais pesa no custo. `list_alert_candidates` é do plano A (#52) e ainda não existe, então `d01` usa dublês de `list_alert_candidates` e `select_alerts` com candidatos do gabarito, **também no modo real** (`dubleNoModoReal`): o modelo é o real, o dado é do gabarito. Quando a #52 entrar, apague `ferramentasFalsas` e `dubleNoModoReal` do caso. O caso não julga a escolha dos alertas (falta o top 3 aceitável no gabarito): passa com mensagem aprovada pelo verificador.
+- O prompt padrão do harness agora é o do agente em produção (`v3`).
 
 ## Extração de notas (#71)
 

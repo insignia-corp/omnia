@@ -26,7 +26,7 @@ export interface OpcoesAvaliacao {
   modo: ModoModelo;
   /** Só estes ids; sem valor, todos os casos. */
   casos?: string[];
-  /** Versão do prompt de sistema, ex.: "v2". */
+  /** Versão do prompt de sistema, ex.: "v3"; sem valor, a do agente em produção. */
   prompt?: string;
   /** Data de hoje para os casos; sem valor, o dia seguinte à data de referência do gabarito. */
   dataReferencia?: string;
@@ -73,10 +73,10 @@ async function acharComerciante(db: Db, id: string | undefined, nomeDoSeed: stri
   return linha;
 }
 
-/** Ferramentas do catálogo; no modo falso, os dublês do caso ocupam o lugar das de mesmo nome. */
+/** Ferramentas do catálogo; no modo falso (e no real, nos casos com `dubleNoModoReal`), os dublês do caso ocupam o lugar das de mesmo nome. */
 function montarFerramentas(db: Db, caso: CasoAvaliacao, modo: ModoModelo): RegistroFerramentas {
   const doCatalogo = montarCatalogo({ db });
-  if (modo === "real") return new RegistroFerramentas(doCatalogo);
+  if (modo === "real" && !caso.dubleNoModoReal) return new RegistroFerramentas(doCatalogo);
   const falsas = caso.ferramentasFalsas ?? [];
   const nomesFalsos = new Set(falsas.map((f) => f.nome));
   return new RegistroFerramentas([...doCatalogo.filter((f) => !nomesFalsos.has(f.nome)), ...falsas]);
@@ -112,7 +112,7 @@ export async function rodarAvaliacao(op: OpcoesAvaliacao): Promise<Rodada> {
 
   const mercadinho = dadosDoMercadinho(raiz);
   const dono = await acharComerciante(op.db, op.comercianteId, mercadinho.nome);
-  const prompt = carregarPromptSistema(op.prompt ?? "v2");
+  const prompt = carregarPromptSistema(op.prompt);
   const { env } = op;
 
   const criarAgente = (caso: CasoAvaliacao, registro: RegistroExecucoes): AgenteService => {

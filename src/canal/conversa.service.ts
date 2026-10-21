@@ -13,6 +13,10 @@ import { dataLocal, RELOGIO, type Relogio } from "./relogio";
  * Modo conversa: mensagem do dono entra, o agente responde, a resposta sai pelo canal. O
  * `comercianteId` vem da sessão (ou do remetente já resolvido pelo canal), nunca do modelo.
  */
+const INTERVALO_ESPERA_MS = 250;
+/** Folga sobre o tempo limite do modelo para a primeira chamada gravar a resposta. */
+const ESPERA_FOLGA_MS = 5_000;
+
 @Injectable()
 export class ConversaService implements OnModuleInit {
   constructor(
@@ -44,7 +48,9 @@ export class ConversaService implements OnModuleInit {
     const chave = `resposta_${idExterno}`;
     const recebida = await this.caixa.registrarRecebida({ comercianteId, idExterno, texto });
     if (!recebida.nova) {
-      const anterior = await this.caixa.buscarPorChave(comercianteId, chave);
+      // Reentrega: a primeira ainda pode estar no modelo. Espera a resposta dela em vez de chamar (e
+      // cobrar) o agente de novo; só se ela não aparecer a tempo, tenta de novo.
+      const anterior = await this.aguardarResposta(comercianteId, chave);
       if (anterior) return anterior;
     }
 
@@ -65,6 +71,15 @@ export class ConversaService implements OnModuleInit {
     });
     const gravada = await this.caixa.buscarPorChave(comercianteId, chave);
     return gravada!;
+  }
+
+  private async aguardarResposta(comercianteId: string, chave: string): Promise<MensagemGravada | undefined> {
+    const limite = Date.now() + this.env.LLM_TIMEOUT_MS + ESPERA_FOLGA_MS;
+    for (;;) {
+      const gravada = await this.caixa.buscarPorChave(comercianteId, chave);
+      if (gravada || Date.now() >= limite) return gravada;
+      await new Promise((r) => setTimeout(r, INTERVALO_ESPERA_MS));
+    }
   }
 
   /** Aviso de que a nota chegou, sem números: não passa pelo agente. */

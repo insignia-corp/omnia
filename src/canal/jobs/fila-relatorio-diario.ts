@@ -69,17 +69,22 @@ export class FilaRelatorioDiario implements OnModuleInit, OnModuleDestroy {
 
   private async tratar(job: Job, token?: string): Promise<void> {
     if (job.name === NOME_DISPARO) return this.dispararDoDia();
-    if (this.servico.emSilencioAgora()) {
-      const agora = this.relogio.agora();
-      const minutos = minutosDoDia(agora, this.env.FUSO_HORARIO);
-      const fim = fimDoSilencio(agora, minutos, {
-        inicio: this.env.SILENCIO_INICIO,
-        fim: this.env.SILENCIO_FIM,
-      });
-      await job.moveToDelayed(fim.getTime(), token);
-      throw new DelayedError();
-    }
-    await this.servico.processar(job.data as JobRelatorioDiario);
+    if (this.servico.emSilencioAgora()) return this.adiar(job, token);
+    const resultado = await this.servico.processar(job.data as JobRelatorioDiario);
+    // O silêncio pode ter começado durante a chamada ao modelo: nada foi enviado, adia o job.
+    if (resultado === "silencio") return this.adiar(job, token);
+  }
+
+  /** Adia o job para o fim da janela de silêncio, mantendo `job.data` (e a chave) como estão. */
+  private async adiar(job: Job, token?: string): Promise<never> {
+    const agora = this.relogio.agora();
+    const minutos = minutosDoDia(agora, this.env.FUSO_HORARIO);
+    const fim = fimDoSilencio(agora, minutos, {
+      inicio: this.env.SILENCIO_INICIO,
+      fim: this.env.SILENCIO_FIM,
+    });
+    await job.moveToDelayed(fim.getTime(), token);
+    throw new DelayedError();
   }
 
   private opcoes(job: JobRelatorioDiario) {

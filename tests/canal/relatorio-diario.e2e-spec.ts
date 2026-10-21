@@ -114,6 +114,8 @@ describe("relatório diário (e2e, regra 9)", () => {
   it("outro dia envia de novo", async () => {
     const c = await novoComerciante("E2E Relatório outro dia");
     expect(await servico.processar({ comercianteId: c, data: "2026-10-20" })).toBe("enviada");
+    // O limite é do dia do envio: no dia seguinte (relógio avançado) o relatório novo sai.
+    relogio.atual = new Date("2026-10-21T14:00:00Z");
     expect(await servico.processar({ comercianteId: c, data: "2026-10-21" })).toBe("enviada");
     expect(enviosDe(c)).toHaveLength(2);
   });
@@ -148,5 +150,34 @@ describe("relatório diário (e2e, regra 9)", () => {
     expect(direto).toBe("duplicada");
     expect(enviosDe(c)).toHaveLength(1);
     expect(await proativas(c, "2026-10-20")).toHaveLength(1);
+  });
+
+  it("job adiado para o dia seguinte ocupa o limite do dia do envio, não o do job", async () => {
+    const c = await novoComerciante("E2E Relatório adiado");
+    // Job de ontem enviado hoje às 08h local (depois do silêncio): a proativa conta para hoje.
+    relogio.atual = new Date("2026-10-21T11:00:00Z");
+    expect(await servico.processar({ comercianteId: c, data: "2026-10-20" })).toBe("enviada");
+    const [linha] = await proativas(c);
+    expect(linha!.dataEnvio).toBe("2026-10-21");
+    expect(linha!.chaveIdempotencia).toBe(`relatorio_${c}_2026-10-20`);
+    // O relatório de hoje não pode mandar uma segunda proativa no mesmo dia.
+    expect(await servico.processar({ comercianteId: c, data: "2026-10-21" })).toBe("ja_enviada_hoje");
+    expect(enviosDe(c)).toHaveLength(1);
+  });
+
+  it("silêncio que começa durante a chamada ao modelo não envia", async () => {
+    const c = await novoComerciante("E2E Relatório silêncio no meio");
+    // 21h59 local: ainda fora do silêncio ao começar, dentro (22h) quando o modelo responde.
+    relogio.atual = new Date("2026-10-21T00:59:00Z");
+    modelo.aoGerar = () => {
+      relogio.atual = new Date("2026-10-21T01:00:30Z");
+    };
+    try {
+      expect(await servico.processar({ comercianteId: c, data: "2026-10-20" })).toBe("silencio");
+    } finally {
+      modelo.aoGerar = undefined;
+    }
+    expect(enviosDe(c)).toHaveLength(0);
+    expect(await proativas(c)).toHaveLength(0);
   });
 });

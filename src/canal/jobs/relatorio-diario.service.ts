@@ -6,7 +6,7 @@ import { DB, type Db } from "../../infra/database/database.module";
 import { comerciante } from "../../infra/database/schema";
 import { CaixaMensagens } from "../caixa-mensagens";
 import { PORTA_AGENTE, type PortaAgente } from "../porta-agente";
-import { minutosDoDia, RELOGIO, type Relogio } from "../relogio";
+import { dataLocal, minutosDoDia, RELOGIO, type Relogio } from "../relogio";
 import { FONTE_RELATORIO, type FonteRelatorio } from "./fonte-relatorio";
 import { emSilencio } from "./horario-silencio";
 
@@ -41,9 +41,19 @@ export class RelatorioDiarioService {
     return emSilencio(minutos, { inicio: this.env.SILENCIO_INICIO, fim: this.env.SILENCIO_FIM });
   }
 
+  /** Data local de agora: é nela, e não na do job, que vale o limite de uma proativa por dia. */
+  private hoje(): string {
+    return dataLocal(this.relogio.agora(), this.env.FUSO_HORARIO);
+  }
+
+  /**
+   * `job.data` identifica o relatório (chave de idempotência e data de referência do agente). Um job
+   * adiado pelo silêncio pode ser enviado no dia seguinte, e então ocupa o limite do dia do envio.
+   * Devolve `silencio` quando a janela começou, antes ou durante a chamada ao modelo: o worker adia o job.
+   */
   async processar(job: JobRelatorioDiario): Promise<ResultadoRelatorio> {
     if (this.emSilencioAgora()) return "silencio";
-    if (await this.caixa.jaTemProativa(job.comercianteId, job.data)) return "ja_enviada_hoje";
+    if (await this.caixa.jaTemProativa(job.comercianteId, this.hoje())) return "ja_enviada_hoje";
 
     const [dono] = await this.db
       .select({ nome: comerciante.nome })
@@ -62,11 +72,13 @@ export class RelatorioDiarioService {
       gatilho: "relatorio_diario",
       entrada: await this.fonte.entrada(contexto),
     });
+    // A chamada ao modelo pode atravessar o início do silêncio: reconfere logo antes de entregar.
+    if (this.emSilencioAgora()) return "silencio";
     return this.caixa.enviarProativa({
       comercianteId: job.comercianteId,
       texto: resposta.mensagem,
       execucaoId: resposta.execucaoId,
-      dataEnvio: job.data,
+      dataEnvio: this.hoje(),
       chave: chaveRelatorio(job),
     });
   }

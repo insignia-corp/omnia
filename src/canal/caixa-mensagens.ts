@@ -4,6 +4,7 @@ import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
 import { DB, type Db } from "../infra/database/database.module";
 import { mensagem } from "../infra/database/schema";
+import { categoriaDoCanal } from "./categoria-canal";
 import { MESSAGE_CHANNEL, type MessageChannel } from "./message-channel";
 import { dataLocal, RELOGIO, type Relogio } from "./relogio";
 
@@ -14,9 +15,6 @@ export interface MensagemGravada {
   proativa: boolean;
   criadaEm: Date;
 }
-
-const CATEGORIAS = ["utilidade", "marketing", "servico", "autenticacao"] as const;
-type Categoria = (typeof CATEGORIAS)[number];
 
 /**
  * Único dono das escritas em `mensagem`. Grava a linha antes de mandar ao canal: as restrições do
@@ -160,9 +158,7 @@ export class CaixaMensagens {
       .set({
         idExterno: envio.idExterno,
         custoEstimadoMicrodolares: envio.custoEstimadoMicrodolares,
-        categoriaTemplate: CATEGORIAS.includes(envio.categoria as Categoria)
-          ? (envio.categoria as Categoria)
-          : null,
+        categoriaTemplate: categoriaDoCanal(envio.categoria),
       })
       .where(and(eq(mensagem.id, criada.id), eq(mensagem.comercianteId, p.comercianteId)));
     return { id: criada.id, nova: true };

@@ -1,6 +1,6 @@
-import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import type { Executor } from "../infra/database/database.module";
-import { alerta } from "../infra/database/schema";
+import { alerta, historicoCusto, itemDeCompra } from "../infra/database/schema";
 import type { TipoAlerta, Prioridade } from "./tipos";
 
 export interface AlertaGravado {
@@ -215,7 +215,14 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
   ): Promise<number> {
     if (escopo.tipos.length === 0) return 0;
     const doDia = await this.db
-      .select({ id: alerta.id, tipo: alerta.tipo, chave: alerta.chave, produtoId: alerta.produtoId })
+      .select({
+        id: alerta.id,
+        tipo: alerta.tipo,
+        chave: alerta.chave,
+        produtoId: alerta.produtoId,
+        fornecedorId: alerta.fornecedorId,
+        metricasApoio: alerta.metricasApoio,
+      })
       .from(alerta)
       .where(
         and(
@@ -226,11 +233,14 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
         ),
       );
     const vivos = new Set(escopo.manter.map((m) => `${m.tipo}|${m.chave}`));
-    const ids = doDia
+    const aposFiltros = doDia
       .filter((l) => !vivos.has(`${l.tipo}|${l.chave}`))
       .filter((l) => !escopo.produtoIds || (l.produtoId !== null && escopo.produtoIds.has(l.produtoId)))
-      .filter((l) => !escopo.excluir?.some((e) => e.tipo === l.tipo && e.produtoId === l.produtoId))
-      .map((l) => l.id);
+      .filter((l) => !escopo.excluir?.some((e) => e.tipo === l.tipo && e.produtoId === l.produtoId));
+    const ids: string[] = [];
+    for (const l of aposFiltros) {
+      if (!(await this.substituidoPorCompraMaisNova(comercianteId, l))) ids.push(l.id);
+    }
     if (ids.length === 0) return 0;
     const marcados = await this.db
       .update(alerta)
@@ -240,6 +250,43 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
       )
       .returning({ id: alerta.id });
     return marcados.length;
+  }
+
+  /**
+   * Um reajuste cuja compra foi sucedida por outra do mesmo produto e fornecedor (uma segunda nota no
+   * mesmo dia, por exemplo) não foi refutado: a regra só olha a compra mais recente e deixa de enxergar a
+   * alta. O alerta fica como candidato. A correção do dono de uma leitura da própria compra não cai aqui.
+   */
+  private async substituidoPorCompraMaisNova(
+    comercianteId: string,
+    l: { tipo: TipoAlerta; produtoId: string | null; fornecedorId: string | null; metricasApoio: unknown },
+  ): Promise<boolean> {
+    if (l.tipo !== "reajuste_de_custo" || l.produtoId === null || l.fornecedorId === null) return false;
+    const apoio = l.metricasApoio as Record<string, unknown>;
+    const compraId = apoio.compra_atual_id;
+    const data = apoio.compra_atual_data;
+    if (typeof compraId !== "string" || typeof data !== "string") return false;
+    const [outra] = await this.db
+      .select({ id: historicoCusto.id })
+      .from(historicoCusto)
+      .innerJoin(
+        itemDeCompra,
+        and(
+          eq(itemDeCompra.id, historicoCusto.itemDeCompraId),
+          eq(itemDeCompra.comercianteId, historicoCusto.comercianteId),
+        ),
+      )
+      .where(
+        and(
+          eq(historicoCusto.comercianteId, comercianteId),
+          eq(historicoCusto.produtoId, l.produtoId),
+          eq(historicoCusto.fornecedorId, l.fornecedorId),
+          ne(itemDeCompra.compraId, compraId),
+          gte(historicoCusto.data, data),
+        ),
+      )
+      .limit(1);
+    return outra !== undefined;
   }
 
   async candidatosDoDia(comercianteId: string, dataReferencia: string): Promise<AlertaGravado[]> {

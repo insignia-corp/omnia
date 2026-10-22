@@ -88,7 +88,10 @@ describe("job de reajuste após cada nota (e2e)", () => {
     const fila = new FilaExtracao(
       redis,
       { processar } as unknown as ProcessadorExtracao,
-      {} as PinoLogger,
+      {
+        logger: { bindings: () => ({}) },
+        runInContext: (fn: () => unknown) => fn(),
+      } as unknown as PinoLogger,
       gancho,
     );
     fila.onApplicationBootstrap();

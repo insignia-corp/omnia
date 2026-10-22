@@ -113,7 +113,9 @@ type LinhaDaBusca = {
   codigo_barras: string | null;
   sku: string | null;
   cadastrado_em: string;
-  descricao_de_nota: string | null;
+  /** A descrição que dá a melhor similaridade do nome inteiro, e a que dá a melhor `word_similarity`. Nula quando o nome vence ou empata. */
+  descricao_por_sim: string | null;
+  descricao_por_palavra: string | null;
   sim: number;
   palavra: number;
 };
@@ -168,14 +170,16 @@ export async function buscarProdutoPorNome(
       select produto_id,
              max(sim) as sim,
              max(palavra) as palavra,
-             (array_agg(descricao_de_nota order by greatest(sim, palavra) desc, descricao_de_nota nulls first))[1]
-               as descricao_de_nota
+             (array_agg(descricao_de_nota order by sim desc, descricao_de_nota nulls first))[1]
+               as descricao_por_sim,
+             (array_agg(descricao_de_nota order by palavra desc, descricao_de_nota nulls first))[1]
+               as descricao_por_palavra
         from fonte
        group by produto_id
     )
     select m.produto_id, p.nome, p.codigo_barras, p.sku,
            (p.criado_em at time zone ${FUSO})::date::text as cadastrado_em,
-           m.descricao_de_nota, m.sim::float8 as sim, m.palavra::float8 as palavra
+           m.descricao_por_sim, m.descricao_por_palavra, m.sim::float8 as sim, m.palavra::float8 as palavra
       from melhor m
       join produto p on p.id = m.produto_id and p.comerciante_id = ${comercianteId}
      order by greatest(m.sim, m.palavra) desc, p.nome asc, p.id asc
@@ -190,7 +194,8 @@ export async function buscarProdutoPorNome(
       codigoBarras: l.codigo_barras,
       sku: l.sku,
       cadastradoEm: l.cadastrado_em,
-      descricaoDeNota: l.descricao_de_nota,
+      // O mesmo critério da similaridade exibida e da decisão: a descrição mostrada é a que a justifica.
+      descricaoDeNota: pelaPalavra ? l.descricao_por_palavra : l.descricao_por_sim,
     }))
     .sort((x, y) => y.similaridade - x.similaridade || x.nome.localeCompare(y.nome, "pt-BR"));
   const decisao = decidirPorSimilaridade(candidatos, SIMILARIDADE_PARA_ESCOLHER_PRODUTO);

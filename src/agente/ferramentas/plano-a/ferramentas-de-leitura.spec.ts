@@ -78,7 +78,8 @@ const dbCom = (
     codigo_barras?: string | null;
     sku?: string | null;
     cadastrado_em?: string;
-    descricao_de_nota?: string | null;
+    descricao_por_sim?: string | null;
+    descricao_por_palavra?: string | null;
   }>,
   confirmado?: string | Array<{ produtoId: string; fornecedorId: string | null; criadoEm?: string }>,
 ) =>
@@ -96,7 +97,13 @@ const dbCom = (
       }),
     }),
     execute: jest.fn(async () => ({
-      rows: linhas.map((l) => ({ codigo_barras: null, ...l, palavra: l.palavra ?? l.sim })),
+      rows: linhas.map((l) => ({
+        codigo_barras: null,
+        descricao_por_sim: null,
+        descricao_por_palavra: null,
+        ...l,
+        palavra: l.palavra ?? l.sim,
+      })),
     })),
   }) as unknown as Db & { execute: jest.Mock };
 
@@ -696,6 +703,40 @@ describe("ferramentas de leitura do plano A", () => {
       expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
     });
 
+    it("a descrição de nota mostrada segue o critério da decisão: nome inteiro se algum candidato chega ao limite, palavra se nenhum", async () => {
+      const pelaPalavra = (sim: number) => [
+        {
+          produto_id: randomUUID(),
+          nome: "Suco A",
+          sim,
+          palavra: 1,
+          descricao_por_sim: "POR SIM",
+          descricao_por_palavra: "POR PALAVRA",
+        },
+        {
+          produto_id: randomUUID(),
+          nome: "Suco B",
+          sim,
+          palavra: 1,
+          descricao_por_sim: "POR SIM B",
+          descricao_por_palavra: "POR PALAVRA B",
+        },
+      ];
+      const descricoes = async (sim: number) => {
+        const saida = (await criarGetProductMargin(servico().metricas, dbCom(pelaPalavra(sim))).executar(
+          contexto,
+          {
+            produto: "suco",
+          },
+        )) as ProdutoAmbiguo;
+        return saida.candidatos.map((c) => c.descricao_de_nota);
+      };
+      // Nenhum nome chega ao limite (0,45): vale a palavra, como na similaridade mostrada.
+      expect(await descricoes(0.3)).toEqual(["POR PALAVRA", "POR PALAVRA B"]);
+      // Algum chega: vale o nome inteiro, mesmo que a palavra dê outra descrição.
+      expect(await descricoes(0.6)).toEqual(["POR SIM", "POR SIM B"]);
+    });
+
     it("candidatos de mesmo nome trazem código de barras, sku e data de cadastro, e a descrição de nota que casou", async () => {
       const banco = dbCom([
         {
@@ -705,7 +746,6 @@ describe("ferramentas de leitura do plano A", () => {
           codigo_barras: "7891000100103",
           sku: "ARZ-A",
           cadastrado_em: "2026-09-01",
-          descricao_de_nota: null,
         },
         {
           produto_id: randomUUID(),
@@ -714,7 +754,7 @@ describe("ferramentas de leitura do plano A", () => {
           codigo_barras: null,
           sku: "ARZ-B",
           cadastrado_em: "2026-10-02",
-          descricao_de_nota: "ARROZ TP1 5KG",
+          descricao_por_sim: "ARROZ TP1 5KG",
         },
       ]);
       const saida = (await criarGetProductMargin(servico().metricas, banco).executar(contexto, {

@@ -55,6 +55,11 @@ export interface RepositorioAlertas {
    */
   gravarCandidatos(comercianteId: string, dataReferencia: string, novos: NovoAlerta[]): Promise<number>;
   /**
+   * Roda `corpo` com uma trava por comerciante e dia: uma execução do motor de cada vez. A trava é do
+   * banco e vale por toda a execução, mesmo que as consultas do corpo usem outras conexões.
+   */
+  comExclusao<T>(comercianteId: string, dataReferencia: string, corpo: () => Promise<T>): Promise<T>;
+  /**
    * Marca como `obsoleto` os candidatos do dia dos `tipos` (e dos `produtoIds`, se informados) que não
    * estão em `manter`: a regra deixou de disparar depois de uma correção do dono. Só sai de `candidato`.
    */
@@ -64,8 +69,8 @@ export interface RepositorioAlertas {
     escopo: {
       tipos: readonly TipoAlerta[];
       produtoIds?: ReadonlySet<string>;
-      /** Produtos sem dado para avaliar: seus candidatos não podem ser dados como obsoletos. */
-      excluirProdutoIds?: ReadonlySet<string>;
+      /** Produtos sem dado para avaliar naquele tipo: seus candidatos não podem ser dados como obsoletos. */
+      excluir?: ReadonlyArray<{ tipo: TipoAlerta; produtoId: string }>;
       manter: ReadonlyArray<Pick<AlertaJaTratado, "tipo" | "chave">>;
     },
   ): Promise<number>;
@@ -152,13 +157,24 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
     return gravados.length;
   }
 
+  async comExclusao<T>(comercianteId: string, dataReferencia: string, corpo: () => Promise<T>): Promise<T> {
+    // Dentro de uma transação já aberta por quem chamou (Tx) não há como abrir outra para a trava.
+    if (!("transaction" in this.db) || typeof this.db.transaction !== "function") return corpo();
+    return this.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${`alerta:${comercianteId}:${dataReferencia}`}))`,
+      );
+      return corpo();
+    });
+  }
+
   async marcarObsoletos(
     comercianteId: string,
     dataReferencia: string,
     escopo: {
       tipos: readonly TipoAlerta[];
       produtoIds?: ReadonlySet<string>;
-      excluirProdutoIds?: ReadonlySet<string>;
+      excluir?: ReadonlyArray<{ tipo: TipoAlerta; produtoId: string }>;
       manter: ReadonlyArray<Pick<AlertaJaTratado, "tipo" | "chave">>;
     },
   ): Promise<number> {
@@ -178,7 +194,7 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
     const ids = doDia
       .filter((l) => !vivos.has(`${l.tipo}|${l.chave}`))
       .filter((l) => !escopo.produtoIds || (l.produtoId !== null && escopo.produtoIds.has(l.produtoId)))
-      .filter((l) => l.produtoId === null || !escopo.excluirProdutoIds?.has(l.produtoId))
+      .filter((l) => !escopo.excluir?.some((e) => e.tipo === l.tipo && e.produtoId === l.produtoId))
       .map((l) => l.id);
     if (ids.length === 0) return 0;
     const marcados = await this.db

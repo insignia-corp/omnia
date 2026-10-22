@@ -210,6 +210,28 @@ describe("regra de margem abaixo da meta", () => {
     expect(candidatos[0]).toMatchObject({ impactoCentavos: null, confianca: 0.9 });
   });
 
+  it("ausência só de alguns produtos: informa quais, para o motor não os dar como obsoletos", async () => {
+    const ausente = dadoAusente("sem_custo", "Sem nota de compra.");
+    const r = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () =>
+        Promise.resolve([
+          { produto_id: "p1", resultado: resultado(margem()) },
+          { produto_id: "p2", resultado: ausente },
+        ]),
+    });
+    expect(r.produtosSemDado).toEqual(["p2"]);
+    expect(r.candidatos.map((c) => c.chave)).toEqual(["p1"]);
+  });
+
+  it("sem nenhuma margem a regra inteira ficou sem dado: não informa produtos", async () => {
+    const r = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () => Promise.resolve([]),
+    });
+    expect(r.produtosSemDado).toBeUndefined();
+  });
+
   it("com o impacto vindo do giro, a confiança é a menor entre a da margem e a do giro", async () => {
     const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
       giro: () => Promise.resolve(giro([giroDoProduto("p1")], undefined, 0.5)),

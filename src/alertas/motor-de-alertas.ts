@@ -54,7 +54,21 @@ export class MotorDeAlertas {
     private readonly regras: readonly RegraDeAlerta[] = REGRAS_DE_ALERTA,
   ) {}
 
-  async executar(contexto: ContextoDoMotor, opcoes: OpcoesDoMotor = {}): Promise<ResultadoDoMotor> {
+  /**
+   * Uma execução por comerciante e dia de cada vez (trava no banco): duas execuções sobrepostas, como
+   * o motor diário e o job pós-nota, não podem se atropelar e deixar um número velho num candidato
+   * que a outra acabou de corrigir.
+   */
+  executar(contexto: ContextoDoMotor, opcoes: OpcoesDoMotor = {}): Promise<ResultadoDoMotor> {
+    return this.alertas.comExclusao(contexto.comercianteId, contexto.dataReferencia, () =>
+      this.executarComTrava(contexto, opcoes),
+    );
+  }
+
+  private async executarComTrava(
+    contexto: ContextoDoMotor,
+    opcoes: OpcoesDoMotor,
+  ): Promise<ResultadoDoMotor> {
     const { comercianteId, dataReferencia } = contexto;
     const limites = mesclarLimites(await this.limites.limitesDoComerciante(comercianteId));
     const metricas = new MetricasDaExecucao(this.metricas, { comercianteId, dataReferencia });
@@ -76,10 +90,14 @@ export class MotorDeAlertas {
     const [recentes, definitivos] = await Promise.all([
       this.alertas.jaTratados(comercianteId, {
         desde: somarDias(dataReferencia, -maiorJanela),
-        ate: dataReferencia,
+        ate: somarDias(dataReferencia, 1),
         tipos: comJanela,
       }),
-      this.alertas.jaTratados(comercianteId, { desde: null, ate: dataReferencia, tipos: semLimite }),
+      this.alertas.jaTratados(comercianteId, {
+        desde: null,
+        ate: somarDias(dataReferencia, 1),
+        tipos: semLimite,
+      }),
     ]);
     const tratados = [...recentes, ...definitivos];
     const jaGravados = semRepetirGravados
@@ -137,11 +155,14 @@ export class MotorDeAlertas {
     const avaliados = regras
       .filter((_, i) => resultados[i]!.ausentes.length === 0 || resultados[i]!.produtosSemDado !== undefined)
       .map((r) => r.tipo);
-    const semDado = new Set(resultados.flatMap((r) => r.produtosSemDado ?? []));
+    // A ausência de um produto vale só para o tipo da regra que não o avaliou.
+    const semDado = regras.flatMap((r, i) =>
+      (resultados[i]!.produtosSemDado ?? []).map((produtoId) => ({ tipo: r.tipo, produtoId })),
+    );
     const obsoletos = await this.alertas.marcarObsoletos(comercianteId, dataReferencia, {
       tipos: avaliados,
       ...(produtoIds ? { produtoIds } : {}),
-      ...(semDado.size > 0 ? { excluirProdutoIds: semDado } : {}),
+      ...(semDado.length > 0 ? { excluir: semDado } : {}),
       manter: achados.filter((c) => !jaTratado(c)).map((c) => ({ tipo: c.tipo, chave: c.chave })),
     });
     return {

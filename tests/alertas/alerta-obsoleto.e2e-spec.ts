@@ -202,6 +202,49 @@ describe("alerta obsoleto (e2e)", () => {
     });
   });
 
+  describe("execuções sobrepostas", () => {
+    it("duas execuções ao mesmo tempo, uma depois da correção, deixam o mesmo estado de uma só (a trava as serializa)", async () => {
+      await corrigirCusto(2500);
+      await Promise.all([
+        motor.executar({ comercianteId: vilaNova, dataReferencia: REF }),
+        motor.executar(
+          { comercianteId: vilaNova, dataReferencia: REF },
+          { tipos: ["reajuste_de_custo"], produtoIds: new Set([arroz]) },
+        ),
+      ]);
+      const [reajuste] = await doProduto("reajuste_de_custo");
+      expect(reajuste?.status).not.toBe("candidato");
+      const sequencial = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect(sequencial.gravados).toBe(0);
+      expect(sequencial.obsoletos).toBe(0);
+    });
+
+    it("alerta tratado hoje sob outra chave também suprime o mesmo reajuste no mesmo dia", async () => {
+      await corrigirCusto(2790);
+      await db.insert(schema.alerta).values({
+        comercianteId: vilaNova,
+        tipo: "reajuste_de_custo",
+        prioridade: 2,
+        status: "descartado",
+        dataReferencia: REF,
+        chave: `${arroz}:${aurora}:compra-trocada-pela-correcao`,
+        produtoId: arroz,
+        fornecedorId: aurora,
+        metricasApoio: { custo_atual_centavos: 2790, custo_anterior_centavos: 2490 },
+      });
+      const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect(r.suprimidos.some((c) => c.tipo === "reajuste_de_custo" && c.produtoId === arroz)).toBe(true);
+      expect(
+        r.candidatos.some(
+          (c) =>
+            c.tipo === "reajuste_de_custo" &&
+            c.produtoId === arroz &&
+            c.metricasApoio.custo_atual_centavos === 2790,
+        ),
+      ).toBe(false);
+    });
+  });
+
   describe("isolamento entre lojistas", () => {
     it("a correção e o motor de um lojista não marcam nada do outro", async () => {
       const antes = await db.select().from(schema.alerta).where(eq(schema.alerta.comercianteId, esquina));

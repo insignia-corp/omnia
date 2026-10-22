@@ -91,12 +91,18 @@ class RepositorioFalso implements RepositorioAlertas {
     this.chamadasDe.push(comercianteId);
     return Promise.resolve(this.existentes.filter((e) => tipos.includes(e.tipo)));
   }
+  /** Travas pedidas (comerciante e dia) e se a execução rodou dentro delas. */
+  travas: string[] = [];
+  async comExclusao<T>(comercianteId: string, dia: string, corpo: () => Promise<T>): Promise<T> {
+    this.travas.push(`${comercianteId}|${dia}`);
+    return corpo();
+  }
   /** O que o motor pediu para marcar como obsoleto. */
   obsoletados: Array<{
     tipos: readonly TipoAlerta[];
     manter: string[];
     produtoIds?: ReadonlySet<string>;
-    excluirProdutoIds?: ReadonlySet<string>;
+    excluir?: ReadonlyArray<{ tipo: TipoAlerta; produtoId: string }>;
   }> = [];
   marcarObsoletos(
     comercianteId: string,
@@ -104,7 +110,7 @@ class RepositorioFalso implements RepositorioAlertas {
     escopo: {
       tipos: readonly TipoAlerta[];
       produtoIds?: ReadonlySet<string>;
-      excluirProdutoIds?: ReadonlySet<string>;
+      excluir?: ReadonlyArray<{ tipo: TipoAlerta; produtoId: string }>;
       manter: ReadonlyArray<{ tipo: TipoAlerta; chave: string }>;
     },
   ) {
@@ -113,7 +119,7 @@ class RepositorioFalso implements RepositorioAlertas {
       tipos: escopo.tipos,
       manter: escopo.manter.map((m) => `${m.tipo}|${m.chave}`),
       ...(escopo.produtoIds ? { produtoIds: escopo.produtoIds } : {}),
-      ...(escopo.excluirProdutoIds ? { excluirProdutoIds: escopo.excluirProdutoIds } : {}),
+      ...(escopo.excluir ? { excluir: escopo.excluir } : {}),
     });
     return Promise.resolve(0);
   }
@@ -439,7 +445,28 @@ describe("motor de alertas: candidato obsoleto (#157)", () => {
     };
     const r = await rodar([parcial]);
     expect(r.obsoletados[0]?.tipos).toEqual(["margem_abaixo_da_meta"]);
-    expect(r.obsoletados[0]?.excluirProdutoIds).toEqual(new Set(["p9"]));
+    expect(r.obsoletados[0]?.excluir).toEqual([{ tipo: "margem_abaixo_da_meta", produtoId: "p9" }]);
+  });
+
+  it("a ausência de um produto numa regra não protege os candidatos dele em outra regra", async () => {
+    const semDado: RegraDeAlerta = {
+      tipo: "margem_abaixo_da_meta",
+      avaliar: () =>
+        Promise.resolve({
+          candidatos: [],
+          ausentes: [{ tipo: "margem_abaixo_da_meta", codigo: "sem_custo", motivo: "sem custo" }],
+          produtosSemDado: ["p9"],
+        }),
+    };
+    const r = await rodar([semDado, regraQue("reajuste_de_custo", [])]);
+    // Só margem/p9 é poupado: o reajuste de p9 (outra regra, que avaliou) pode virar obsoleto.
+    expect(r.obsoletados[0]?.excluir).toEqual([{ tipo: "margem_abaixo_da_meta", produtoId: "p9" }]);
+    expect(r.obsoletados[0]?.tipos).toEqual(["margem_abaixo_da_meta", "reajuste_de_custo"]);
+  });
+
+  it("cada execução roda dentro da trava do comerciante e do dia", async () => {
+    const r = await rodar([regraQue("estoque_parado", ["a"])]);
+    expect(r.travas).toEqual([`c1|${REF}`]);
   });
 
   it("a execução restrita a produtos (job) só marca obsoleto dentro desses produtos", async () => {
@@ -487,6 +514,10 @@ describe("motor de alertas: o mesmo reajuste sob outra chave (#157)", () => {
 
   it("mesmo produto, fornecedor e custos, tratado há 3 dias sob outra chave: é o mesmo reajuste", async () => {
     expect(await gravadosCom([tratado({ dataReferencia: dataHa(3) })])).toEqual([]);
+  });
+
+  it("tratado no próprio dia (a correção do dono troca a chave no mesmo dia) também é o mesmo reajuste", async () => {
+    expect(await gravadosCom([tratado({ dataReferencia: REF })])).toEqual([]);
   });
 
   it("só dentro da janela: tratado há 7 dias já não vale (outro movimento de preço meses depois pode alertar)", async () => {

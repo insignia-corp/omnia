@@ -11,6 +11,7 @@ import { RepositorioAlertasPostgres } from "../../src/alertas/repositorio-alerta
 import { fonteDeLimitesPadrao } from "../../src/alertas/limites";
 import { MotorDeAlertas } from "../../src/alertas/motor-de-alertas";
 import { carregarEnv } from "../../src/config/env";
+import type { PinoLogger } from "nestjs-pino";
 import { FILA_EXTRACAO, FilaExtracao, type AposExtracao } from "../../src/ingestao/fila/fila-extracao";
 import type { ProcessadorExtracao } from "../../src/ingestao/processador-extracao";
 import { migrar } from "../../src/infra/database/migrar";
@@ -84,8 +85,16 @@ describe("job de reajuste após cada nota (e2e)", () => {
       const compra = compras.find((c) => c.documentoId === entrada.documentoId);
       return Promise.resolve({ status: "extraido" as const, compraId: compra?.compraId ?? "" });
     });
-    const fila = new FilaExtracao(redis, { processar } as unknown as ProcessadorExtracao, gancho);
-    fila.onModuleInit();
+    const fila = new FilaExtracao(
+      redis,
+      { processar } as unknown as ProcessadorExtracao,
+      {
+        logger: { bindings: () => ({}) },
+        runInContext: (fn: () => unknown) => fn(),
+      } as unknown as PinoLogger,
+      gancho,
+    );
+    fila.onApplicationBootstrap();
     filasDeExtracao.push(fila);
     return { fila, processar };
   }

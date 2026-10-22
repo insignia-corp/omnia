@@ -67,6 +67,7 @@
     "demo:reset": "tsx scripts/demo/resetar-demo.ts",
     "seed:demo": "npm run db:reset && npm run db:seed",
     "eval": "tsx src/avaliacao/cli.ts",
-    "eval:extracao": "tsx src/avaliacao/extracao/cli.ts"
+    "eval:extracao": "tsx src/avaliacao/extracao/cli.ts",
+    "eval:custo": "tsx src/avaliacao/custo/cli.ts"
   }
 }

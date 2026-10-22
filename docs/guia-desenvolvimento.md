@@ -132,7 +132,7 @@ O agente é um modelo de linguagem com chamada de ferramentas (tool use), rodand
 | Ferramenta | Entrada | Saída | Efeito |
 | --- | --- | --- | --- |
 | `get_daily_summary` | data | Faturamento, gastos, saldo e comparação com dias anteriores | Nenhum |
-| `get_top_products` | período, critério (giro ou receita) | Ranking de produtos | Nenhum |
+| `get_top_products` | critério (volume, alta do giro ou receita) | Ranking de produtos dos últimos 7 dias | Nenhum |
 | `get_product_margin` | produto (e o produto_id do candidato escolhido, opcional), período | Margem, custo, preço e confiança | Nenhum |
 | `get_cost_changes` | período | Reajustes por produto e fornecedor | Nenhum |
 | `list_alert_candidates` | data | Candidatos a alerta com prioridade e métricas de apoio | Nenhum |

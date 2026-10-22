@@ -1,6 +1,6 @@
 # Fluxo do agente
 
-Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado em 2026-10-20: o loop do Analista, o verificador, o registro de execuções, o histórico da conversa e `select_alerts` estão prontos (PRs #130, #131 e #133, em revisão); as ferramentas de leitura de métricas são do plano A (#50 a #52), `ask_owner` e `save_owner_answer` estão no PR #132 e a ação com confirmação do dono (`propose_target_price`, #104) no PR #141. A tabela de ferramentas abaixo marca o que já roda. A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
+Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado em 2026-10-21: o verificador (base da Etapa 0, #112), o registro de execuções (#57; PRs #112 e #131), o loop do Analista (#55), o histórico da conversa e `select_alerts` (PR #133) estão na `develop`; as ferramentas de leitura de métricas e `list_alert_candidates` também (PRs #145, #168, #169 e #174), `ask_owner` e `save_owner_answer` (PR #132) e a ação com confirmação do dono (`propose_target_price`, #104; PR #141), também na `develop`. A tabela de ferramentas abaixo marca o que já roda. A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
 
 ## Dois agentes e um orquestrador em código
 
@@ -83,7 +83,7 @@ O agente não envia nada: devolve a mensagem já aprovada e o canal a entrega. P
 ### Relatório diário, passo a passo
 
 1. O job (plano C) dispara `relatorio_diario` com a data de referência da execução.
-2. O modelo chama `list_alert_candidates`, que devolve os candidatos já ranqueados por impacto em centavos (conta do código).
+2. O modelo chama `list_alert_candidates`, que devolve os candidatos já ordenados por prioridade e, dentro dela, por impacto em centavos e depois confiança (conta do código).
 3. Escolhe até 3 e registra a escolha com `select_alerts`, uma justificativa curta por alerta. A ferramenta confere os ids contra os candidatos do comerciante na data e devolve só dados do banco (as métricas de apoio), que passam a ser as fontes dos números. A justificativa é texto do modelo: fica na entrada da chamada, para os bastidores, e não volta na saída. Sem `select_alerts` bem-sucedido (ou sem candidato), o loop não aprova o relatório.
 4. Escreve uma frase por alerta, com o valor e a ação sugerida.
 5. O verificador confere cada número. Aprovada, a mensagem volta ao canal. A decisão (quais alertas e por quê) fica em `chamada_ferramenta`, na ordem, e alimenta a tela de bastidores.
@@ -137,14 +137,14 @@ Limites e esforço vêm do ambiente. Os nomes e os valores padrão moram em [`sr
 
 - **Ferramentas** (`src/agente/ferramentas`): cada uma declara nome, descrição, esquema Zod estrito e efeito (`nenhum`, `pergunta_dono`, `escreve_config`). O registro recusa ferramenta que receba `comerciante_id` do modelo e nome repetido. Erro de ferramenta volta ao modelo como `tool_result` com `is_error`, sem derrubar o fluxo. Ferramenta que escreve configuração só executa depois de o dono confirmar (regra inviolável 7); sem confirmação ligada ao banco, nenhuma escrita roda. O catálogo junta as listas dos três planos (`catalogo.ts`).
 
-| Ferramenta | Efeito | Situação em 2026-10-20 |
+| Ferramenta | Efeito | Situação em 2026-10-21 |
 | --- | --- | --- |
-| `get_daily_summary`, `get_top_products` | nenhum | Plano A (#50) |
-| `get_product_margin`, `get_cost_changes` | nenhum | Plano A (#51) |
-| `list_alert_candidates` | nenhum | Plano A (#52) |
+| `get_daily_summary`, `get_top_products` | nenhum | Pronta (#50, #148; PRs #145 e #169): `get_top_products` aceita os critérios `volume`, `alta` e `receita` |
+| `get_product_margin`, `get_cost_changes` | nenhum | Pronta (#51; PR #145). `get_product_margin` também acha apelidos confirmados e distingue produtos de mesmo nome (#156; PR #168) |
+| `list_alert_candidates` | nenhum | Pronta (#52; PR #174): roda o motor de alertas para o comerciante e a data da sessão, sem entrada do modelo |
 | `select_alerts` | nenhum | Pronta (#133): até 3 ids com justificativa, conferidos contra o comerciante e a data |
-| `ask_owner`, `save_owner_answer` | `pergunta_dono`, `escreve_config` | PR #132 |
-| `propose_target_price` | `escreve_config` | PR #141: só propõe; o preço-meta muda quando o dono diz sim (ver abaixo) |
+| `ask_owner`, `save_owner_answer` | `pergunta_dono`, `escreve_config` | Pronta (PR #132) |
+| `propose_target_price` | `escreve_config` | Pronta (PR #141): só propõe; o preço-meta muda quando o dono diz sim (ver abaixo) |
 
 Detalhe de cada ferramenta e das prioridades na [especificação dos agentes](especificacao-agentes.md), seção 4.
 - **Contrato de retorno** (`src/metricas/resultado-metrica.ts`): valor, período, número de registros e menor confiança. Dinheiro em chaves `*_centavos`, percentuais prontos para exibir em `*_percentual`. Dado ausente é explícito (`{ ausente: true, motivo }`).

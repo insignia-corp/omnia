@@ -62,7 +62,7 @@ export async function executarRodada(opcoes: OpcoesRodada): Promise<Rodada> {
 }
 
 async function executarCaso(caso: CasoAvaliacao, opcoes: OpcoesRodada): Promise<ResultadoCaso> {
-  const base = { id: caso.id, categoria: caso.categoria, descricao: caso.descricao };
+  const base = { id: caso.id, categoria: caso.categoria, gatilho: caso.gatilho, descricao: caso.descricao };
   const contexto: ContextoSessao = {
     comercianteId: opcoes.comercianteId,
     nomeComercio: opcoes.nomeComercio,

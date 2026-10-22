@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { montarCatalogo } from "./catalogo";
 import { definirFerramenta, type ContextoSessao } from "./ferramenta";
 import { RegistroFerramentas, type ConfirmacoesConfig } from "./registro-ferramentas";
 
@@ -165,5 +166,49 @@ describe("RegistroFerramentas", () => {
       strict: true,
       input_schema: { type: "object", additionalProperties: false, required: ["texto"] },
     });
+  });
+  it("não manda à API limite numérico, de tamanho nem de lista: ela os recusa com 400 em modo estrito", () => {
+    const comLimites = definirFerramenta({
+      nome: "com_limites",
+      descricao: "Ferramenta com todos os tipos de limite.",
+      entrada: z.strictObject({
+        valor: z.number().int().positive().max(10_000_000),
+        nome: z.string().min(1).max(40),
+        itens: z.array(z.string()).min(1).max(3),
+      }),
+      efeito: "nenhum",
+      executar: () => Promise.resolve({}),
+    });
+    const [def] = new RegistroFerramentas([comLimites]).definicoesParaModelo();
+    const esquema = JSON.stringify(def?.input_schema);
+    expect(esquema).not.toMatch(
+      /"(exclusiveMinimum|exclusiveMaximum|minimum|maximum|minLength|maxLength|maxItems)"/,
+    );
+    expect(esquema).not.toContain("$schema");
+    expect(def?.input_schema).toMatchObject({ type: "object", additionalProperties: false });
+    // O limite vira texto na descrição, para o modelo ainda saber dele.
+    expect(esquema).toContain("maximum: 10000000");
+  });
+
+  it("o Zod continua barrando o valor fora do limite que saiu do esquema", async () => {
+    const limitada = definirFerramenta({
+      nome: "limitada",
+      descricao: "Teto de dez.",
+      entrada: z.strictObject({ valor: z.number().int().max(10) }),
+      efeito: "nenhum",
+      executar: () => Promise.resolve({ ok: true }),
+    });
+    const r = new RegistroFerramentas([limitada]);
+    expect(await r.executar(contexto, "limitada", { valor: 11 })).toMatchObject({ ok: false });
+    expect(await r.executar(contexto, "limitada", { valor: 10 })).toMatchObject({ ok: true });
+  });
+
+  it("todas as ferramentas do catálogo geram esquema sem os limites que a API recusa", () => {
+    const registro = new RegistroFerramentas(montarCatalogo({ db: {} as never }));
+    for (const def of registro.definicoesParaModelo()) {
+      expect(JSON.stringify(def.input_schema)).not.toMatch(
+        /"(exclusiveMinimum|exclusiveMaximum|minimum|maximum|minLength|maxLength|maxItems)"/,
+      );
+    }
   });
 });

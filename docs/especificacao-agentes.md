@@ -98,7 +98,7 @@ Decisões do orquestrador:
 | Implementação | `AgenteService` atual: loop com tool use, histórico só acrescentado, verificador, regeneração, fallbacks e registro de execução |
 | Entrada | `ContextoSessao` montado pelo código (comerciante, nome do comércio, data de referência) e o texto do gatilho, com a mensagem do dono entre `<mensagem_do_dono>` |
 | Saída | Texto para o canal, já aprovado pelo verificador, ou um fallback sem números. Mais a escolha dos alertas registrada em `select_alerts` |
-| Modelo | Padrão proposto `claude-sonnet-5-5`; `claude-opus-5-5` só se o eval mostrar ganho. Hoje o padrão em `env.ts` é o Opus (decisão 0002); trocar é uma mudança de código listada na seção 9 |
+| Modelo | Padrão `claude-sonnet-5-5` (`LLM_MODELO` em `env.ts`, decisão 0002); `claude-opus-5-5` só se o eval mostrar ganho |
 | Esforço | `low` na conversa (`LLM_ESFORCO_CONVERSA`) e `medium` no relatório diário e na nota processada (`LLM_ESFORCO`); feito em `AgenteService` por gatilho |
 | Limites | `AGENTE_MAX_ITERACOES` (8) e `AGENTE_MAX_REGERACOES` (2) |
 
@@ -184,7 +184,7 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 
 | Mudança | Onde | Issue |
 | --- | --- | --- |
-| Esforço por gatilho (feito) e padrão do modelo para `claude-sonnet-5-5` (falta: só depois do eval #74) | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
+| Esforço por gatilho (feito) e padrão do modelo `claude-sonnet-5-5` (feito em 21/10/2026; o eval #74 mede o ganho do Opus) | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
 | Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
 | Ferramentas P0 (`select_alerts` feito em `select-alerts.ts`; leitura são do plano A) | `src/agente/ferramentas/` | #50 a #53 |
 | `propose_target_price`, `historico_preco_meta` (migração `0008_historico_preco_meta`) e resolução do "sim" em código (feito) | `src/agente/confirmacao/`, `src/agente/ferramentas/`, `src/infra/database/schema.ts` | #104 |
@@ -226,7 +226,7 @@ Se o prazo apertar, cortar nesta ordem: Opus (Sonnet em tudo), `compare_supplier
 
 ## 12. Em aberto
 
-- Confirmar `claude-sonnet-5-5` como padrão do Analista (hoje o padrão é o Opus, decisão 0002) e medir `low` contra `medium` no eval. O pensamento é cobrado como saída e é a maior alavanca de custo.
+- `claude-sonnet-5-5` já é o padrão do Analista (decisão 0002, 21/10/2026); falta medir `low` contra `medium` no eval. O pensamento é cobrado como saída e é a maior alavanca de custo.
 - Decidido: gatilho `extracao_nota` no enum atual, sem tabela própria.
 - Confirmar no SDK fixado (`@anthropic-ai/sdk` 0.135.0) o suporte a saída estruturada com o esquema do Zod; se não houver, pedir JSON e validar.
 - Definir o conjunto aceitável de top 3 no gabarito.

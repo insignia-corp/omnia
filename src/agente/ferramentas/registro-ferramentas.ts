@@ -1,4 +1,5 @@
 import type { BetaTool } from "@anthropic-ai/sdk/resources/beta/messages/messages";
+import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema";
 import { z } from "zod";
 import type { ContextoSessao, Ferramenta } from "./ferramenta";
 
@@ -15,6 +16,18 @@ export type ResultadoExecucaoFerramenta =
 
 /** Comparadas sem maiúsculas e separadores: pega comerciante_id, comercianteId e comerciante-id. */
 const CHAVES_PROIBIDAS = new Set(["comercianteid"]);
+
+/**
+ * Esquema de entrada no formato que a API aceita com `strict: true`. Ela recusa com 400 limites numéricos
+ * (`minimum`, `maximum`, `exclusiveMinimum`), de tamanho de texto e de lista; o transformador do próprio SDK
+ * tira esses limites do esquema e os escreve na descrição do campo. Quem confere o valor é o Zod, em
+ * `executar`, então nada se perde. Sem isto, uma única ferramenta com `.max()` derruba todo pedido ao modelo.
+ */
+export function esquemaEstrito(entrada: z.ZodObject): BetaTool["input_schema"] {
+  const esquema: Record<string, unknown> = { ...z.toJSONSchema(entrada, { target: "draft-7" }) };
+  delete esquema["$schema"];
+  return transformJSONSchema(esquema) as BetaTool["input_schema"];
+}
 
 const normalizarChave = (chave: string) => chave.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -96,7 +109,7 @@ export class RegistroFerramentas {
       .map((f) => ({
         name: f.nome,
         description: f.descricao,
-        input_schema: z.toJSONSchema(f.entrada, { target: "draft-7" }) as BetaTool["input_schema"],
+        input_schema: esquemaEstrito(f.entrada),
         strict: true,
       }));
   }

@@ -708,6 +708,27 @@ describe("motor de alertas: reajuste obsoleto pela variação da própria compra
     expect(repositorio.atualizados[0]?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2000 });
   });
 
+  it("job pós-nota (semRepetirGravados): alta desfeita na ordem estável e linha do dia existente vira obsoleta", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.existentes = [{ tipo: "reajuste_de_custo", chave: "p1:f1:compra-16" }];
+    repositorio.reajustes = [
+      gravado("p1:f1:compra-16", {
+        metricasApoio: {
+          compra_atual_id: "compra-16",
+          custo_anterior_centavos: 2490,
+          custo_atual_centavos: 2790,
+        },
+      }),
+    ];
+    repositorio.leituras = {
+      custos: [leitura("compra-16", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2790, 2)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { semRepetirGravados: true });
+    expect(repositorio.gravados).toEqual([]);
+    expect(repositorio.obsoletadosPorId).toEqual(["id-p1:f1:compra-16"]);
+  });
+
   it("o que só foi suprimido por um alerta já tratado vira obsoleto sem recalcular", async () => {
     const { motor, repositorio } = motorCom([variacao()], giro(10));
     repositorio.tratados = [{ tipo: "reajuste_de_custo", chave: "p1:f1:compra-16", dataReferencia: REF }];

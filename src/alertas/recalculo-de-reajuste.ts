@@ -3,12 +3,12 @@
  * do par produto e fornecedor: uma nota nova no dia, a reemissão das leituras de uma nota ou a
  * correção da nota anterior fazem a alta do candidato de uma compra sumir da regra sem ter sido
  * refutada. Aqui a variação da própria compra do alerta (`compra_atual_id`) é refeita com as leituras
- * vigentes, na ordem da métrica (`compararCustos`): a anterior é a última leitura de outra compra que
+ * vigentes, na ordem estável das compras (`compararLeituras`): a anterior é a última leitura de outra compra que
  * vem antes dela. Função pura, sem acesso a banco.
  */
 import { centavos, ErroDinheiro, multiplicar } from "../lib/dinheiro/dinheiro";
 import {
-  compararCustos,
+  compararTexto,
   procedenciaDoProduto,
   type CustoDeCompra,
   type ProdutoParaMetrica,
@@ -28,11 +28,27 @@ export type ReajusteRecalculado =
   /** A alta continua acima do limite: números e prioridade refeitos com as leituras vigentes. */
   | { situacao: "vale"; metricasApoio: Record<string, unknown>; prioridade: Prioridade };
 
+/** Uma leitura vigente com o instante em que a compra dela entrou: a ordem estável do mesmo dia. */
+export type LeituraDoPar = CustoDeCompra & { compraCriadaEm: Date };
+
+/**
+ * Ordem das compras do par: data, depois o instante em que a compra entrou, depois o item. Não usa o
+ * `criadoEm` da leitura (que a métrica usa): `reemitirCustos` grava leitura nova com o mesmo custo a cada
+ * resposta do dono, e isso passaria a nota para depois das outras do dia sem o dono ter refutado nada.
+ */
+export function compararLeituras(a: LeituraDoPar, b: LeituraDoPar): number {
+  return (
+    compararTexto(a.data, b.data) ||
+    a.compraCriadaEm.getTime() - b.compraCriadaEm.getTime() ||
+    compararTexto(a.itemDeCompraId, b.itemDeCompraId)
+  );
+}
+
 export interface EntradaDoRecalculo {
   /** `metricas_apoio` do alerta gravado. */
   metricasApoio: Record<string, unknown>;
   /** Leituras vigentes do par produto e fornecedor do alerta, até a data de referência. */
-  custos: readonly CustoDeCompra[];
+  custos: readonly LeituraDoPar[];
   /** Origem e confiança do cadastro do produto, que a métrica também considera. */
   produto: Pick<ProdutoParaMetrica, "origem" | "confianca">;
   /** A data da execução: fecha o período da procedência, como na métrica. */
@@ -46,7 +62,7 @@ export function recalcularReajuste(entrada: EntradaDoRecalculo): ReajusteRecalcu
   const { metricasApoio, limites } = entrada;
   const compraId = metricasApoio.compra_atual_id;
   if (typeof compraId !== "string") return { situacao: "sem_dado" };
-  const emOrdem = [...entrada.custos].sort(compararCustos);
+  const emOrdem = [...entrada.custos].sort(compararLeituras);
   const posicao = emOrdem.findLastIndex((c) => c.compraId === compraId);
   if (posicao < 0) return { situacao: "sem_dado" };
   const atual = emOrdem[posicao]!;

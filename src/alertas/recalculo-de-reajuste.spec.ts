@@ -1,18 +1,21 @@
-import type { CustoDeCompra } from "../metricas/dados-de-metricas";
 import { mesclarLimites } from "./limites";
-import { recalcularReajuste } from "./recalculo-de-reajuste";
+import { recalcularReajuste, type LeituraDoPar } from "./recalculo-de-reajuste";
 
 const limites = mesclarLimites({});
 
 let ordem = 0;
-/** Uma leitura vigente; `criado` ordena as do mesmo dia (o que `reemitirCustos` muda). */
+/**
+ * Uma leitura vigente. `criado` é o instante da compra (a ordem do mesmo dia); `lidaEm` é o da leitura, que
+ * a reemissão de custos renova sem mexer na compra (por isso não conta na ordem).
+ */
 const leitura = (
   compraId: string,
   data: string,
   custo: number,
   criado = ++ordem,
   confianca = 1,
-): CustoDeCompra => ({
+  lidaEm = criado,
+): LeituraDoPar => ({
   produtoId: "p1",
   fornecedorId: "f1",
   compraId,
@@ -21,7 +24,8 @@ const leitura = (
   custoUnitarioCentavos: custo,
   confianca,
   origem: "foto_nota",
-  criadoEm: new Date(2026, 9, 1, 0, 0, criado),
+  criadoEm: new Date(2026, 9, 1, 0, 0, lidaEm),
+  compraCriadaEm: new Date(2026, 9, 1, 0, 0, criado),
 });
 
 const apoio = (compra: string, extra: Record<string, unknown> = {}) => ({
@@ -154,41 +158,64 @@ describe("recalcularReajuste (#186)", () => {
     expect(r).toMatchObject({ situacao: "vale", metricasApoio: { custo_anterior_centavos: 2490 } });
   });
 
-  it("reemitirCustos da nota anterior (leitura nova depois da X) tira ela de antes da X", () => {
-    // Z foi lida de novo depois de X: já não vem antes dela; sem outra compra antes, a alta some.
-    const r = recalcularReajuste({
-      metricasApoio: apoio("X"),
-      custos: [leitura("X", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2490, 2)],
-      produto: { origem: "dono", confianca: 1 },
-      dataReferencia: "2026-10-19",
-      limites,
+  const entrada = (custos: LeituraDoPar[]) => ({
+    metricasApoio: apoio("X"),
+    custos,
+    produto: { origem: "dono" as const, confianca: 1 },
+    dataReferencia: "2026-10-19",
+    limites,
+  });
+
+  it("reemitirCustos de uma nota do dia (leitura nova, mesmo custo) não muda a ordem: a alta da X continua", () => {
+    // Cenário: W 24,90 (dia anterior), X 27,90 (10h) e Y 27,90 (15h). O dono responde a pergunta da X às 18h:
+    // a leitura da X é nova, mas a compra continua antes da Y; a anterior da X segue sendo a W.
+    const r = recalcularReajuste(
+      entrada([
+        leitura("W", "2026-10-10", 2490, 1),
+        leitura("X", "2026-10-16", 2790, 2, 1, 9),
+        leitura("Y", "2026-10-16", 2790, 3),
+      ]),
+    );
+    expect(r).toMatchObject({ situacao: "vale", metricasApoio: { custo_anterior_centavos: 2490 } });
+  });
+
+  it("reemitirCustos da nota anterior do dia não troca a anterior da X pela compra mais antiga", () => {
+    // W 20,00, A 24,90 (9h), X 27,90 (10h): o dono confirma a A às 18h. A anterior da X continua a A (24,90).
+    const r = recalcularReajuste(
+      entrada([
+        leitura("W", "2026-10-10", 2000, 1),
+        leitura("A", "2026-10-16", 2490, 2, 1, 9),
+        leitura("X", "2026-10-16", 2790, 3),
+      ]),
+    );
+    expect(r).toMatchObject({
+      situacao: "vale",
+      metricasApoio: { custo_anterior_centavos: 2490, variacao_bps: 1205 },
     });
+  });
+
+  it("nota anterior lida errada e corrigida para o custo da X, sem compra mais antiga: desfeito", () => {
+    const r = recalcularReajuste(
+      entrada([leitura("Z", "2026-10-16", 2790, 1, 1, 9), leitura("X", "2026-10-16", 2790, 2)]),
+    );
     expect(r).toEqual({ situacao: "desfeito" });
   });
 
-  it("nota anterior lida errada e corrigida para o custo da X, sem compra anterior: desfeito", () => {
-    const r = recalcularReajuste({
-      metricasApoio: apoio("X"),
-      custos: [leitura("X", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2790, 2)],
-      produto: { origem: "dono", confianca: 1 },
-      dataReferencia: "2026-10-19",
-      limites,
-    });
+  it("nota anterior corrigida, com compra ainda mais antiga e mais barata: a anterior da X é a nota corrigida, sem alta", () => {
+    const r = recalcularReajuste(
+      entrada([
+        leitura("W", "2026-10-10", 2000, 1),
+        leitura("Z", "2026-10-16", 2790, 2, 1, 9),
+        leitura("X", "2026-10-16", 2790, 3),
+      ]),
+    );
     expect(r).toEqual({ situacao: "desfeito" });
   });
 
-  it("nota anterior corrigida, com compra anterior mais barata: a alta é contra a mais barata, com números novos", () => {
-    const r = recalcularReajuste({
-      metricasApoio: apoio("X"),
-      custos: [
-        leitura("W", "2026-10-10", 2000),
-        leitura("X", "2026-10-16", 2790, 1),
-        leitura("Z", "2026-10-16", 2790, 2),
-      ],
-      produto: { origem: "dono", confianca: 1 },
-      dataReferencia: "2026-10-19",
-      limites,
-    });
+  it("nota anterior corrigida para um custo ainda mais baixo: a alta da X aumenta, com números novos", () => {
+    const r = recalcularReajuste(
+      entrada([leitura("Z", "2026-10-16", 2000, 1, 1, 9), leitura("X", "2026-10-16", 2790, 2)]),
+    );
     expect(r).toMatchObject({
       situacao: "vale",
       metricasApoio: { custo_anterior_centavos: 2000, custo_atual_centavos: 2790, variacao_bps: 3950 },

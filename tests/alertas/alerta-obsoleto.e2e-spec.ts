@@ -357,7 +357,7 @@ describe("alerta obsoleto (e2e)", () => {
       expect(r.candidatos.some((c) => c.fornecedorId === f)).toBe(false);
     });
 
-    it("nota anterior do dia corrigida, com compra mais barata antes: fica candidato com os números recalculados", async () => {
+    it("nota anterior do dia corrigida para um custo mais baixo: fica candidato com os números recalculados", async () => {
       const f = await novoFornecedor();
       await nota(f, "2026-10-17", 2000, base("2026-10-17"));
       const z = await nota(f, DIA, 2490, new Date("2026-10-18T09:00:00Z"));
@@ -365,16 +365,56 @@ describe("alerta obsoleto (e2e)", () => {
       await rodar();
       const [antes] = await doPar(f);
       expect(antes?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2490 });
-      await leitura(f, DIA, z.itemId, 2790, instanteDepois());
+      // O dono corrige a nota anterior para R$ 20,00: a alta da nota do alerta é contra ela agora.
+      await leitura(f, DIA, z.itemId, 2000, instanteDepois());
       await rodar();
       const [depois] = await doPar(f);
       expect(depois).toMatchObject({ id: antes!.id, status: "candidato" });
-      // Nenhum número velho: a alta agora é contra os R$ 20,00 da compra anterior.
+      // Nenhum número velho: a alta agora é contra os R$ 20,00 da nota corrigida.
       expect(depois?.metricasApoio).toMatchObject({
         custo_anterior_centavos: 2000,
         custo_atual_centavos: 2790,
         variacao_bps: 3950,
       });
+    });
+
+    it("nota anterior do dia corrigida para o custo da nota do alerta, mesmo com compra mais barata antes: obsoleto", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2000, base("2026-10-17"));
+      const z = await nota(f, DIA, 2490, new Date("2026-10-18T09:00:00Z"));
+      await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      expect(await doPar(f)).toHaveLength(1);
+      await leitura(f, DIA, z.itemId, 2790, instanteDepois());
+      await rodar();
+      expect((await doPar(f))[0]).toMatchObject({ status: "obsoleto" });
+    });
+
+    it("reemitirCustos da nota anterior não troca a anterior da nota do alerta pela compra mais antiga (sem número errado)", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2000, base("2026-10-17"));
+      const a = await nota(f, DIA, 2490, new Date("2026-10-18T09:00:00Z"));
+      await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      const [antes] = await doPar(f);
+      expect(antes?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2490, variacao_bps: 1205 });
+      await leitura(f, DIA, a.itemId, 2490, instanteDepois());
+      await rodar();
+      const [depois] = await doPar(f);
+      expect(depois).toMatchObject({ id: antes!.id, status: "candidato" });
+      expect(depois?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2490, variacao_bps: 1205 });
+    });
+
+    it("reemitirCustos da própria nota do alerta, com outra nota igual depois, não faz a alta sumir", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2490, base("2026-10-17"));
+      const x = await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      await nota(f, DIA, 2790, new Date("2026-10-18T15:00:00Z"));
+      await leitura(f, DIA, x.itemId, 2790, instanteDepois());
+      await rodar();
+      expect((await doPar(f))[0]).toMatchObject({ status: "candidato" });
+      expect((await doPar(f))[0]?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2490 });
     });
 
     it("reemitirCustos da nota mais antiga do dia (leitura nova, mesmo custo) não derruba o reajuste quando há compra anterior", async () => {

@@ -1,9 +1,9 @@
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Executor } from "../infra/database/database.module";
-import { alerta, produto } from "../infra/database/schema";
-import type { CustoDeCompra } from "../metricas/dados-de-metricas";
+import { alerta, compra, produto } from "../infra/database/schema";
 import type { OrigemDado } from "../metricas/resultado-metrica";
 import { RepositorioMetricasPostgres } from "../metricas/repositorio-metricas";
+import type { LeituraDoPar } from "./recalculo-de-reajuste";
 import type { TipoAlerta, Prioridade } from "./tipos";
 
 export interface AlertaGravado {
@@ -91,7 +91,7 @@ export interface RepositorioAlertas {
     comercianteId: string,
     ate: string,
     par: { produtoId: string; fornecedorId: string },
-  ): Promise<{ custos: CustoDeCompra[]; produto: { origem: OrigemDado; confianca: number } }>;
+  ): Promise<{ custos: LeituraDoPar[]; produto: { origem: OrigemDado; confianca: number } }>;
   /** Marca como `obsoleto` os candidatos `ids` do comerciante. Só sai de `candidato`. */
   marcarObsoletosPorId(comercianteId: string, ids: readonly string[]): Promise<number>;
   /**
@@ -305,18 +305,31 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
     comercianteId: string,
     ate: string,
     par: { produtoId: string; fornecedorId: string },
-  ): Promise<{ custos: CustoDeCompra[]; produto: { origem: OrigemDado; confianca: number } }> {
-    const todas = await new RepositorioMetricasPostgres(this.db).custosDeCompra(
-      comercianteId,
-      ate,
-      par.produtoId,
-    );
+  ): Promise<{ custos: LeituraDoPar[]; produto: { origem: OrigemDado; confianca: number } }> {
+    const doFornecedor = (
+      await new RepositorioMetricasPostgres(this.db).custosDeCompra(comercianteId, ate, par.produtoId)
+    ).filter((c) => c.fornecedorId === par.fornecedorId);
+    const compras = doFornecedor.length
+      ? await this.db
+          .select({ id: compra.id, criadoEm: compra.criadoEm })
+          .from(compra)
+          .where(
+            and(
+              eq(compra.comercianteId, comercianteId),
+              inArray(compra.id, [...new Set(doFornecedor.map((c) => c.compraId))]),
+            ),
+          )
+      : [];
+    const criadaEm = new Map(compras.map((c) => [c.id, c.criadoEm]));
     const [p] = await this.db
       .select({ origem: produto.origem, confianca: produto.confianca })
       .from(produto)
       .where(and(eq(produto.comercianteId, comercianteId), eq(produto.id, par.produtoId)));
     return {
-      custos: todas.filter((c) => c.fornecedorId === par.fornecedorId),
+      custos: doFornecedor.flatMap((c) => {
+        const compraCriadaEm = criadaEm.get(c.compraId);
+        return compraCriadaEm ? [{ ...c, compraCriadaEm }] : [];
+      }),
       // Produto que não aparece: confiança zero, para o recálculo nunca parecer mais seguro do que é.
       produto: { origem: p?.origem ?? "dono", confianca: p?.confianca ?? 0 },
     };

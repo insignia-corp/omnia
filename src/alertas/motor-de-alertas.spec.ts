@@ -1,9 +1,9 @@
-import type { CustoDeCompra } from "../metricas/dados-de-metricas";
 import type { Giro, GiroDoProduto } from "../metricas/giro";
 import type { MetricasService } from "../metricas/metricas.service";
 import type { ResultadoMetrica } from "../metricas/resultado-metrica";
 import type { VariacaoDeCusto } from "../metricas/variacao-de-custo";
 import type { FonteDeLimites } from "./limites";
+import type { LeituraDoPar } from "./recalculo-de-reajuste";
 import type { Prioridade, TipoAlerta } from "./tipos";
 import { MotorDeAlertas } from "./motor-de-alertas";
 import type { AlertaGravado, AlertaJaTratado, NovoAlerta, RepositorioAlertas } from "./repositorio-alertas";
@@ -126,7 +126,7 @@ class RepositorioFalso implements RepositorioAlertas {
   }
   /** Reajustes em aberto, leituras do par e o que o motor pediu para marcar ou atualizar (#186). */
   reajustes: AlertaGravado[] = [];
-  leituras = { custos: [] as CustoDeCompra[], produto: { origem: "dono" as const, confianca: 1 } };
+  leituras = { custos: [] as LeituraDoPar[], produto: { origem: "dono" as const, confianca: 1 } };
   obsoletadosPorId: string[] = [];
   atualizados: Array<{ id: string; prioridade: number; metricasApoio: Record<string, unknown> }> = [];
   reajustesEmAberto(comercianteId: string, _dia: string, produtoIds?: ReadonlySet<string>) {
@@ -599,7 +599,7 @@ describe("motor de alertas: reajuste obsoleto pela variação da própria compra
     },
     ...extra,
   });
-  const leitura = (compraId: string, data: string, custo: number, segundo: number): CustoDeCompra => ({
+  const leitura = (compraId: string, data: string, custo: number, segundo: number): LeituraDoPar => ({
     produtoId: "p1",
     fornecedorId: "f1",
     compraId,
@@ -609,6 +609,7 @@ describe("motor de alertas: reajuste obsoleto pela variação da própria compra
     confianca: 1,
     origem: "foto_nota",
     criadoEm: new Date(2026, 9, 1, 0, 0, segundo),
+    compraCriadaEm: new Date(2026, 9, 1, 0, 0, segundo),
   });
 
   it("o reajuste que a regra não devolve mais e cuja alta foi desfeita vira obsoleto", async () => {

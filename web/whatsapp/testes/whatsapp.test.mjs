@@ -1,8 +1,9 @@
 // Testes do front simulado sem navegador: `npm run test:web` (node:test).
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import process from "node:process";
+import { describe, it, mock } from "node:test";
 import { conferirAnexo, conferirSaida } from "../regras-meta.js";
-import { porcento, reais, responder } from "../transporte-demo.js";
+import { criarTransporteDemo, porcento, reais, responder } from "../transporte-demo.js";
 
 const AGORA = Date.parse("2026-10-22T10:00:00-03:00");
 const config = { painelUrl: "/painel" };
@@ -55,6 +56,31 @@ describe("regras da Meta", () => {
       },
     };
     assert.ok(conferirSaida(lista, AGORA, AGORA).some((e) => e.includes("linhas")));
+  });
+
+  it("devolve erro, sem lançar, para URL de botão inválida", () => {
+    const link = (url) => ({
+      type: "interactive",
+      interactive: {
+        type: "cta_url",
+        body: { text: "x" },
+        action: { name: "cta_url", parameters: { display_text: "Abrir", url } },
+      },
+    });
+    assert.ok(conferirSaida(link("http://["), AGORA, AGORA).some((e) => e.includes("url inválida")));
+  });
+
+  it("exige id único em cada linha da lista", () => {
+    const lista = (rows) => ({
+      type: "interactive",
+      interactive: { type: "list", body: { text: "x" }, action: { button: "Ver", sections: [{ rows }] } },
+    });
+    assert.ok(conferirSaida(lista([{ title: "Sem id" }]), AGORA, AGORA).some((e) => e.includes("row.id")));
+    const repetidos = lista([
+      { id: "a", title: "Um" },
+      { id: "a", title: "Dois" },
+    ]);
+    assert.ok(conferirSaida(repetidos, AGORA, AGORA).some((e) => e.includes("repetido")));
   });
 
   it("aceita foto JPEG ou PNG até 5 MB e XML de NF-e", () => {
@@ -121,6 +147,72 @@ describe("agente de demonstração", () => {
         config,
       );
       assert.ok(!corpo(resposta[0]).startsWith(FALLBACK), `sem resposta para ${id}`);
+    }
+  });
+
+  it("não confirma preço-meta com um sim solto, sem proposta aberta (regra 7)", () => {
+    const estado = {};
+    assert.doesNotMatch(corpo(responder(texto("sim"), config, estado)[0]), /guardei/);
+    responder(texto("sugere um preço"), config, estado);
+    assert.match(corpo(responder(texto("sim"), config, estado)[0]), /guardei \*R\$ 37,20\*/);
+    assert.doesNotMatch(corpo(responder(texto("sim"), config, estado)[0]), /guardei/);
+  });
+
+  it("diz que não sabe o lucro nem faz previsão, sem números", () => {
+    for (const pergunta of ["Qual foi meu lucro do mês?", "Qual vai ser meu faturamento do mês que vem?"]) {
+      const [r] = responder(texto(pergunta), config, {});
+      assert.doesNotMatch(corpo(r), /R\$|\d/, pergunta);
+    }
+  });
+
+  it("corrige item da nota depois de pedir a correção", () => {
+    const estado = {};
+    responder(
+      { type: "interactive", interactive: { type: "button_reply", button_reply: { id: "nota_corrigir" } } },
+      config,
+      estado,
+    );
+    const r = corpo(responder(texto("sal 6 por 1,30"), config, estado)[0]);
+    assert.match(r, /Sal refinado 1kg\*: 6 un\. x R\$ 1,30 = R\$ 7,80/);
+    assert.match(r, /R\$ 474,00/);
+    assert.ok(!estado.aguardandoCorrecao);
+  });
+});
+
+describe("transporte de demonstração", () => {
+  const doDono = (body) => ({
+    id: "wamid.x",
+    direcao: "entrada",
+    timestamp: Date.now(),
+    type: "text",
+    text: { body },
+  });
+
+  it("limpar a conversa não libera uma segunda proativa no mesmo dia (regra 9)", async () => {
+    const t = criarTransporteDemo(config);
+    assert.equal(await t.simularProativa(), null);
+    await t.reiniciar();
+    assert.match(await t.simularProativa(), /no máximo 1/);
+  });
+
+  it("limpar a conversa cancela respostas ainda na fila", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+      const t = criarTransporteDemo(config);
+      const eventos = [];
+      t.aoEvento((e) => eventos.push(e));
+      await t.enviar(doDono("oi"));
+      await t.reiniciar();
+      for (let i = 0; i < 40; i++) {
+        mock.timers.tick(250);
+        await new Promise((r) => process.nextTick(r));
+      }
+      assert.deepEqual(
+        eventos.filter((e) => e.tipo !== "digitando"),
+        [],
+      );
+    } finally {
+      mock.timers.reset();
     }
   });
 });

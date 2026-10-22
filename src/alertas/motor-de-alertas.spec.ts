@@ -3,7 +3,8 @@ import type { MetricasService } from "../metricas/metricas.service";
 import type { ResultadoMetrica } from "../metricas/resultado-metrica";
 import type { VariacaoDeCusto } from "../metricas/variacao-de-custo";
 import type { FonteDeLimites } from "./limites";
-import type { TipoAlerta } from "./tipos";
+import type { LeituraDoPar } from "./recalculo-de-reajuste";
+import type { Prioridade, TipoAlerta } from "./tipos";
 import { MotorDeAlertas } from "./motor-de-alertas";
 import type { AlertaGravado, AlertaJaTratado, NovoAlerta, RepositorioAlertas } from "./repositorio-alertas";
 import type { RegraDeAlerta } from "./regra";
@@ -122,6 +123,37 @@ class RepositorioFalso implements RepositorioAlertas {
       ...(escopo.excluir ? { excluir: escopo.excluir } : {}),
     });
     return Promise.resolve(0);
+  }
+  /** Reajustes em aberto, leituras do par e o que o motor pediu para marcar ou atualizar (#186). */
+  reajustes: AlertaGravado[] = [];
+  leituras = { custos: [] as LeituraDoPar[], produto: { origem: "dono" as const, confianca: 1 } };
+  obsoletadosPorId: string[] = [];
+  atualizados: Array<{ id: string; prioridade: number; metricasApoio: Record<string, unknown> }> = [];
+  reajustesEmAberto(comercianteId: string, _dia: string, produtoIds?: ReadonlySet<string>) {
+    this.chamadasDe.push(comercianteId);
+    return Promise.resolve(
+      this.reajustes.filter((r) => !produtoIds || (r.produtoId !== null && produtoIds.has(r.produtoId))),
+    );
+  }
+  pares: Array<{ produtoId: string; fornecedorId: string }> = [];
+  leiturasDoPar(comercianteId: string, _ate: string, par: { produtoId: string; fornecedorId: string }) {
+    this.chamadasDe.push(comercianteId);
+    this.pares.push(par);
+    return Promise.resolve(this.leituras);
+  }
+  marcarObsoletosPorId(comercianteId: string, ids: readonly string[]) {
+    this.chamadasDe.push(comercianteId);
+    this.obsoletadosPorId.push(...ids);
+    return Promise.resolve(ids.length);
+  }
+  atualizarCandidato(
+    comercianteId: string,
+    id: string,
+    novo: { prioridade: Prioridade; metricasApoio: Record<string, unknown> },
+  ) {
+    this.chamadasDe.push(comercianteId);
+    this.atualizados.push({ id, ...novo });
+    return Promise.resolve(true);
   }
   candidatosDoDia(comercianteId: string) {
     this.chamadasDe.push(comercianteId);
@@ -464,7 +496,7 @@ describe("motor de alertas: candidato obsoleto (#157)", () => {
     expect(r.obsoletados[0]?.tipos).toEqual(["margem_abaixo_da_meta", "giro_em_alta"]);
   });
 
-  it("o reajuste nunca entra nos tipos que podem virar obsoletos", async () => {
+  it("o reajuste não entra nos tipos de `marcarObsoletos`: tem reavaliação própria (#186)", async () => {
     // A métrica só olha a compra atual do par: uma nota nova ou a correção de uma nota do dia faria a alta
     // sumir sem ter sido refutada.
     const r = await rodar([regraQue("reajuste_de_custo", []), regraQue("giro_em_alta", [])]);
@@ -547,5 +579,193 @@ describe("motor de alertas: o mesmo reajuste sob outra chave (#157)", () => {
     expect(
       await gravadosCom([tratado({ dataReferencia: dataHa(3), tipo: "margem_abaixo_da_meta" })]),
     ).toHaveLength(1);
+  });
+});
+
+describe("motor de alertas: reajuste obsoleto pela variação da própria compra (#186)", () => {
+  const gravado = (chave: string, extra: Partial<AlertaGravado> = {}): AlertaGravado => ({
+    id: `id-${chave}`,
+    tipo: "reajuste_de_custo",
+    chave,
+    prioridade: 2,
+    dataReferencia: REF,
+    produtoId: "p1",
+    fornecedorId: "f1",
+    metricasApoio: {
+      compra_atual_id: chave,
+      custo_anterior_centavos: 2490,
+      custo_atual_centavos: 2790,
+      unidades_7_dias: 10,
+    },
+    ...extra,
+  });
+  const leitura = (compraId: string, data: string, custo: number, segundo: number): LeituraDoPar => ({
+    produtoId: "p1",
+    fornecedorId: "f1",
+    compraId,
+    itemDeCompraId: `i-${compraId}`,
+    data,
+    custoUnitarioCentavos: custo,
+    confianca: 1,
+    origem: "foto_nota",
+    criadoEm: new Date(2026, 9, 1, 0, 0, segundo),
+    compraCriadaEm: new Date(2026, 9, 1, 0, 0, segundo),
+  });
+
+  it("o reajuste que a regra não devolve mais e cuja alta foi desfeita vira obsoleto", async () => {
+    const { motor, repositorio } = motorCom([], giro(10));
+    repositorio.reajustes = [gravado("X")];
+    repositorio.leituras = {
+      custos: [leitura("X", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2790, 2)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.obsoletadosPorId).toEqual(["id-X"]);
+    expect(repositorio.atualizados).toEqual([]);
+    expect(repositorio.pares).toEqual([{ produtoId: "p1", fornecedorId: "f1" }]);
+    expect(r.obsoletos).toBe(1);
+  });
+
+  it("a alta que continua acima do limite fica candidato com os números e a prioridade recalculados", async () => {
+    const { motor, repositorio } = motorCom([], giro(10));
+    repositorio.reajustes = [gravado("X")];
+    repositorio.leituras = {
+      custos: [
+        leitura("W", "2026-10-10", 2000, 1),
+        leitura("X", "2026-10-16", 2790, 2),
+        leitura("Y", "2026-10-16", 2790, 3),
+      ],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(r.obsoletos).toBe(0);
+    expect(repositorio.obsoletadosPorId).toEqual([]);
+    expect(repositorio.atualizados).toHaveLength(1);
+    expect(repositorio.atualizados[0]).toMatchObject({
+      id: "id-X",
+      prioridade: 3,
+      metricasApoio: { custo_anterior_centavos: 2000, custo_atual_centavos: 2790, impacto_centavos: 7900 },
+    });
+  });
+
+  it("o reajuste que a regra devolve passa pelo mesmo recálculo: alta desfeita na ordem estável não é gravada e o do dia vira obsoleto", async () => {
+    // A regra (ordem pela leitura) devolve a compra-16, mas na ordem das compras ela não tem alta.
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.reajustes = [
+      gravado("p1:f1:compra-16", {
+        metricasApoio: {
+          compra_atual_id: "compra-16",
+          custo_anterior_centavos: 2490,
+          custo_atual_centavos: 2790,
+        },
+      }),
+    ];
+    repositorio.leituras = {
+      custos: [leitura("compra-16", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2790, 2)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados).toEqual([]);
+    expect(repositorio.obsoletadosPorId).toEqual(["id-p1:f1:compra-16"]);
+  });
+
+  it("o reajuste que a regra devolve é gravado com os números recalculados, não com os da regra", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.leituras = {
+      custos: [leitura("W", "2026-10-10", 2000, 1), leitura("compra-16", "2026-10-16", 2790, 2)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados).toHaveLength(1);
+    expect(repositorio.gravados[0]?.metricasApoio).toMatchObject({
+      custo_anterior_centavos: 2000,
+      custo_atual_centavos: 2790,
+      impacto_centavos: 7900,
+    });
+  });
+
+  it("sem leitura da compra, o reajuste que a regra devolve é gravado como a regra calculou", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados[0]?.metricasApoio).toMatchObject({
+      custo_anterior_centavos: 100,
+      custo_atual_centavos: 115,
+    });
+  });
+
+  it("job pós-nota (semRepetirGravados): o reajuste já gravado que a regra devolve também é recalculado, sem número velho", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.existentes = [{ tipo: "reajuste_de_custo", chave: "p1:f1:compra-16" }];
+    repositorio.reajustes = [gravado("p1:f1:compra-16")];
+    // Uma nota retroativa mais barata entrou depois: a alta da compra do alerta mudou.
+    repositorio.leituras = {
+      custos: [leitura("W", "2026-10-10", 2000, 1), leitura("p1:f1:compra-16", "2026-10-16", 2790, 2)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { semRepetirGravados: true });
+    expect(repositorio.gravados).toEqual([]);
+    expect(repositorio.atualizados).toHaveLength(1);
+    expect(repositorio.atualizados[0]?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2000 });
+  });
+
+  it("job pós-nota (semRepetirGravados): alta desfeita na ordem estável e linha do dia existente vira obsoleta", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.existentes = [{ tipo: "reajuste_de_custo", chave: "p1:f1:compra-16" }];
+    repositorio.reajustes = [
+      gravado("p1:f1:compra-16", {
+        metricasApoio: {
+          compra_atual_id: "compra-16",
+          custo_anterior_centavos: 2490,
+          custo_atual_centavos: 2790,
+        },
+      }),
+    ];
+    repositorio.leituras = {
+      custos: [leitura("compra-16", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2790, 2)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { semRepetirGravados: true });
+    expect(repositorio.gravados).toEqual([]);
+    expect(repositorio.obsoletadosPorId).toEqual(["id-p1:f1:compra-16"]);
+  });
+
+  it("o que só foi suprimido por um alerta já tratado vira obsoleto sem recalcular", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.tratados = [{ tipo: "reajuste_de_custo", chave: "p1:f1:compra-16", dataReferencia: REF }];
+    repositorio.reajustes = [gravado("p1:f1:compra-16")];
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.obsoletadosPorId).toEqual(["id-p1:f1:compra-16"]);
+  });
+
+  it("sem leitura da compra (sem dado) o reajuste fica como está", async () => {
+    const { motor, repositorio } = motorCom([], giro(10));
+    repositorio.reajustes = [gravado("X")];
+    repositorio.leituras = { custos: [], produto: { origem: "dono", confianca: 1 } };
+    const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(r.obsoletos).toBe(0);
+    expect(repositorio.atualizados).toEqual([]);
+  });
+
+  it("a execução restrita a produtos (job) só reavalia os reajustes desses produtos", async () => {
+    const { motor, repositorio } = motorCom([], giro(10));
+    repositorio.reajustes = [gravado("X"), gravado("Y", { produtoId: "p2" })];
+    repositorio.leituras = {
+      custos: [leitura("X", "2026-10-16", 2790, 1)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { produtoIds: new Set(["p2"]) });
+    expect(repositorio.obsoletadosPorId).toEqual([]);
+    expect(repositorio.atualizados).toEqual([]);
+  });
+
+  it("sem a regra de reajuste na execução, nada é reavaliado", async () => {
+    const { motor, repositorio } = motorCom([], giro(10));
+    repositorio.reajustes = [gravado("X")];
+    repositorio.leituras = {
+      custos: [leitura("X", "2026-10-16", 2790, 1)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { tipos: ["estoque_parado"] });
+    expect(repositorio.obsoletadosPorId).toEqual([]);
   });
 });

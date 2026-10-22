@@ -6,10 +6,11 @@
  */
 import { diasEntre, somarDias } from "../lib/datas/datas";
 import { MetricasService } from "../metricas/metricas.service";
-import { mesclarLimites, type FonteDeLimites } from "./limites";
+import { mesclarLimites, type FonteDeLimites, type LimitesDeAlerta } from "./limites";
 import { compararCandidatos, ordenarGravados, prioridadeDe } from "./prioridade";
 import { MetricasDaExecucao, type CandidatoDeAlerta, type MotivoAusente, type RegraDeAlerta } from "./regra";
 import type { AlertaGravado, AlertaJaTratado, RepositorioAlertas } from "./repositorio-alertas";
+import { recalcularReajuste } from "./recalculo-de-reajuste";
 import { REGRAS_DE_ALERTA } from "./regras";
 import type { TipoAlerta } from "./tipos";
 
@@ -78,9 +79,13 @@ export class MotorDeAlertas {
     const resultados = await Promise.all(
       regras.map((regra) => regra.avaliar({ comercianteId, dataReferencia, limites, metricas })),
     );
-    const achados = resultados
-      .flatMap((r) => r.candidatos)
-      .filter((c) => !produtoIds || (c.produtoId !== null && produtoIds.has(c.produtoId)));
+    const achados = await this.alinharReajustes(
+      contexto,
+      limites,
+      resultados
+        .flatMap((r) => r.candidatos)
+        .filter((c) => !produtoIds || (c.produtoId !== null && produtoIds.has(c.produtoId))),
+    );
     const ausentes = resultados.flatMap((r) => r.ausentes);
 
     const tiposComJanela = Object.keys(limites.janelaSupressaoDias) as TipoAlerta[];
@@ -152,8 +157,8 @@ export class MotorDeAlertas {
     // O candidato do dia que a regra não dispara mais (depois de uma correção do dono) vira obsoleto.
     // Só nas regras que avaliaram com dado: sem dado (ausente) não dá para dizer que deixou de valer. Um
     // candidato que continua valendo mas foi só barrado pela repetição do job fica como está. O reajuste
-    // fica de fora: a métrica só olha a compra atual do par, então uma nota nova ou a correção de uma nota
-    // do dia faria a alta sumir sem ter sido refutada (ver "Candidato obsoleto" no README).
+    // fica de fora daqui: a métrica só olha a compra atual do par, então uma nota nova ou a correção de uma
+    // nota do dia faria a alta sumir sem ter sido refutada. Ele é tratado à parte, por `reavaliarReajustes`.
     const avaliados = regras
       .filter((_, i) => resultados[i]!.ausentes.length === 0 || resultados[i]!.produtosSemDado !== undefined)
       .map((r) => r.tipo)
@@ -168,12 +173,104 @@ export class MotorDeAlertas {
       ...(semDado.length > 0 ? { excluir: semDado } : {}),
       manter: achados.filter((c) => !jaTratado(c)).map((c) => ({ tipo: c.tipo, chave: c.chave })),
     });
+    const reajustesObsoletos = regras.some((r) => r.tipo === "reajuste_de_custo")
+      ? await this.reavaliarReajustes(
+          contexto,
+          limites,
+          produtoIds,
+          new Set(ordenados.map((c) => c.chave)),
+          new Set(achados.filter(jaTratado).map((c) => c.chave)),
+        )
+      : 0;
     return {
       candidatos: ordenarGravados(await this.alertas.candidatosDoDia(comercianteId, dataReferencia)),
       gravados,
       suprimidos,
       ausentes,
-      obsoletos,
+      obsoletos: obsoletos + reajustesObsoletos,
     };
+  }
+
+  /**
+   * Os reajustes que a regra devolve passam pelo mesmo recálculo dos que ela não devolve (ordem estável das
+   * compras, #186). A métrica ordena as notas do dia pelo `criadoEm` da leitura, que a reemissão de custos
+   * renova a cada resposta do dono: sem este alinhamento a regra e o recálculo discordariam sobre a mesma
+   * compra, e o status e os números oscilariam conforme o caminho que rodou por último. Alta desfeita: o
+   * candidato não é gravado (e o do dia, se existir, vira obsoleto em `reavaliarReajustes`). Ainda acima do
+   * limite: valem os números recalculados. Sem leitura da compra: fica o que a regra devolveu.
+   */
+  private async alinharReajustes(
+    { comercianteId, dataReferencia }: ContextoDoMotor,
+    limites: LimitesDeAlerta,
+    achados: CandidatoDeAlerta[],
+  ): Promise<CandidatoDeAlerta[]> {
+    const alinhados: CandidatoDeAlerta[] = [];
+    for (const c of achados) {
+      if (c.tipo !== "reajuste_de_custo" || c.produtoId === null || c.fornecedorId === null) {
+        alinhados.push(c);
+        continue;
+      }
+      const leituras = await this.alertas.leiturasDoPar(comercianteId, dataReferencia, {
+        produtoId: c.produtoId,
+        fornecedorId: c.fornecedorId,
+      });
+      const r = recalcularReajuste({ metricasApoio: c.metricasApoio, ...leituras, dataReferencia, limites });
+      if (r.situacao === "desfeito") continue;
+      if (r.situacao === "sem_dado") {
+        alinhados.push(c);
+        continue;
+      }
+      const { impacto_centavos: impacto, menor_confianca: confianca, ...apoio } = r.metricasApoio;
+      alinhados.push({
+        ...c,
+        metricasApoio: apoio as CandidatoDeAlerta["metricasApoio"],
+        impactoCentavos: typeof impacto === "number" ? impacto : null,
+        confianca: typeof confianca === "number" ? confianca : null,
+      });
+    }
+    return alinhados;
+  }
+
+  /**
+   * Os reajustes do dia que a regra não devolveu mais (uma nota nova no dia, a correção do dono de uma
+   * nota): a variação da própria compra do alerta é refeita com as leituras vigentes (#186). Alta no limite
+   * ou abaixo dele, ou sem compra anterior: vira `obsoleto`. Ainda acima do limite: números e prioridade
+   * atualizados. Um que só foi suprimido por um alerta já tratado também vira `obsoleto`. Sem leitura da
+   * compra (sem dado) fica como está. Devolve quantos viraram obsoletos.
+   */
+  private async reavaliarReajustes(
+    { comercianteId, dataReferencia }: ContextoDoMotor,
+    limites: LimitesDeAlerta,
+    produtoIds: ReadonlySet<string> | undefined,
+    chavesQueContinuam: ReadonlySet<string>,
+    chavesSuprimidas: ReadonlySet<string>,
+  ): Promise<number> {
+    const abertos = await this.alertas.reajustesEmAberto(comercianteId, dataReferencia, produtoIds);
+    const obsoletos: string[] = [];
+    for (const alerta of abertos) {
+      if (chavesQueContinuam.has(alerta.chave)) continue;
+      if (chavesSuprimidas.has(alerta.chave) || alerta.produtoId === null || alerta.fornecedorId === null) {
+        obsoletos.push(alerta.id);
+        continue;
+      }
+      const leituras = await this.alertas.leiturasDoPar(comercianteId, dataReferencia, {
+        produtoId: alerta.produtoId,
+        fornecedorId: alerta.fornecedorId,
+      });
+      const r = recalcularReajuste({
+        metricasApoio: alerta.metricasApoio,
+        ...leituras,
+        dataReferencia,
+        limites,
+      });
+      if (r.situacao === "desfeito") obsoletos.push(alerta.id);
+      else if (r.situacao === "vale") {
+        await this.alertas.atualizarCandidato(comercianteId, alerta.id, {
+          prioridade: r.prioridade,
+          metricasApoio: r.metricasApoio,
+        });
+      }
+    }
+    return this.alertas.marcarObsoletosPorId(comercianteId, obsoletos);
   }
 }

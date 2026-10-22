@@ -17,6 +17,7 @@ export const LIMITES = {
   secoesLista: 10,
   linhasLista: 10,
   tituloLinha: 24,
+  idLinha: 200,
   descricaoLinha: 72,
   tituloSecao: 24,
   textoBotaoLink: 20,
@@ -69,7 +70,11 @@ function conferirInterativo(it) {
       if (secoes.length > 1) erros.push(...obrigatorio("section.title", s.title));
       erros.push(...tamanho("section.title", s.title, LIMITES.tituloSecao));
     }
+    const idsLinhas = new Set();
     for (const l of linhas) {
+      erros.push(...obrigatorio("row.id", l.id), ...tamanho("row.id", l.id, LIMITES.idLinha));
+      if (idsLinhas.has(l.id)) erros.push(`row.id repetido: ${l.id}`);
+      idsLinhas.add(l.id);
       erros.push(...obrigatorio("row.title", l.title));
       erros.push(...tamanho("row.title", l.title, LIMITES.tituloLinha));
       erros.push(...tamanho("row.description", l.description, LIMITES.descricaoLinha));
@@ -79,7 +84,11 @@ function conferirInterativo(it) {
     erros.push(...obrigatorio("display_text", p.display_text));
     erros.push(...tamanho("display_text", p.display_text, LIMITES.textoBotaoLink));
     const base = globalThis.location?.href ?? "http://localhost/";
-    if (!/^https?:\/\//.test(new URL(p.url ?? "", base).href)) erros.push("url precisa ser http ou https");
+    try {
+      if (!/^https?:\/\//.test(new URL(p.url ?? "", base).href)) erros.push("url precisa ser http ou https");
+    } catch {
+      erros.push(`url inválida: ${p.url}`);
+    }
   } else {
     erros.push(`interactive.type não suportado: ${it.type}`);
   }

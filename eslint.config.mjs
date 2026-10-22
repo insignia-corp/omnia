@@ -53,6 +53,7 @@ export default tseslint.config(
           "setTimeout",
           "clearTimeout",
           "URL",
+          "fetch",
           "URLSearchParams",
           "Element",
           "File",

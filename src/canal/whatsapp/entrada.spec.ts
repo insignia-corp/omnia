@@ -122,5 +122,19 @@ describe("regras da Meta no backend", () => {
         },
       }),
     ).toContain("url precisa ser http, https ou caminho do próprio site");
+    const repetidas = [
+      { id: "a", title: "A" },
+      { id: "a", title: "B" },
+    ];
+    expect(
+      conferirSaida({
+        type: "interactive",
+        interactive: {
+          type: "list",
+          body: { text: "x" },
+          action: { button: "Ver", sections: [{ rows: repetidas }] },
+        },
+      }),
+    ).toContain("row.id repetido: a");
   });
 });

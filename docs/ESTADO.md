@@ -2,7 +2,7 @@
 
 Fonte única do estado atual. Atualizado por `/checkpoint`. Só números datados e com o comando que os gerou; método e decisões moram nos docs-dono (ver [README](README.md)).
 
-Atualizado em: 2026-10-22 · commit base: `67ad155` (`develop` após o PR 188) · branch `feature/182-whatsapp-integrado`
+Atualizado em: 2026-10-22 · commit base: `4aaa5db` (`develop` após o PR 181) · branch `feature/182-whatsapp-integrado`
 
 ## Etapa
 
@@ -12,29 +12,28 @@ Atualizado em: 2026-10-22 · commit base: `67ad155` (`develop` após o PR 188) �
 - Etapa 3 (métricas): feita, com o épico #31 fechado. Resumo da semana e do mês e o preço que leva a margem à meta entram com o #182. Margem, variação de custo, giro, resumo diário, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço batem com o gabarito, e o conjunto de alertas esperados também (#41). Débitos em #143 (extrato por conta), #144 (propagar origem e confiança do produto) e #148 (critério de receita). Detalhe em `src/metricas/README.md`.
 - Etapa 4 (motor de alertas): o motor de regras com prioridade e supressão está na `develop` (#43 e #44, fechadas; PR 153). Job de reajuste e teste de detecção (#45, #46), `list_alert_candidates` (#52), status `enviado` e `descartado` (#155) e candidato velho (#157) fechados. Limites por comerciante (#147, PR 188) mesclados. Aberta: #172 (a exceção da regra 7 para o motor já está documentada no PR 189).
 - Etapa 5 (agente): na `develop`, núcleo, verificador, registro de execuções, loop diário e modo conversa (#55, fechada), `ask_owner`, `save_owner_answer`, `propose_target_price` e `select_alerts` (o envio não é ferramenta: o `AgenteService` devolve o texto verificado e o `MessageChannel` entrega), ação com confirmação do dono e preço-meta (#104), as ferramentas de leitura `get_daily_summary`, `get_top_products`, `get_product_margin` e `get_cost_changes` (#50, #51, #149 e #156, fechadas; PRs 145, 160 e 168). `list_alert_candidates` (#52) e `get_period_summary` (#182) também. Critério `receita` em `get_top_products` e receita por produto (#148, fechada; PR 169).
-- Etapa 6 (canal): na `develop`, `MessageChannel`, chat web como plano B, escolha por `CANAL`, job do relatório diário com chave de idempotência e horário de silêncio (#64, #66, #106). WhatsApp simulado para o pitch (#179, PR 181) ligado ao backend e ao banco (#182, este PR): `/whatsapp` servido pelo Nest, status e digitando do banco, botões e lista escolhidos em código, modelo `resumo_diario` fora da janela de 24 h, nota lida na conversa e `/painel`. Detalhe em `src/canal/README.md`. A Cloud API real (#61 a #63) e áudio (#107) não começaram.
+- Etapa 6 (canal): na `develop`, `MessageChannel`, chat web como plano B, escolha por `CANAL`, job do relatório diário com chave de idempotência e horário de silêncio (#64, #66, #106). WhatsApp simulado para o pitch (#179, PR 181, mesclado) ligado ao backend e ao banco (#182, este PR): `/whatsapp` servido pelo Nest, status e digitando do banco, botões e lista escolhidos em código, modelo `resumo_diario` fora da janela de 24 h, nota lida na conversa e `/painel`. Detalhe em `src/canal/README.md`. A Cloud API real (#61 a #63) e áudio (#107) não começaram.
 - Etapa 7 (avaliação): o harness `npm run eval` existe (#68) e a rodada com modelo falso tem 50 casos: perguntas numéricas, casos do verificador, perguntas sem resposta e injeção de instrução (#69, #70, #72 e #73, fechadas). A avaliação da extração de notas tem runner próprio, `npm run eval:extracao` (#71, fechada); custo e tempo por execução em `npm run eval:custo` (#74, fechada).
 - Etapa 8 (demo): dataset fixo com reset em um comando (#76) e tela de bastidores (#77) na `develop`. Faltam roteiro, gravação e checklist de congelamento (#78, #79, #111).
-- Próxima ação: mesclar o PR 181 (#179) e este (#182) e ensaiar o roteiro do pitch em `/whatsapp` com `npm run seed:demo` e `DEMO_DATA_REFERENCIA=2026-10-20`; roteiro, gravação e checklist de congelamento (#78, #79, #111). Fila atual: `gh issue list --label prioridade:P0 --state open`.
+- Próxima ação: mesclar este PR (#182) e ensaiar o roteiro do pitch em `/whatsapp` com `npm run seed:demo` e `DEMO_DATA_REFERENCIA=2026-10-20`; roteiro, gravação e checklist de congelamento (#78, #79, #111). Fila atual: `gh issue list --label prioridade:P0 --state open`.
 
 ## Números vigentes
 
-Gerados em 2026-10-22 sobre `feature/182-whatsapp-integrado` (a `develop` em `67ad155` mais o #182), com Node 24, PostgreSQL 18 e Redis 8 locais. Saídas brutas em `evidencias/2026-10-22-*.txt`. Eval e vínculo não foram rodados de novo nesta sessão.
+Gerados em 2026-10-22 sobre `feature/182-whatsapp-integrado` (a `develop` em `4aaa5db` mais o #182), com Node 24, PostgreSQL 18 e Redis 8 locais. Saídas brutas em `evidencias/2026-10-22-*.txt`. Eval e vínculo não foram rodados de novo nesta sessão.
 
 | O quê | Valor | Gerado por | Em |
 | --- | --- | --- | --- |
-| Testes unitários | 1226 passam em 86 suítes | `npm test` (Node 24) | 2026-10-22 |
-| Testes e2e | 542 passam em 40 suítes (PostgreSQL e Redis reais, cliente de visão e modelo falsos) | `npm run test:e2e` (Node 24) | 2026-10-22 |
-| Testes do front do WhatsApp | 17 passam em 4 grupos | `npm run test:web` | 2026-10-22 |
+| Testes unitários | 1269 passam em 88 suítes | `npm test` (Node 24) | 2026-10-22 |
+| Testes e2e | 555 passam em 40 suítes (PostgreSQL e Redis reais, cliente de visão e modelo falsos) | `npm run test:e2e` (Node 24) | 2026-10-22 |
+| Testes do front do WhatsApp | 25 passam | `npm run test:web` | 2026-10-22 |
 | Lint | 0 erros | `npm run lint` | 2026-10-22 |
 | Typecheck | 0 erros | `npm run typecheck` | 2026-10-22 |
 | Build | passa | `npm run build` | 2026-10-22 |
 | Eval (modelo falso, prompt `sistema-v2`) | 50 de 50 casos passam (numéricas, verificador, sem resposta e injeção); relatório em `docs/avaliacoes/2026-10-21-sistema-v2-falso.md` | `npm run seed:demo` e `npm run eval` | 2026-10-21 |
-| Vínculo nota-produto sem perguntar | 97,9% (92 de 94 itens das 18 notas), 0 ligações erradas. O e2e `tests/vinculo-notas` (94 itens, 0 ligações erradas, pelo menos 90% sem perguntar) faz parte dos 542 e reconfirmou essas condições em 2026-10-22; só o 97,9% exato não foi medido de novo | `npm run test:e2e -- tests/vinculo` | 2026-10-20 |
+| Vínculo nota-produto sem perguntar | 97,9% (92 de 94 itens das 18 notas), 0 ligações erradas. O e2e `tests/vinculo-notas` (94 itens, 0 ligações erradas, pelo menos 90% sem perguntar) faz parte dos 555 e reconfirmou essas condições em 2026-10-22; só o 97,9% exato não foi medido de novo | `npm run test:e2e -- tests/vinculo` | 2026-10-20 |
 
 ## Em PR aberto
 
-- PR 181: front do WhatsApp simulado (#179). Este PR (#182) parte dele.
 - Este PR: WhatsApp simulado ligado ao backend e ao banco (#182).
 
 ## Pendências

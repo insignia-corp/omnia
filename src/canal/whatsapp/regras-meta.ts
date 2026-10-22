@@ -18,6 +18,7 @@ export const LIMITES_META = {
   secoesLista: 10,
   linhasLista: 10,
   tituloLinha: 24,
+  idLinha: 200,
   descricaoLinha: 72,
   tituloSecao: 24,
   textoBotaoLink: 20,
@@ -62,7 +63,11 @@ function conferirInterativo(it: Extract<SaidaWhatsapp, { type: "interactive" }>[
       if (secoes.length > 1) erros.push(...obrigatorio("section.title", s.title));
       erros.push(...tamanho("section.title", s.title, LIMITES_META.tituloSecao));
     }
+    const idsLinhas = new Set<string>();
     for (const l of linhas) {
+      erros.push(...obrigatorio("row.id", l.id), ...tamanho("row.id", l.id, LIMITES_META.idLinha));
+      if (idsLinhas.has(l.id)) erros.push(`row.id repetido: ${l.id}`);
+      idsLinhas.add(l.id);
       erros.push(...obrigatorio("row.title", l.title));
       erros.push(...tamanho("row.title", l.title, LIMITES_META.tituloLinha));
       erros.push(...tamanho("row.description", l.description, LIMITES_META.descricaoLinha));

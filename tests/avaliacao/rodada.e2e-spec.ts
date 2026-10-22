@@ -78,7 +78,7 @@ describe("rodada de avaliação com banco real (e2e)", () => {
       ],
     });
 
-    expect(rodada).toMatchObject({ modo: "falso", versaoPrompt: "sistema-v2", comerciante: "E2E Avaliação" });
+    expect(rodada).toMatchObject({ modo: "falso", versaoPrompt: "sistema-v3", comerciante: "E2E Avaliação" });
     expect(rodada.resultados.map((r) => [r.id, r.aprovado])).toEqual([
       ["q01", true],
       ["q33", true],

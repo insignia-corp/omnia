@@ -24,6 +24,7 @@ const LIMITE_CENTAVOS = 9_999_999_999;
 const FAIXAS: Readonly<Record<LimiteNumerico, Faixa>> = {
   reajusteLimiteBps: { min: 1, max: 100_000, inteiro: true },
   reajusteJanelaDias: { min: 1, max: 365, inteiro: true },
+  reajusteMesmoMovimentoDias: { min: 1, max: 365, inteiro: true },
   giroAltaMinimaBps: { min: 0, max: 100_000, inteiro: true },
   // Piso da issue #147: a métrica só marca parado acima de 30 dias e completa a lista com os mais próximos,
   // então um limite menor não teria cobertura garantida. O limite do comerciante só sobe esse corte.

@@ -165,7 +165,7 @@ export const tipoAlerta = pgEnum("tipo_alerta", [
   "ticket_medio_em_queda",
   "gasto_fora_do_padrao",
 ]);
-export const statusAlerta = pgEnum("status_alerta", ["candidato", "enviado", "descartado"]);
+export const statusAlerta = pgEnum("status_alerta", ["candidato", "enviado", "descartado", "obsoleto"]);
 export const direcaoMensagem = pgEnum("direcao_mensagem", ["enviada", "recebida"]);
 export const canalMensagem = pgEnum("canal_mensagem", ["web", "whatsapp"]);
 export const categoriaTemplate = pgEnum("categoria_template", [

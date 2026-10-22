@@ -46,7 +46,7 @@ describe("limites de alerta por comerciante (e2e)", () => {
   const tiposDe = async (comercianteId: string): Promise<string[]> => {
     await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, comercianteId));
     return (await motor.executar({ comercianteId, dataReferencia: REF })).candidatos
-      .map((c) => c.tipo)
+      .map((c) => `${c.tipo}:${c.prioridade}`)
       .sort();
   };
 
@@ -70,14 +70,18 @@ describe("limites de alerta por comerciante (e2e)", () => {
   it("o limite de um comerciante muda os candidatos dele e não os do outro", async () => {
     const vilaAntes = await tiposDe(vilaNova);
     const esquinaAntes = await tiposDe(esquina);
-    expect(vilaAntes).toContain("reajuste_de_custo");
+    expect(vilaAntes.some((c) => c.startsWith("reajuste_de_custo"))).toBe(true);
+    // Os candidatos da Esquina no seed (margem) não dependem de nenhum limite: o que prova o isolamento
+    // é a fonte dela seguir vazia (acima) e a lista ter conteúdo para comparar, não ficar vazia.
+    expect(esquinaAntes.length).toBeGreaterThan(0);
 
     // Um reajuste só dispara acima de 99 000 pontos-base (990%): nenhum do seed chega lá.
     await registrarLimite(db, vilaNova, "reajusteLimiteBps", 99_000);
 
     expect(await fonte.limitesDoComerciante(vilaNova)).toMatchObject({ reajusteLimiteBps: 99_000 });
     expect(await fonte.limitesDoComerciante(esquina)).toEqual({ janelaSupressaoDias: {} });
-    expect(await tiposDe(vilaNova)).not.toContain("reajuste_de_custo");
+    const vilaDepois = await tiposDe(vilaNova);
+    expect(vilaDepois.some((c) => c.startsWith("reajuste_de_custo"))).toBe(false);
     expect(await tiposDe(esquina)).toEqual(esquinaAntes);
   });
 
@@ -137,14 +141,16 @@ describe("limites de alerta por comerciante (e2e)", () => {
       const saida = (await ferramenta.executar(
         { comercianteId, nomeComercio: "teste", dataReferencia: REF },
         {},
-      )) as { candidatos: Array<{ tipo: string }> };
-      return saida.candidatos.map((c) => c.tipo).sort();
+      )) as { candidatos: Array<{ tipo: string; prioridade: number }> };
+      return saida.candidatos.map((c) => `${c.tipo}:${c.prioridade}`).sort();
     };
+    // Os limites gravados nos testes acima chegam à ferramenta; um limite novo só muda a lista do dono dele.
     const vilaAntes = await tipos(vilaNova);
     const esquinaAntes = await tipos(esquina);
-    expect(vilaAntes).toContain("reajuste_de_custo");
+    expect(vilaAntes.some((c) => c.startsWith("reajuste_de_custo"))).toBe(true);
+    expect(esquinaAntes.length).toBeGreaterThan(0);
     await registrarLimite(db, vilaNova, "reajusteLimiteBps", 99_000);
-    expect(await tipos(vilaNova)).not.toContain("reajuste_de_custo");
+    expect((await tipos(vilaNova)).some((c) => c.startsWith("reajuste_de_custo"))).toBe(false);
     expect(await tipos(esquina)).toEqual(esquinaAntes);
   });
 });

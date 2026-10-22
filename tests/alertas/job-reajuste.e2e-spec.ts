@@ -8,6 +8,7 @@ import { Pool } from "pg";
 import { FILA_REAJUSTE, FilaReajuste } from "../../src/alertas/jobs/fila-reajuste";
 import { VerificadorDeReajuste } from "../../src/alertas/jobs/verificar-reajuste";
 import { RepositorioAlertasPostgres } from "../../src/alertas/repositorio-alertas";
+import type { Prioridade } from "../../src/alertas/tipos";
 import { fonteDeLimitesPadrao } from "../../src/alertas/limites";
 import { MotorDeAlertas } from "../../src/alertas/motor-de-alertas";
 import { carregarEnv } from "../../src/config/env";
@@ -237,6 +238,44 @@ describe("job de reajuste após cada nota (e2e)", () => {
       expect(await repositorio.jaGravados(vilaNova, ["estoque_parado"])).toEqual([
         { tipo: "estoque_parado", chave: "so-da-vila" },
       ]);
+    });
+
+    it("jaGravados não conta o obsoleto, mas conta candidato, enviado e descartado", async () => {
+      const repositorio = new RepositorioAlertasPostgres(db);
+      const status = ["candidato", "enviado", "descartado", "obsoleto"] as const;
+      await db.insert(schema.alerta).values(
+        status.map((st) => ({
+          comercianteId: esquina,
+          tipo: "ticket_medio_em_queda" as const,
+          prioridade: 3,
+          dataReferencia: "2026-10-02",
+          chave: `status-${st}`,
+          status: st,
+          metricasApoio: {},
+        })),
+      );
+      const chaves = (await repositorio.jaGravados(esquina, ["ticket_medio_em_queda"])).map((g) => g.chave);
+      expect(chaves.sort()).toEqual(["status-candidato", "status-descartado", "status-enviado"]);
+    });
+
+    it("gravarCandidatos tolera a mesma chave duas vezes na lista", async () => {
+      const repositorio = new RepositorioAlertasPostgres(db);
+      const alertaNovo = (prioridade: Prioridade) => ({
+        tipo: "gasto_fora_do_padrao" as const,
+        chave: "2026-10-03",
+        prioridade,
+        produtoId: null,
+        fornecedorId: null,
+        metricasApoio: { prioridade },
+      });
+      expect(await repositorio.gravarCandidatos(esquina, "2026-10-03", [alertaNovo(2), alertaNovo(3)])).toBe(
+        1,
+      );
+      const linhas = await db
+        .select()
+        .from(schema.alerta)
+        .where(and(eq(schema.alerta.comercianteId, esquina), eq(schema.alerta.chave, "2026-10-03")));
+      expect(linhas.map((l) => l.prioridade)).toEqual([2]);
     });
 
     it("o comerciante é o do job: documento de um lojista com o id de outro não grava nada", async () => {

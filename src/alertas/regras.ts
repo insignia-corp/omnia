@@ -123,6 +123,7 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
   async avaliar({ metricas }) {
     const candidatos: CandidatoDeAlerta[] = [];
     const ausentes: MotivoAusente[] = [];
+    const produtosSemDado: string[] = [];
     const [margens, giro] = await Promise.all([metricas.margens(), metricas.giro()]);
     const giroPorProduto = mapaDoGiro(giro);
     // Sem nenhuma margem não há meta de margem do comerciante (ou não há produto): dizer, não calar.
@@ -136,6 +137,7 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
     for (const { produto_id, resultado } of margens) {
       if (ehDadoAusente(resultado)) {
         ausentes.push({ tipo: "margem_abaixo_da_meta", codigo: resultado.codigo, motivo: resultado.motivo });
+        produtosSemDado.push(produto_id);
         continue;
       }
       const m = resultado.valor;
@@ -175,7 +177,12 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
         },
       });
     }
-    return { candidatos, ausentes: motivosUnicos(ausentes) };
+    // Sem nenhuma margem a regra inteira ficou sem dado; com margem, só os produtos sem custo ou sem venda.
+    return {
+      candidatos,
+      ausentes: motivosUnicos(ausentes),
+      ...(margens.length > 0 ? { produtosSemDado } : {}),
+    };
   },
 };
 
@@ -226,8 +233,17 @@ export const regraEspacoParaSubirPreco: RegraDeAlerta = {
       const doProduto = !margem || ehDadoAusente(margem) ? null : margem.menor_confianca;
       return menorDasConfiancas(confiancaDoGiro, doProduto);
     };
+    // Produto de giro alto sem margem calculável (sem custo ou sem venda) não foi avaliado: o motor não
+    // pode dar o candidato dele como obsoleto.
+    const produtosSemDado = ehDadoAusente(giro)
+      ? []
+      : giro.valor.giro_alto.filter((id) => {
+          const margem = margens.find((m) => m.produto_id === id)?.resultado;
+          return !margem || ehDadoAusente(margem);
+        });
     return {
       ausentes: [],
+      produtosSemDado,
       candidatos: espaco.valor.map((p) => ({
         tipo: "espaco_para_subir_preco",
         chave: p.produto_id,
@@ -330,8 +346,21 @@ export const regraGastoForaDoPadrao: RegraDeAlerta = {
     const gasto = await metricas.gastoForaDoPadrao();
     if (ehDadoAusente(gasto)) return semCandidato("gasto_fora_do_padrao", gasto);
     const g = gasto.valor;
-    // Desvio nulo (desvio absoluto mediano zero) não mede nada: sem candidato, nunca zero.
-    if (g.desvio === null || g.desvio <= limites.gastoLimiteDesvio) return { candidatos: [], ausentes: [] };
+    // Desvio nulo (desvio absoluto mediano zero) não mede nada: é dado ausente, não "a regra deixou de
+    // disparar", para o candidato do dia não virar obsoleto sem ter sido refutado.
+    if (g.desvio === null) {
+      return {
+        candidatos: [],
+        ausentes: [
+          {
+            tipo: "gasto_fora_do_padrao",
+            codigo: "desvio_nulo",
+            motivo: "O desvio dos gastos do período é zero, então o dia não tem como ser comparado.",
+          },
+        ],
+      };
+    }
+    if (g.desvio <= limites.gastoLimiteDesvio) return { candidatos: [], ausentes: [] };
     return {
       ausentes: [],
       candidatos: [

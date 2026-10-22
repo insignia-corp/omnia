@@ -242,7 +242,7 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       ).toEqual([]);
       expect(
         await repositorio.jaTratados(vilaNova, { desde: "2026-10-01", ate: REF, tipos: ["estoque_parado"] }),
-      ).toEqual([{ tipo: "estoque_parado", chave: "qualquer", dataReferencia: "2026-10-18" }]);
+      ).toMatchObject([{ tipo: "estoque_parado", chave: "qualquer", dataReferencia: "2026-10-18" }]);
     });
   });
 
@@ -411,6 +411,55 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       expect(linhas).toHaveLength(2);
       expect(new Set(linhas.map((l) => l.chave)).size).toBe(2);
       expect(linhas.some((l) => l.chave.endsWith(`:${novaCompra!.id}`))).toBe(true);
+      expect(linhas.map((l) => l.status)).toEqual(["candidato", "candidato"]);
+    });
+
+    it("uma terceira compra com o mesmo custo (variação zero) não derruba os reajustes já gravados", async () => {
+      const arroz = produtoPorSku.get("P01");
+      const aurora = gabaritoPorFornecedor.get("AUR");
+      if (!arroz || !aurora) throw new Error("Seed sem P01 ou Aurora");
+      const [terceira] = await db
+        .insert(schema.compra)
+        .values({
+          comercianteId: vilaNova,
+          fornecedorId: aurora,
+          data: "2026-10-16",
+          totalCentavos: 3000,
+          somaItensCentavos: 3000,
+          origem: "foto_nota",
+          confianca: 1,
+        })
+        .returning({ id: schema.compra.id });
+      const [item] = await db
+        .insert(schema.itemDeCompra)
+        .values({
+          comercianteId: vilaNova,
+          compraId: terceira!.id,
+          produtoId: arroz,
+          ordem: 1,
+          descricaoNota: "ARROZ 5KG",
+          quantidade: 1,
+          unidade: "un",
+          valorUnitarioCentavos: 3000,
+          valorTotalCentavos: 3000,
+          confianca: 1,
+          origem: "foto_nota",
+        })
+        .returning({ id: schema.itemDeCompra.id });
+      await db.insert(schema.historicoCusto).values({
+        comercianteId: vilaNova,
+        produtoId: arroz,
+        fornecedorId: aurora,
+        data: "2026-10-16",
+        custoUnitarioCentavos: 3000,
+        itemDeCompraId: item!.id,
+        origem: "foto_nota",
+        confianca: 1,
+      });
+
+      const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect(r.obsoletos).toBe(0);
+      expect((await reajustesDoArroz()).map((l) => l.status)).toEqual(["candidato", "candidato"]);
     });
 
     const reajustesDoArroz = async () =>

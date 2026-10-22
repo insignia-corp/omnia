@@ -1,5 +1,5 @@
 {
-  "id": "754875e6-6ccd-4ec6-bd86-74d4f727a990",
+  "id": "8df8675b-3e44-424c-9b6c-f5dba790284e",
   "prevId": "2196e2bb-30c4-47c4-bb52-e1e6e9307e31",
   "version": "7",
   "dialect": "postgresql",
@@ -1908,117 +1908,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.limite_alerta": {
-      "name": "limite_alerta",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "comerciante_id": {
-          "name": "comerciante_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "limite": {
-          "name": "limite",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "valor": {
-          "name": "valor",
-          "type": "numeric(14, 4)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "origem": {
-          "name": "origem",
-          "type": "origem_dado",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'dono'"
-        },
-        "confianca": {
-          "name": "confianca",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "criado_em": {
-          "name": "criado_em",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "limite_alerta_busca_idx": {
-          "name": "limite_alerta_busca_idx",
-          "columns": [
-            {
-              "expression": "comerciante_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "limite",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "criado_em",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "limite_alerta_comerciante_id_comerciante_id_fk": {
-          "name": "limite_alerta_comerciante_id_comerciante_id_fk",
-          "tableFrom": "limite_alerta",
-          "tableTo": "comerciante",
-          "columnsFrom": [
-            "comerciante_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "limite_alerta_valor_nulo": {
-          "name": "limite_alerta_valor_nulo",
-          "value": "\"limite_alerta\".\"valor\" is not null or \"limite_alerta\".\"limite\" like 'janelaSupressaoDias.%'"
-        },
-        "limite_alerta_confianca_faixa": {
-          "name": "limite_alerta_confianca_faixa",
-          "value": "\"limite_alerta\".\"confianca\" between 0 and 1"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.mapeamento_planilha": {
       "name": "mapeamento_planilha",
       "schema": "",
@@ -3157,7 +3046,8 @@
       "values": [
         "candidato",
         "enviado",
-        "descartado"
+        "descartado",
+        "obsoleto"
       ]
     },
     "public.status_conta": {

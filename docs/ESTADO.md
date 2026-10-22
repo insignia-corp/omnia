@@ -35,7 +35,6 @@ Gerados em 2026-10-21 sobre a `develop` em `d62d2a7`, com Node 24 (via `npx`), P
 
 - PR 163: aviso ao dono quando a leitura da nota falha de vez (#158) e id de correlação entre requisição e jobs (#10).
 - PR 164: `get_product_margin` com a correção do dono, descrições iguais em fornecedores diferentes e esquema com `produto` obrigatório; a #156 já foi fechada pelo PR 168 e este PR vem sobre ele.
-- PR 165: modelo padrão do agente passa a `claude-sonnet-5-5`.
 
 ## Pendências
 

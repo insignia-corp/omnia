@@ -288,6 +288,7 @@ export class RepositorioMetricasPostgres implements FonteDeDadosMetricas {
         ativa: sql<boolean>`${conta.status} = 'ativo'`,
         saldoInicialCentavos: conta.saldoInicialCentavos,
         saldoInicialEm: conta.saldoInicialEm,
+        ultimaSincronizacaoEm: conta.ultimaSincronizacaoEm,
       })
       .from(conta)
       .where(eq(conta.comercianteId, comercianteId))

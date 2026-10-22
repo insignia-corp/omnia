@@ -69,6 +69,10 @@ Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem
 | Job repetido de documento já resolvido | ignorado, sem nova chamada ao modelo |
 | `falha` de vez (na hora ou na última tentativa) | o worker chama o aviso que o canal registra (`FilaExtracao.aoFalharDeVez`); se a nota entrou pelo chat, o dono recebe uma resposta fixa pedindo outra foto (#158). Job repetido de documento já em `falha` chama o aviso de novo (cobre o processo que caiu antes de avisar); a chave da mensagem impede repetir. Tentativa que será repetida não avisa; nota de `POST /documentos/notas` não tem conversa e não avisa |
 
+## Sincronização de extrato (#166)
+
+`registrarSincronizacaoDaConta` (`extrato/registrar-sincronizacao.ts`) é o que o importador de extrato chama ao fim de cada sincronização bem-sucedida. `data` é o último dia com extrato completo (data de corte, por exemplo ontem, não o dia da execução). Só avança, só vale para conta ativa do comerciante da sessão e não aceita data depois de `hoje`. Como a cobertura de extrato das métricas usa essa data, o contrato está em `src/metricas/README.md`. O importador real ainda não existe (#30).
+
 ## Pendente nesta etapa
 
 Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso de falha só sai pelo chat web; no WhatsApp ele depende de a foto chegar pela conversa (#63). O estado continua em `documento.status` e `documento.erro`.

@@ -157,6 +157,11 @@ export function avaliarCriterios(caso: CasoAvaliacao, execucao: ExecucaoRegistra
       motivos.push(...avaliarInjecao(caso, criterio, execucao));
       break;
     }
+    case "medicao": {
+      // Sem número esperado: a escolha dos alertas não tem gabarito. Só vale uma execução aprovada pelo verificador.
+      if (execucao.resultado !== "aprovada") motivos.push(semAprovacao(execucao));
+      break;
+    }
     case "sem_resposta": {
       if (execucao.resultado !== "aprovada") {
         motivos.push(semAprovacao(execucao));

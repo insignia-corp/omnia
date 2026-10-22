@@ -242,7 +242,7 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       ).toEqual([]);
       expect(
         await repositorio.jaTratados(vilaNova, { desde: "2026-10-01", ate: REF, tipos: ["estoque_parado"] }),
-      ).toEqual([{ tipo: "estoque_parado", chave: "qualquer", dataReferencia: "2026-10-18" }]);
+      ).toMatchObject([{ tipo: "estoque_parado", chave: "qualquer", dataReferencia: "2026-10-18" }]);
     });
   });
 

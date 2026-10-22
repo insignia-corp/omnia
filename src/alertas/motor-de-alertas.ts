@@ -151,17 +151,19 @@ export class MotorDeAlertas {
 
     // O candidato do dia que a regra não dispara mais (depois de uma correção do dono) vira obsoleto.
     // Só nas regras que avaliaram com dado: sem dado (ausente) não dá para dizer que deixou de valer. Um
-    // candidato que continua valendo mas foi só barrado pela repetição do job fica como está.
+    // candidato que continua valendo mas foi só barrado pela repetição do job fica como está. O reajuste
+    // fica de fora: a métrica só olha a compra atual do par, então uma nota nova ou a correção de uma nota
+    // do dia faria a alta sumir sem ter sido refutada (ver "Candidato obsoleto" no README).
     const avaliados = regras
       .filter((_, i) => resultados[i]!.ausentes.length === 0 || resultados[i]!.produtosSemDado !== undefined)
-      .map((r) => r.tipo);
+      .map((r) => r.tipo)
+      .filter((tipo) => tipo !== "reajuste_de_custo");
     // A ausência de um produto vale só para o tipo da regra que não o avaliou.
     const semDado = regras.flatMap((r, i) =>
       (resultados[i]!.produtosSemDado ?? []).map((produtoId) => ({ tipo: r.tipo, produtoId })),
     );
     const obsoletos = await this.alertas.marcarObsoletos(comercianteId, dataReferencia, {
       tipos: avaliados,
-      reajusteLimiteBps: limites.reajusteLimiteBps,
       ...(produtoIds ? { produtoIds } : {}),
       ...(semDado.length > 0 ? { excluir: semDado } : {}),
       manter: achados.filter((c) => !jaTratado(c)).map((c) => ({ tipo: c.tipo, chave: c.chave })),

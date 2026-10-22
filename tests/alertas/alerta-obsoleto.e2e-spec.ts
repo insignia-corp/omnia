@@ -134,21 +134,29 @@ describe("alerta obsoleto (e2e)", () => {
 
   describe("correção do dono", () => {
     it("o candidato que a regra deixou de disparar vira obsoleto, sai dos candidatos e do select_alerts, e a linha fica", async () => {
-      const antes = await doProduto("reajuste_de_custo");
+      const reajusteAntes = await doProduto("reajuste_de_custo");
       const margemAntes = await doProduto("margem_abaixo_da_meta");
-      expect(antes).toHaveLength(1);
+      expect(reajusteAntes).toHaveLength(1);
       expect(margemAntes).toHaveLength(1);
-      // O custo corrigido para R$ 25,00 (0,4% sobre os R$ 24,90): não é mais reajuste, e a margem passa da meta.
+      // O custo corrigido para R$ 25,00 (0,4% sobre os R$ 24,90): a margem passa da meta.
       await corrigirCusto(2500);
       const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
-      expect(r.obsoletos).toBeGreaterThanOrEqual(2);
-      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("obsoleto");
+      expect(r.obsoletos).toBeGreaterThanOrEqual(1);
       expect((await doProduto("margem_abaixo_da_meta"))[0]?.status).toBe("obsoleto");
-      expect(r.candidatos.some((c) => c.produtoId === arroz && c.tipo === "reajuste_de_custo")).toBe(false);
+      expect(r.candidatos.some((c) => c.produtoId === arroz && c.tipo === "margem_abaixo_da_meta")).toBe(
+        false,
+      );
       // A linha continua lá (nada é apagado) e o agente não pode escolhê-la.
       await expect(
-        criarSelectAlerts(db).executar(ctx(), { alertas: [{ alerta_id: antes[0]!.id, justificativa: "x" }] }),
+        criarSelectAlerts(db).executar(ctx(), {
+          alertas: [{ alerta_id: margemAntes[0]!.id, justificativa: "x" }],
+        }),
       ).rejects.toThrow(/candidatos de hoje/);
+    });
+
+    it("o reajuste nunca vira obsoleto: a métrica só olha a compra atual do par", async () => {
+      // O custo corrigido para R$ 25,00 já desfez o reajuste, mas o candidato fica como estava.
+      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("candidato");
     });
 
     it("repetir sem mudança não grava nem marca nada", async () => {
@@ -254,163 +262,6 @@ describe("alerta obsoleto (e2e)", () => {
       await motor.executar({ comercianteId: esquina, dataReferencia: REF });
       const vila = await doProduto("reajuste_de_custo");
       expect(vila[0]?.comercianteId).toBe(vilaNova);
-    });
-  });
-  describe("compra mais antiga no mesmo dia", () => {
-    let itemAntigo: string;
-
-    it("a correção da compra do alerta torna-o obsoleto mesmo com outra nota mais antiga do mesmo dia", async () => {
-      await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, vilaNova));
-      await corrigirCusto(2790);
-      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
-      expect(await doProduto("reajuste_de_custo")).toHaveLength(1);
-
-      // Outra nota da Aurora no mesmo dia 16/10, criada antes da do alerta, com o mesmo custo anterior.
-      const antiga = new Date("2000-01-01T00:00:00Z");
-      const [compraAntiga] = await db
-        .insert(schema.compra)
-        .values({
-          comercianteId: vilaNova,
-          fornecedorId: aurora,
-          data: "2026-10-16",
-          totalCentavos: 2490,
-          somaItensCentavos: 2490,
-          origem: "foto_nota",
-          confianca: 1,
-          criadoEm: antiga,
-        })
-        .returning({ id: schema.compra.id });
-      const [item] = await db
-        .insert(schema.itemDeCompra)
-        .values({
-          comercianteId: vilaNova,
-          compraId: compraAntiga!.id,
-          produtoId: arroz,
-          ordem: 1,
-          descricaoNota: "ARROZ 5KG",
-          quantidade: 1,
-          unidade: "un",
-          valorUnitarioCentavos: 2490,
-          valorTotalCentavos: 2490,
-          confianca: 1,
-          origem: "foto_nota",
-        })
-        .returning({ id: schema.itemDeCompra.id });
-      itemAntigo = item!.id;
-      await db.insert(schema.historicoCusto).values({
-        comercianteId: vilaNova,
-        produtoId: arroz,
-        fornecedorId: aurora,
-        data: "2026-10-16",
-        custoUnitarioCentavos: 2490,
-        itemDeCompraId: item!.id,
-        origem: "foto_nota",
-        confianca: 1,
-        criadoEm: antiga,
-      });
-
-      // O dono corrige o custo da nota do alerta para o da nota antiga: não há mais reajuste, e a nota
-      // antiga não é sucessora, então o candidato vira obsoleto.
-      await corrigirCusto(2490);
-      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
-      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("obsoleto");
-    });
-
-    it("a reemissão de custos da nota mais antiga a torna a compra atual: o reajuste da outra nota não vira obsoleto sem ser refutado", async () => {
-      // O custo da nota do alerta volta a R$ 27,90: reajuste de R$ 24,90 para R$ 27,90, candidato de novo.
-      await corrigirCusto(2790);
-      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
-      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("candidato");
-
-      // O dono responde uma pergunta da nota antiga: uma leitura nova do item, com o mesmo custo, que
-      // passa a valer como a mais recente do par. A métrica vê a nota antiga como atual e uma queda.
-      await db.insert(schema.historicoCusto).values({
-        comercianteId: vilaNova,
-        produtoId: arroz,
-        fornecedorId: aurora,
-        data: "2026-10-16",
-        custoUnitarioCentavos: 2490,
-        itemDeCompraId: itemAntigo,
-        origem: "dono",
-        confianca: 1,
-      });
-      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
-      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("candidato");
-    });
-  });
-  describe("nota anterior do mesmo dia corrigida", () => {
-    it("a correção da nota anterior para o custo da nota do alerta refuta o reajuste: deixa de ser candidato", async () => {
-      const [fornecedorNovo] = await db
-        .insert(schema.fornecedor)
-        .values({ comercianteId: vilaNova, nome: "Fornecedor da nota lida errada", origem: "dono" })
-        .returning({ id: schema.fornecedor.id });
-      const novo = fornecedorNovo!.id;
-      const notaDe = async (custoCentavos: number) => {
-        const [c] = await db
-          .insert(schema.compra)
-          .values({
-            comercianteId: vilaNova,
-            fornecedorId: novo,
-            data: "2026-10-18",
-            totalCentavos: custoCentavos,
-            somaItensCentavos: custoCentavos,
-            origem: "foto_nota",
-            confianca: 1,
-          })
-          .returning({ id: schema.compra.id });
-        const [item] = await db
-          .insert(schema.itemDeCompra)
-          .values({
-            comercianteId: vilaNova,
-            compraId: c!.id,
-            produtoId: arroz,
-            ordem: 1,
-            descricaoNota: "ARROZ 5KG",
-            quantidade: 1,
-            unidade: "un",
-            valorUnitarioCentavos: custoCentavos,
-            valorTotalCentavos: custoCentavos,
-            confianca: 1,
-            origem: "foto_nota",
-          })
-          .returning({ id: schema.itemDeCompra.id });
-        await db.insert(schema.historicoCusto).values({
-          comercianteId: vilaNova,
-          produtoId: arroz,
-          fornecedorId: novo,
-          data: "2026-10-18",
-          custoUnitarioCentavos: custoCentavos,
-          itemDeCompraId: item!.id,
-          origem: "foto_nota",
-          confianca: 1,
-        });
-        return item!.id;
-      };
-      const doNovo = async () =>
-        (await doProduto("reajuste_de_custo")).filter((l) => l.fornecedorId === novo);
-
-      // A nota Z, lida errada a R$ 24,90, e a nota X, a R$ 27,90, no mesmo dia: reajuste de 12%.
-      const itemZ = await notaDe(2490);
-      await notaDe(2790);
-      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
-      expect(await doNovo()).toHaveLength(1);
-      expect((await doNovo())[0]).toMatchObject({ status: "candidato" });
-
-      // O dono corrige a nota Z para R$ 27,90: não houve reajuste, a leitura nova de Z passa a ser a
-      // última do par e a alta da nota X deixa de existir.
-      await db.insert(schema.historicoCusto).values({
-        comercianteId: vilaNova,
-        produtoId: arroz,
-        fornecedorId: novo,
-        data: "2026-10-18",
-        custoUnitarioCentavos: 2790,
-        itemDeCompraId: itemZ,
-        origem: "dono",
-        confianca: 1,
-      });
-      const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
-      expect((await doNovo())[0]).toMatchObject({ status: "obsoleto" });
-      expect(r.candidatos.some((c) => c.fornecedorId === novo)).toBe(false);
     });
   });
 });

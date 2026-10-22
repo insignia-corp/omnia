@@ -458,10 +458,17 @@ describe("motor de alertas: candidato obsoleto (#157)", () => {
           produtosSemDado: ["p9"],
         }),
     };
-    const r = await rodar([semDado, regraQue("reajuste_de_custo", [])]);
-    // Só margem/p9 é poupado: o reajuste de p9 (outra regra, que avaliou) pode virar obsoleto.
+    const r = await rodar([semDado, regraQue("giro_em_alta", [])]);
+    // Só margem/p9 é poupado: o giro de p9 (outra regra, que avaliou) pode virar obsoleto.
     expect(r.obsoletados[0]?.excluir).toEqual([{ tipo: "margem_abaixo_da_meta", produtoId: "p9" }]);
-    expect(r.obsoletados[0]?.tipos).toEqual(["margem_abaixo_da_meta", "reajuste_de_custo"]);
+    expect(r.obsoletados[0]?.tipos).toEqual(["margem_abaixo_da_meta", "giro_em_alta"]);
+  });
+
+  it("o reajuste nunca entra nos tipos que podem virar obsoletos", async () => {
+    // A métrica só olha a compra atual do par: uma nota nova ou a correção de uma nota do dia faria a alta
+    // sumir sem ter sido refutada.
+    const r = await rodar([regraQue("reajuste_de_custo", []), regraQue("giro_em_alta", [])]);
+    expect(r.obsoletados[0]?.tipos).toEqual(["giro_em_alta"]);
   });
 
   it("cada execução roda dentro da trava do comerciante e do dia", async () => {

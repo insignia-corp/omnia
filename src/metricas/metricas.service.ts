@@ -18,6 +18,12 @@ import { produtoNaoEncontrado } from "./produto-nao-encontrado";
 import { calcularReceitaPorProduto, DIAS_DA_RECEITA, type ReceitaPorProduto } from "./receita-por-produto";
 import type { FonteDeDadosMetricas } from "./repositorio-metricas";
 import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "./resultado-metrica";
+import {
+  calcularResumoDePeriodo,
+  periodosDoResumo,
+  type ResumoDePeriodo,
+  type TipoPeriodo,
+} from "./resumo-de-periodo";
 import { DIAS_DE_COMPARACAO_DO_RESUMO, calcularResumoDiario, type ResumoDiario } from "./resumo-diario";
 import { DIAS_DE_HISTORICO_DO_TICKET, calcularTicketMedio, type TicketMedio } from "./ticket-medio";
 import { calcularVariacoesDeCusto, type VariacaoDeCusto } from "./variacao-de-custo";
@@ -162,6 +168,31 @@ export class MetricasService {
       movimentos,
       intervaloDeMovimentos: intervaloComumDeMovimentos(data, contas, intervalosPorConta),
       contas,
+    });
+  }
+
+  /** Resumo da semana ou do mês que termina na data (a data de referência, se não for indicada outra). */
+  async resumoDePeriodo(
+    contexto: ContextoMetricas,
+    tipo: TipoPeriodo,
+    ate: string = contexto.dataReferencia,
+  ): Promise<ResultadoMetrica<ResumoDePeriodo> | DadoAusente> {
+    const { comercianteId } = contexto;
+    const { atual, anterior } = periodosDoResumo(tipo, ate);
+    const [vendas, intervaloDeVendas, movimentos, intervalosPorConta, contas] = await Promise.all([
+      this.dados.vendasPorDia(comercianteId, anterior.inicio, ate),
+      this.dados.intervaloDeVendas(comercianteId),
+      this.dados.movimentosPorDia(comercianteId, ate, atual.inicio),
+      this.dados.intervalosDeMovimentosPorConta(comercianteId),
+      this.dados.contas(comercianteId),
+    ]);
+    return calcularResumoDePeriodo({
+      tipo,
+      ate,
+      vendas,
+      intervaloDeVendas,
+      movimentos,
+      intervaloDeMovimentos: intervaloComumDeMovimentos(ate, contas, intervalosPorConta),
     });
   }
 

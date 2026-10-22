@@ -40,6 +40,20 @@ export interface MargemDoProduto {
   meta_bps: number;
   meta_percentual: number;
   abaixo_da_meta: boolean;
+  /**
+   * Preço de venda que leva a margem à meta com o custo mais recente: custo / (1 - meta), arredondado
+   * para cima em centavos (issue #182). Nulo quando a meta é 100% ou mais, porque esse preço não existe.
+   */
+  preco_para_meta_centavos: number | null;
+}
+
+/** Menor preço em centavos com margem de pelo menos `metaBps` sobre o custo, só com inteiros. */
+export function precoParaMeta(custoCentavos: number, metaBps: number): number | null {
+  const divisor = 10_000 - metaBps;
+  if (divisor <= 0) return null;
+  const numerador = custoCentavos * 10_000;
+  const quociente = Math.floor(numerador / divisor);
+  return quociente * divisor < numerador ? quociente + 1 : quociente;
 }
 
 export interface EntradaMargem {
@@ -103,6 +117,7 @@ export function calcularMargemDoProduto(
       meta_bps: meta,
       meta_percentual: percentualDeBps(meta),
       abaixo_da_meta: margemBps < meta,
+      preco_para_meta_centavos: precoParaMeta(custo.custoUnitarioCentavos, meta),
     },
     { inicio, fim: dataReferencia },
     [...vendas, procedenciaDeUmRegistro(custo.origem, custo.confianca), procedenciaDoProduto(produto)],

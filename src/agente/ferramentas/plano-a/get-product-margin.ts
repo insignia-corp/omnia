@@ -37,7 +37,8 @@ export function criarGetProductMargin(metricas: MetricasService, db: Db) {
     nome: "get_product_margin",
     descricao:
       "Margem de um produto: preço médio de venda dos últimos 30 dias, custo da compra mais recente, " +
-      "margem percentual, meta e se está abaixo da meta, com confiança e origem. Informe produto com o nome " +
+      "margem percentual, meta, se está abaixo da meta e o preço de venda que leva a margem à meta " +
+      "(preco_para_meta_centavos, o valor a usar em propose_target_price), com confiança e origem. Informe produto com o nome " +
       'como o dono disse (só o nome, por exemplo "arroz" ou "café 500g", nunca a pergunta inteira); a busca é ' +
       "aproximada. Sem certeza, devolve ambiguo: true com candidatos (produto_id, nome, codigo_barras, sku, cadastrado_em " +
       "e descricao_de_nota, que podem ser nulos) " +

@@ -148,12 +148,8 @@ export async function buscarProdutoPorNome(
       select v.produto_id, v.descricao_normalizada,
              similarity(v.descricao_normalizada, ${consulta}),
              word_similarity(${consulta}, v.descricao_normalizada)
-        from (
-          select distinct on (fornecedor_id, descricao_normalizada) produto_id, descricao_normalizada
-            from vinculo_descricao_produto
-           where comerciante_id = ${comercianteId} and confirmado_pelo_dono
-           order by fornecedor_id, descricao_normalizada, criado_em desc
-        ) v
+        from vinculo_descricao_produto v
+       where v.comerciante_id = ${comercianteId} and v.confirmado_pelo_dono
     ), melhor as (
       select produto_id,
              max(sim) as sim,

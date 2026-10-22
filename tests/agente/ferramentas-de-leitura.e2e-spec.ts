@@ -339,7 +339,10 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       expect(candidatos.find((c) => c.sku === "FP-1")?.codigo_barras).toBe("7891000100103");
       expect(candidatos[0]?.cadastrado_em).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
-      const escolhido = await chamar(loja, "get_product_margin", { produto_id: produtoB });
+      const escolhido = await chamar(loja, "get_product_margin", {
+        produto: "Feijão Preto 1kg",
+        produto_id: produtoB,
+      });
       expect(escolhido.ambiguo).toBeUndefined();
       expect(nomeAchado(escolhido)).toBe("Feijão Preto 1kg");
       // Sem custo no produto novo, o resultado é a ausência com o id escolhido: prova que foi o B.
@@ -353,12 +356,17 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     });
 
     it("isolamento: id e descrição de outro comerciante não valem", async () => {
-      const deOutro = await chamar(vilaNova, "get_product_margin", { produto_id: produtoB });
+      const deOutro = await chamar(vilaNova, "get_product_margin", {
+        produto: "Feijão Preto 1kg",
+        produto_id: produtoB,
+      });
       expect(deOutro).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
       // Nem o id nem o nome do produto de outro lojista aparecem na resposta.
       expect(JSON.stringify(deOutro)).not.toContain(produtoB);
       expect(JSON.stringify(deOutro)).not.toContain("Feijão");
-      expect(await chamar(vilaNova, "get_product_margin", { produto_id: sabonete })).toMatchObject({
+      expect(
+        await chamar(vilaNova, "get_product_margin", { produto: "Sabonete", produto_id: sabonete }),
+      ).toMatchObject({
         ausente: true,
       });
       const alias = await chamar(vilaNova, "get_product_margin", { produto: "sab liq ype coco" });

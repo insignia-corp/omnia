@@ -1,0 +1,1 @@
+ALTER TYPE "public"."status_alerta" ADD VALUE 'obsoleto';

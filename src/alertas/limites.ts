@@ -15,6 +15,13 @@ export interface LimitesDeAlerta {
   reajusteLimiteBps: number;
   /** Reajuste: a compra atual tem no máximo estes dias na data de referência. */
   reajusteJanelaDias: number;
+  /**
+   * Reajuste: um alerta já enviado ou descartado do mesmo produto e fornecedor, com o mesmo custo
+   * novo e o mesmo custo anterior, vale como o mesmo reajuste por esta quantidade de dias, mesmo sob
+   * outra chave (a correção do dono pode trocar a compra atual). Só dentro da janela: o mesmo
+   * movimento de preço meses depois é outro reajuste.
+   */
+  reajusteMesmoMovimentoDias: number;
   /** Giro em alta: alta sobre a média semanal acima deste valor, em pontos-base. */
   giroAltaMinimaBps: number;
   /** Estoque parado: mais dias sem venda que isto. Só vale para subir o limite da métrica (30 dias). */
@@ -40,6 +47,7 @@ export interface LimitesDeAlerta {
 export const LIMITES_PADRAO: LimitesDeAlerta = {
   reajusteLimiteBps: PARAMETROS_VARIACAO_CUSTO.limiteBps,
   reajusteJanelaDias: PARAMETROS_VARIACAO_CUSTO.janelaAlertaDias,
+  reajusteMesmoMovimentoDias: 7,
   giroAltaMinimaBps: 0,
   estoqueParadoLimiteDias: PARAMETROS_ESTOQUE_PARADO.limiteDias,
   ticketQuedaLimiteBps: PARAMETROS_TICKET_MEDIO.limiteQuedaBps,

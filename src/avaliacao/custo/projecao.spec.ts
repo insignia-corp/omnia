@@ -8,6 +8,7 @@ const medida = (
 ): EstatisticaGatilho => ({
   gatilho,
   execucoes,
+  semAprovacao: 0,
   custoMedioMicrodolares: custo,
   latenciaP50Ms: 1,
   latenciaP95Ms: 1,

@@ -1,10 +1,11 @@
 import { estatisticaDoGatilho, estatisticas, percentil, type Amostra } from "./estatisticas";
 
-const a = (gatilho: Amostra["gatilho"], custo: number | null, ms: number): Amostra => ({
+const a = (gatilho: Amostra["gatilho"], custo: number | null, ms: number, aprovada = true): Amostra => ({
   gatilho,
   custoMicrodolares: custo,
   latenciaMs: ms,
   modelo: "claude-sonnet-5-5",
+  aprovada,
 });
 
 describe("percentil", () => {
@@ -44,6 +45,7 @@ describe("estatisticaDoGatilho", () => {
     expect(estatisticaDoGatilho("mensagem_dono", amostras)).toEqual({
       gatilho: "mensagem_dono",
       execucoes: 3,
+      semAprovacao: 0,
       custoMedioMicrodolares: 50_000,
       latenciaP50Ms: 4000,
       latenciaP95Ms: 30_000,
@@ -59,6 +61,19 @@ describe("estatisticaDoGatilho", () => {
     ]);
     expect(e.custoMedioMicrodolares).toBeNull();
     expect(e.latenciaP50Ms).toBe(4000);
+  });
+
+  it("conta as execuções que o verificador não aprovou, e elas entram na média e no tempo", () => {
+    const e = estatisticaDoGatilho("mensagem_dono", [
+      a("mensagem_dono", 20_000, 5000),
+      a("mensagem_dono", 40_000, 20_000, false),
+    ]);
+    expect(e).toMatchObject({
+      execucoes: 2,
+      semAprovacao: 1,
+      custoMedioMicrodolares: 30_000,
+      latenciaP95Ms: 20_000,
+    });
   });
 
   it("gatilho sem amostra: zero execuções e custo indisponível", () => {

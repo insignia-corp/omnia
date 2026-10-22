@@ -21,12 +21,12 @@ interface Candidato {
   metricas: Record<string, number>;
 }
 
-const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
+const uuid = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 
 /** Valores de `alertas_esperados` do gabarito: reajuste do arroz e do óleo, gasto fora do padrão de 19/10. */
 const CANDIDATOS: Candidato[] = [
   {
-    alerta_id: id(1),
+    alerta_id: uuid(1),
     tipo: "reajuste_de_custo",
     prioridade: 1,
     produto: "Arroz branco tipo 1 5kg",
@@ -38,7 +38,7 @@ const CANDIDATOS: Candidato[] = [
     },
   },
   {
-    alerta_id: id(2),
+    alerta_id: uuid(2),
     tipo: "reajuste_de_custo",
     prioridade: 2,
     produto: "Óleo de soja 900ml",
@@ -50,14 +50,14 @@ const CANDIDATOS: Candidato[] = [
     },
   },
   {
-    alerta_id: id(3),
+    alerta_id: uuid(3),
     tipo: "gasto_fora_do_padrao",
     prioridade: 3,
     produto: null,
     metricas: { valor_centavos: 101534, mediana_centavos: 6093, menor_confianca: 1 },
   },
   {
-    alerta_id: id(4),
+    alerta_id: uuid(4),
     tipo: "margem_abaixo_da_meta",
     prioridade: 4,
     produto: "Arroz branco tipo 1 5kg",
@@ -114,39 +114,47 @@ function selectAlerts(): Ferramenta {
 
 const reais = (c: number) => formatarBRL(centavos(c));
 
+/**
+ * Repetições do mesmo relatório: com uma amostra só, p50 e p95 não dizem nada, e o modelo real não responde
+ * igual duas vezes. Cada caso tem os próprios dublês (o modelo roteirizado também é de uso único).
+ */
+const REPETICOES = 5;
+
 export function casosDeMedicao(): CasoAvaliacao[] {
-  return [
-    {
-      id: "d01",
-      categoria: "medicao",
-      descricao:
-        "Relatório diário (mede custo e tempo; list_alert_candidates e select_alerts são dublês com dados do gabarito até a #52)",
-      gatilho: "relatorio_diario",
-      entrada: "Relatório diário do comércio.",
-      ferramentasEsperadas: ["list_alert_candidates", "select_alerts"],
-      criterio: { tipo: "medicao" },
-      ferramentasFalsas: [listAlertCandidates(), selectAlerts()],
-      dubleNoModoReal: true,
-      roteiro: [
-        chamar("list_alert_candidates", {}, "t1"),
-        chamar(
-          "select_alerts",
-          {
-            alertas: [
-              { alerta_id: id(1), justificativa: "Maior reajuste do período, em produto de giro alto." },
-              { alerta_id: id(2), justificativa: "Segundo reajuste do mesmo fornecedor." },
-              { alerta_id: id(3), justificativa: "Gasto muito acima do padrão do dia." },
-            ],
-          },
-          "t2",
-        ),
-        texto(
-          `Reajuste do Arroz branco tipo 1 5kg: o custo subiu de ${reais(2490)} para ${reais(2790)}, alta de 12,05%. ` +
-            `Reajuste do Óleo de soja 900ml: de ${reais(520)} para ${reais(560)}, alta de 7,69%. ` +
-            `Gasto fora do padrão: ${reais(101534)} no dia, contra a mediana de ${reais(6093)}. ` +
-            "Vale rever o preço de venda desses produtos.",
-        ),
-      ],
-    },
-  ];
+  return Array.from({ length: REPETICOES }, (_, i) => relatorioDiario(`d${String(i + 1).padStart(2, "0")}`));
+}
+
+function relatorioDiario(id: string): CasoAvaliacao {
+  return {
+    id,
+    categoria: "medicao",
+    descricao:
+      "Relatório diário (mede custo e tempo; list_alert_candidates e select_alerts são dublês com dados do gabarito até a #52)",
+    gatilho: "relatorio_diario",
+    entrada: "Relatório diário do comércio.",
+    ferramentasEsperadas: ["list_alert_candidates", "select_alerts"],
+    criterio: { tipo: "medicao" },
+    ferramentasFalsas: [listAlertCandidates(), selectAlerts()],
+    dubleNoModoReal: true,
+    roteiro: [
+      chamar("list_alert_candidates", {}, "t1"),
+      chamar(
+        "select_alerts",
+        {
+          alertas: [
+            { alerta_id: uuid(1), justificativa: "Maior reajuste do período, em produto de giro alto." },
+            { alerta_id: uuid(2), justificativa: "Segundo reajuste do mesmo fornecedor." },
+            { alerta_id: uuid(3), justificativa: "Gasto muito acima do padrão do dia." },
+          ],
+        },
+        "t2",
+      ),
+      texto(
+        `Reajuste do Arroz branco tipo 1 5kg: o custo subiu de ${reais(2490)} para ${reais(2790)}, alta de 12,05%. ` +
+          `Reajuste do Óleo de soja 900ml: de ${reais(520)} para ${reais(560)}, alta de 7,69%. ` +
+          `Gasto fora do padrão: ${reais(101534)} no dia, contra a mediana de ${reais(6093)}. ` +
+          "Vale rever o preço de venda desses produtos.",
+      ),
+    ],
+  };
 }

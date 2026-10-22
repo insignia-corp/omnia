@@ -84,14 +84,28 @@ describe("lerRodadaAgente e amostrasDoAgente", () => {
   it("lê a saída bruta e ignora o caso que nem chegou a executar", () => {
     const r = lerRodadaAgente(arquivo("a.json", agente()));
     expect(amostrasDoAgente(r)).toEqual([
-      { gatilho: "mensagem_dono", custoMicrodolares: 20_000, latenciaMs: 5000, modelo: "claude-sonnet-5-5" },
+      {
+        gatilho: "mensagem_dono",
+        custoMicrodolares: 20_000,
+        latenciaMs: 5000,
+        modelo: "claude-sonnet-5-5",
+        aprovada: true,
+      },
       {
         gatilho: "relatorio_diario",
         custoMicrodolares: 40_000,
         latenciaMs: 9000,
         modelo: "claude-sonnet-5-5",
+        aprovada: true,
       },
     ]);
+  });
+
+  it("marca como não aprovada a execução que terminou em fallback do verificador", () => {
+    const bruta = agente();
+    bruta.resultados[0] = { ...bruta.resultados[0]!, resultadoAgente: "fallback_verificador" };
+    const r = lerRodadaAgente(arquivo("fb.json", bruta));
+    expect(amostrasDoAgente(r).map((a) => a.aprovada)).toEqual([false, true]);
   });
 
   it("recusa a rodada falsa: custo e tempo do modelo roteirizado não valem", () => {
@@ -111,8 +125,20 @@ describe("lerRodadaExtracao e amostrasDaExtracao", () => {
   it("só conta nota que o Extrator devolveu e preserva custo indisponível", () => {
     const r = lerRodadaExtracao(arquivo("e.json", extracao()));
     expect(amostrasDaExtracao(r)).toEqual([
-      { gatilho: "extracao_nota", custoMicrodolares: 9000, latenciaMs: 4000, modelo: "claude-sonnet-5-5" },
-      { gatilho: "extracao_nota", custoMicrodolares: null, latenciaMs: 5000, modelo: "modelo-novo" },
+      {
+        gatilho: "extracao_nota",
+        custoMicrodolares: 9000,
+        latenciaMs: 4000,
+        modelo: "claude-sonnet-5-5",
+        aprovada: true,
+      },
+      {
+        gatilho: "extracao_nota",
+        custoMicrodolares: null,
+        latenciaMs: 5000,
+        modelo: "modelo-novo",
+        aprovada: true,
+      },
     ]);
   });
 

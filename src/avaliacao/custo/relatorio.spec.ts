@@ -10,11 +10,12 @@ import {
   type RodadaDeCusto,
 } from "./relatorio";
 
-const a = (gatilho: Amostra["gatilho"], custo: number | null, ms: number): Amostra => ({
+const a = (gatilho: Amostra["gatilho"], custo: number | null, ms: number, aprovada = true): Amostra => ({
   gatilho,
   custoMicrodolares: custo,
   latenciaMs: ms,
   modelo: "claude-sonnet-5-5",
+  aprovada,
 });
 
 function rodada(amostras: Amostra[], extra: Partial<RodadaDeCusto["premissas"]> = {}): RodadaDeCusto {
@@ -45,7 +46,7 @@ describe("renderizarRelatorioDeCusto", () => {
     const md = renderizarRelatorioDeCusto(rodada(completo));
     for (const trecho of [
       "# Custo e tempo por execução: claude-sonnet-5-5",
-      "| Pergunta do dono (conversa) | 2 | US$ 0,0220 | 5,0 s | 8,0 s | 8,0 s |",
+      "| Pergunta do dono (conversa) | 2 | 0 | US$ 0,0220 | 5,0 s | 8,0 s | 8,0 s |",
       "p95 de 8,0 s; a meta é p95 em até 20,0 s: **atingida**",
       "| **LLM, total** | | | **US$ 1,5460** |",
       "Sem valor nesta rodada: mensagens do canal; agregador.",
@@ -65,7 +66,7 @@ describe("renderizarRelatorioDeCusto", () => {
   it("execução não medida aparece como não medido, e o LLM como indisponível, nunca US$ 0", () => {
     const md = renderizarRelatorioDeCusto(rodada(completo.slice(1)));
     expect(md).toContain("Relatório diário não medido");
-    expect(md).toContain("| Relatório diário | 0 | não medido | não medido |");
+    expect(md).toContain("| Relatório diário | 0 | 0 | não medido | não medido |");
     expect(md).toContain("| **LLM, total** | | | **indisponível** |");
   });
 

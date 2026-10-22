@@ -7,11 +7,15 @@ export interface Amostra {
   custoMicrodolares: number | null;
   latenciaMs: number;
   modelo: string;
+  /** O verificador aprovou a mensagem. Sem aprovação houve regeração e fallback, e o custo e o tempo os incluem. */
+  aprovada: boolean;
 }
 
 export interface EstatisticaGatilho {
   gatilho: GatilhoMedido;
   execucoes: number;
+  /** Execuções que não terminaram aprovadas pelo verificador. */
+  semAprovacao: number;
   /** Média em micro-dólares inteiros; `null` se alguma execução não tem custo. */
   custoMedioMicrodolares: number | null;
   latenciaP50Ms: number;
@@ -36,6 +40,7 @@ export function estatisticaDoGatilho(gatilho: GatilhoMedido, amostras: Amostra[]
   return {
     gatilho,
     execucoes: doGatilho.length,
+    semAprovacao: doGatilho.filter((a) => !a.aprovada).length,
     custoMedioMicrodolares: semCusto || doGatilho.length === 0 ? null : Math.round(total / doGatilho.length),
     latenciaP50Ms: percentil(latencias, 50),
     latenciaP95Ms: percentil(latencias, 95),

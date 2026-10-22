@@ -55,14 +55,14 @@ export function renderizarRelatorioDeCusto(r: RodadaDeCusto): string {
     "",
     "## Custo e tempo por execução",
     "",
-    "| Execução | Amostras | Custo médio | Tempo p50 | Tempo p95 | Tempo máximo |",
-    "| --- | ---: | ---: | ---: | ---: | ---: |",
+    "| Execução | Amostras | Sem aprovação do verificador | Custo médio | Tempo p50 | Tempo p95 | Tempo máximo |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ...r.estatisticas.map(
       (e) =>
-        `| ${NOME_GATILHO[e.gatilho]} | ${e.execucoes} | ${e.execucoes === 0 ? "não medido" : usd(e.custoMedioMicrodolares)} | ${e.execucoes === 0 ? "não medido" : segundos(e.latenciaP50Ms)} | ${e.execucoes === 0 ? "não medido" : segundos(e.latenciaP95Ms)} | ${e.execucoes === 0 ? "não medido" : segundos(e.latenciaMaximaMs)} |`,
+        `| ${NOME_GATILHO[e.gatilho]} | ${e.execucoes} | ${e.semAprovacao} | ${e.execucoes === 0 ? "não medido" : usd(e.custoMedioMicrodolares)} | ${e.execucoes === 0 ? "não medido" : segundos(e.latenciaP50Ms)} | ${e.execucoes === 0 ? "não medido" : segundos(e.latenciaP95Ms)} | ${e.execucoes === 0 ? "não medido" : segundos(e.latenciaMaximaMs)} |`,
     ),
     "",
-    "Percentis pelo posto mais próximo, sem interpolar. Custo estimado a partir dos tokens e do preço por modelo em `src/agente/llm/modelo-linguagem.ts`.",
+    "Execução sem aprovação do verificador terminou em regeração e fallback: custo e tempo dela entram na média e nos percentis, porque é o que o dono espera de custo e de espera no pior caso. Percentis pelo posto mais próximo, sem interpolar. Custo estimado a partir dos tokens e do preço por modelo em `src/agente/llm/modelo-linguagem.ts`.",
     "",
     "## Tempo de resposta",
     "",

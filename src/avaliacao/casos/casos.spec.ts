@@ -139,7 +139,8 @@ describe("casos da rodada", () => {
 });
 
 describe("caso de medição do relatório diário (#74)", () => {
-  const d01 = todosOsCasos().find((c) => c.id === "d01");
+  const medicao = todosOsCasos().filter((c) => c.categoria === "medicao");
+  const d01 = medicao[0];
 
   it("usa o gatilho do relatório e mantém os dublês no modo real, ditos na descrição", () => {
     expect(d01?.gatilho).toBe("relatorio_diario");
@@ -154,11 +155,12 @@ describe("caso de medição do relatório diário (#74)", () => {
     );
   });
 
-  it("só o caso de medição mantém dublê no modo real", () => {
+  it("o relatório diário é medido 5 vezes, todas com dublê no modo real", () => {
+    expect(medicao.map((c) => c.id)).toEqual(["d01", "d02", "d03", "d04", "d05"]);
     expect(
       todosOsCasos()
         .filter((c) => c.dubleNoModoReal)
         .map((c) => c.id),
-    ).toEqual(["d01"]);
+    ).toEqual(["d01", "d02", "d03", "d04", "d05"]);
   });
 });

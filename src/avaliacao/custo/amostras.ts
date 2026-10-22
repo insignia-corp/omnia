@@ -91,6 +91,7 @@ export function amostrasDoAgente(rodada: RodadaAgenteBruta): Amostra[] {
       custoMicrodolares: r.custoEstimadoMicrodolares,
       latenciaMs: r.latenciaMs,
       modelo: r.modelo,
+      aprovada: r.resultadoAgente === "aprovada",
     }));
 }
 
@@ -103,5 +104,6 @@ export function amostrasDaExtracao(rodada: RodadaExtracaoBruta): Amostra[] {
       custoMicrodolares: r.custoEstimadoMicrodolares,
       latenciaMs: r.latenciaMs,
       modelo: r.modelo,
+      aprovada: true,
     }));
 }

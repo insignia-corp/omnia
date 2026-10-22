@@ -5,16 +5,17 @@ import { conta } from "../../infra/database/schema";
 
 /**
  * Registra que o extrato de uma conta foi importado por inteiro até o dia `data`, mesmo sem
- * transação nova. É o que o importador de extrato chama ao fim de cada sincronização bem-sucedida: a cobertura
- * das métricas separa "sem movimento" de "sem importação" por esta data. A data nunca volta atrás
- * (uma sincronização antiga reprocessada não apaga uma mais nova), a conta tem de ser do comerciante
-
- * da sessão e ativa, e nada é apagado (regra inviolável 10). `data` é o último dia cujo extrato
- * chegou completo: se o banco lança transações com atraso, o importador deve passar a data de corte
- * (por exemplo ontem) e não o dia da execução, senão o dia corrente sai "em dia" com gastos
- * subestimados. `hoje` vem de quem chama, como a data de
- * referência das métricas, porque este módulo não lê o relógio; data depois de hoje é recusada.
- * Devolve se a conta ativa existe para esse comerciante.
+ * transação nova. O importador de extrato chama isto ao fim de cada sincronização bem-sucedida: a
+ * cobertura das métricas separa "sem movimento" de "sem importação" por esta data.
+ *
+ * `data` é o último dia cujo extrato chegou completo. Se o banco lança transações com atraso, o
+ * importador passa a data de corte (por exemplo ontem), não o dia da execução; senão o dia corrente
+ * sai "em dia" com gastos subestimados.
+ *
+ * A data nunca volta atrás (uma sincronização antiga reprocessada não apaga uma mais nova). A conta
+ * tem de ser do comerciante da sessão e estar ativa, e nada é apagado (regra inviolável 10). `hoje`
+ * vem de quem chama, como a data de referência das métricas, porque este módulo não lê o relógio;
+ * data depois de hoje é recusada. Devolve se a conta ativa existe para esse comerciante.
  */
 export async function registrarSincronizacaoDaConta(
   db: Executor,

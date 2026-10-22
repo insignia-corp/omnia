@@ -182,6 +182,7 @@ describe("modelo de dados e seed (e2e)", () => {
          where c.comerciante_id = $1 group by c.id`,
         [vilaNova],
       );
+      expect(linha).toBeDefined();
       expect(linha?.em).toBe(linha?.ultima);
     });
 

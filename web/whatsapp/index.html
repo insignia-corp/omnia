@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Omnia no WhatsApp</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%2321c063'/%3E%3Ctext x='16' y='22' font-size='17' font-family='Arial' font-weight='700' text-anchor='middle' fill='%23fff'%3EO%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="estilo.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <main class="janela" aria-label="Conversa com o Omnia no WhatsApp">
+      <header class="topo">
+        <div class="avatar" aria-hidden="true">O</div>
+        <div class="contato">
+          <h1 class="nome">Omnia</h1>
+          <p class="situacao" id="situacao" aria-live="polite">Conta comercial</p>
+        </div>
+        <div class="acoes-topo">
+          <span class="acao-topo" title="Chamada de vídeo" id="icone-video"></span>
+          <span class="acao-topo" title="Chamada de voz" id="icone-ligar"></span>
+          <span class="acao-topo" title="Pesquisar" id="icone-buscar"></span>
+          <button
+            type="button"
+            class="acao-topo"
+            id="abrir-menu"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-label="Mais opções"
+          ></button>
+        </div>
+        <div class="menu-suspenso" id="menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-acao="proativa">Receber o resumo das 7h</button>
+          <button type="button" role="menuitem" data-acao="aumentar">Aumentar letra</button>
+          <button type="button" role="menuitem" data-acao="diminuir">Diminuir letra</button>
+          <button type="button" role="menuitem" data-acao="tema">Tema claro</button>
+          <button type="button" role="menuitem" data-acao="limpar">Limpar conversa</button>
+        </div>
+      </header>
+
+      <section
+        class="conversa"
+        id="conversa"
+        aria-live="polite"
+        aria-relevant="additions"
+        tabindex="-1"
+      ></section>
+
+      <button type="button" class="descer" id="descer" aria-label="Ir para a mensagem mais recente" hidden>
+        <span class="contador" id="nao-lidas" hidden></span>
+      </button>
+
+      <footer class="rodape-composicao">
+        <div class="anexos" id="anexos" role="menu" hidden>
+          <button type="button" role="menuitem" data-anexo="document">
+            <span class="bolinha roxa" id="ic-doc"></span>Documento
+          </button>
+          <button type="button" role="menuitem" data-anexo="image">
+            <span class="bolinha azul" id="ic-foto"></span>Fotos
+          </button>
+        </div>
+        <div class="emojis" id="emojis" hidden></div>
+        <div class="composicao">
+          <button
+            type="button"
+            class="botao-icone"
+            id="abrir-anexos"
+            aria-label="Anexar"
+            aria-haspopup="menu"
+            aria-expanded="false"
+          ></button>
+          <button
+            type="button"
+            class="botao-icone"
+            id="abrir-emojis"
+            aria-label="Emojis"
+            aria-expanded="false"
+          ></button>
+          <textarea
+            id="texto"
+            rows="1"
+            maxlength="4096"
+            placeholder="Digite uma mensagem"
+            aria-label="Digite uma mensagem"
+          ></textarea>
+          <button type="button" class="botao-icone enviar" id="enviar" aria-label="Mensagem de voz"></button>
+        </div>
+        <input type="file" id="arquivo-foto" accept="image/jpeg,image/png" hidden />
+        <input type="file" id="arquivo-doc" accept=".xml,application/xml,text/xml,application/pdf" hidden />
+      </footer>
+
+      <div class="previa" id="previa" hidden>
+        <div class="previa-topo">
+          <button type="button" class="botao-icone" id="fechar-previa" aria-label="Cancelar envio"></button>
+          <span id="previa-nome"></span>
+        </div>
+        <div class="previa-conteudo" id="previa-conteudo"></div>
+        <div class="previa-base">
+          <input
+            type="text"
+            id="legenda"
+            maxlength="1024"
+            placeholder="Adicione uma legenda"
+            aria-label="Legenda"
+          />
+          <button type="button" class="botao-enviar-redondo" id="enviar-anexo" aria-label="Enviar"></button>
+        </div>
+      </div>
+
+      <div class="fundo-modal" id="fundo-lista" hidden>
+        <div class="modal-lista" role="dialog" aria-modal="true" aria-labelledby="titulo-lista">
+          <div class="modal-topo">
+            <button type="button" class="botao-icone" id="fechar-lista" aria-label="Fechar"></button>
+            <h2 id="titulo-lista"></h2>
+          </div>
+          <div class="modal-corpo" id="corpo-lista"></div>
+          <div class="modal-base">
+            <button
+              type="button"
+              class="botao-enviar-redondo"
+              id="enviar-lista"
+              aria-label="Enviar"
+              disabled
+            ></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="fundo-modal ampliada" id="ampliada" hidden>
+        <button
+          type="button"
+          class="botao-icone fechar-ampliada"
+          id="fechar-ampliada"
+          aria-label="Fechar"
+        ></button>
+        <figure>
+          <img id="img-ampliada" alt="" />
+          <figcaption id="legenda-ampliada"></figcaption>
+        </figure>
+      </div>
+
+      <div class="aviso" id="aviso" role="status" hidden></div>
+    </main>
+    <noscript>Ative o JavaScript para ver a conversa.</noscript>
+  </body>
+</html>

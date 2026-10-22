@@ -38,5 +38,30 @@ export default tseslint.config(
     files: ["**/*.js"],
     languageOptions: { sourceType: "commonjs", globals: { module: "writable", require: "readonly" } },
   },
+  {
+    // Front simulado do WhatsApp (issue #179): módulos ES que rodam no navegador, sem build.
+    files: ["web/**/*.js", "web/**/*.mjs"],
+    languageOptions: {
+      sourceType: "module",
+      globals: Object.fromEntries(
+        [
+          "window",
+          "document",
+          "location",
+          "localStorage",
+          "console",
+          "setTimeout",
+          "clearTimeout",
+          "URL",
+          "fetch",
+          "URLSearchParams",
+          "Element",
+          "File",
+          "CSS",
+          "Event",
+        ].map((g) => [g, "readonly"]),
+      ),
+    },
+  },
   prettier,
 );

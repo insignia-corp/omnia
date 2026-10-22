@@ -13,6 +13,7 @@
 | Módulos, serviços e dados | [arquitetura.md](arquitetura.md) | Documentação |
 | Decisões numeradas e suas fontes | [decisoes/](decisoes/) | Pesquisa |
 | Critérios da banca, persona, viabilidade, riscos | [contexto-hackathon.md](contexto-hackathon.md) | Pesquisa |
+| Front do WhatsApp simulado: contrato de mensagens e regras da Meta conferidas | [../web/whatsapp/README.md](../web/whatsapp/README.md) | Documentação |
 | Dados de teste, gabarito, convenções | [../fixtures/README.md](../fixtures/README.md) | Dados |
 | Saídas brutas de eval, testes e medições | [../evidencias/](../evidencias/) | Evidências |
 | Relatório de cada rodada do `npm run eval` e do `npm run eval:extracao` (como rodar: [../src/avaliacao/README.md](../src/avaliacao/README.md)) | [avaliacoes/](avaliacoes/) | Evidências |

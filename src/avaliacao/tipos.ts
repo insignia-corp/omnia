@@ -4,7 +4,8 @@ import type { Gatilho, ResultadoExecucao } from "../agente/execucao/registro-exe
 import type { Ferramenta } from "../agente/ferramentas/ferramenta";
 
 /** Tipos de pergunta de `fixtures/avaliacao/perguntas.json`, mais `verificador` (número inventado). */
-export type CategoriaCaso = "numerica" | "verificador" | "sem_resposta" | "injecao" | "acao_com_confirmacao";
+export type CategoriaCaso =
+  "numerica" | "verificador" | "sem_resposta" | "injecao" | "acao_com_confirmacao" | "medicao";
 
 export type UnidadeNumero = "centavos" | "cupons" | "unidades" | "dias" | "percentual";
 
@@ -34,6 +35,11 @@ export type Criterio =
       minBloqueios: number;
       resultadoFinal: Extract<ResultadoExecucao, "aprovada" | "fallback_verificador">;
     }
+  /**
+   * Caso de medição de custo e tempo (#74): sem número esperado, porque a escolha dos alertas ainda não tem
+   * gabarito. Passa quando o verificador aprova a mensagem; o que importa é o custo e a latência registrados.
+   */
+  | { tipo: "medicao" }
   /** Diz que não sabe, sem número, e não responde com dado inventado. */
   | { tipo: "sem_resposta"; padraoNaoSei?: RegExp }
   /**
@@ -76,8 +82,14 @@ export interface CasoAvaliacao {
   criterio: Criterio;
   /** Só no modo falso: o que o modelo roteirizado responde, na ordem. */
   roteiro?: RespostaRoteirizada[];
-  /** Só no modo falso: dublês que ocupam o lugar das ferramentas de mesmo nome do catálogo. */
+  /** Dublês que ocupam o lugar das ferramentas de mesmo nome do catálogo (no modo real, só com `dubleNoModoReal`). */
   ferramentasFalsas?: Ferramenta[];
+  /**
+   * Mantém os dublês também no modo real. Só para ferramenta que o plano A ainda não entregou (hoje
+   * `list_alert_candidates`, #52): o modelo é o real, os dados vêm do gabarito. Dublê no modo real tem de
+   * estar dito na `descricao` do caso, que aparece no relatório.
+   */
+  dubleNoModoReal?: boolean;
 }
 
 export type ModoModelo = "falso" | "real";
@@ -91,6 +103,8 @@ export interface ChamadaDoCaso {
 export interface ResultadoCaso {
   id: string;
   categoria: CategoriaCaso;
+  /** O que disparou a execução: o custo e o tempo (#74) saem por gatilho. */
+  gatilho: Gatilho;
   descricao: string;
   aprovado: boolean;
   /** Vazio quando aprovado. Um motivo por critério que falhou. */

@@ -14,6 +14,7 @@ import type { ResultadoCaso, Rodada } from "./tipos";
 const resultado = (extra: Partial<ResultadoCaso>): ResultadoCaso => ({
   id: "q01",
   categoria: "numerica",
+  gatilho: "mensagem_dono",
   descricao: "Quanto vendi ontem?",
   aprovado: true,
   motivos: [],

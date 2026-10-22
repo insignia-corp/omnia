@@ -11,7 +11,7 @@ describe("carregarEnv", () => {
   it("aplica os valores padrão", () => {
     const env = carregarEnv(base);
     expect(env.PORT).toBe(3000);
-    expect(env.LLM_MODELO).toBe("claude-opus-5-5");
+    expect(env.LLM_MODELO).toBe("claude-sonnet-5-5");
     expect(env.LIMITE_CONFIANCA_ITEM).toBe(0.8);
     expect(env.CANAL).toBe("web");
   });
@@ -60,7 +60,7 @@ describe("carregarEnv", () => {
   it("trata variável vazia como não definida", () => {
     const env = carregarEnv({ ...base, ANTHROPIC_API_KEY: "", LLM_MODELO: "" });
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();
-    expect(env.LLM_MODELO).toBe("claude-opus-5-5");
+    expect(env.LLM_MODELO).toBe("claude-sonnet-5-5");
   });
 
   it("falha com mensagem clara quando falta variável obrigatória", () => {

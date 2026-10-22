@@ -2,7 +2,7 @@
 
 Visão dos módulos, dos dados e dos serviços externos do Omnia. O fluxo de execução dos agentes está em [agent-flow.md](agent-flow.md); a decisão por trás dele, em [0003 · Arquitetura do agente](decisoes/0003-arquitetura-do-agente.md); o detalhe de cada agente, na [especificação dos agentes](especificacao-agentes.md).
 
-Os modelos abaixo são os propostos na especificação. O padrão em `src/config/env.ts` ainda é `claude-opus-5-5` (decisão 0002) até a troca para o Sonnet ser feita e medida no `npm run eval`.
+Os modelos abaixo são os da especificação. O padrão em `src/config/env.ts` é `claude-sonnet-5-5` (decisão 0002, atualizada em 21/10/2026); o Opus só entra se o `npm run eval` mostrar ganho.
 
 ```mermaid
 flowchart TB

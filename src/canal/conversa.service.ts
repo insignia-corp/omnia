@@ -1,22 +1,27 @@
 import { Inject, Injectable, NotFoundException, type OnModuleInit } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
 import { DB, type Db } from "../infra/database/database.module";
-import { comerciante } from "../infra/database/schema";
+import { comerciante, documento } from "../infra/database/schema";
+import { FilaExtracao } from "../ingestao/fila/fila-extracao";
 import { CaixaMensagens, type MensagemGravada } from "./caixa-mensagens";
 import { MESSAGE_CHANNEL, type MessageChannel } from "./message-channel";
 import { PORTA_AGENTE, type PortaAgente } from "./porta-agente";
 import { dataLocal, RELOGIO, type Relogio } from "./relogio";
 
-/**
- * Modo conversa: mensagem do dono entra, o agente responde, a resposta sai pelo canal. O
- * `comercianteId` vem da sessão (ou do remetente já resolvido pelo canal), nunca do modelo.
- */
+/** Aviso fixo, sem números e sem texto do modelo (regra 1): a leitura da nota falhou de vez. */
+export const TEXTO_FALHA_NOTA =
+  "Não consegui ler esta nota. Pode mandar outra foto, com a nota inteira, reta e bem iluminada?";
+
 const INTERVALO_ESPERA_MS = 250;
 /** Folga sobre o tempo limite do modelo para a primeira chamada gravar a resposta. */
 const ESPERA_FOLGA_MS = 5_000;
 
+/**
+ * Modo conversa: mensagem do dono entra, o agente responde, a resposta sai pelo canal. O
+ * `comercianteId` vem da sessão (ou do remetente já resolvido pelo canal), nunca do modelo.
+ */
 @Injectable()
 export class ConversaService implements OnModuleInit {
   constructor(
@@ -26,6 +31,7 @@ export class ConversaService implements OnModuleInit {
     @Inject(PORTA_AGENTE) private readonly agente: PortaAgente,
     @Inject(RELOGIO) private readonly relogio: Relogio,
     private readonly caixa: CaixaMensagens,
+    private readonly filaExtracao: FilaExtracao,
   ) {}
 
   onModuleInit(): void {
@@ -33,6 +39,10 @@ export class ConversaService implements OnModuleInit {
     // O remetente precisa ser o id do comerciante; o WhatsApp resolverá o número antes (#61).
     this.canal.aoReceber(async (m) => {
       if (m.texto) await this.tratar(m.remetente, m.idExterno, m.texto);
+    });
+    // A ingestão não conhece o canal: registra aqui quem avisa o dono quando a nota falha de vez.
+    this.filaExtracao.aoFalharDeVez(async ({ comercianteId, documentoId }) => {
+      await this.avisarFalhaExtracao(comercianteId, documentoId);
     });
   }
 
@@ -96,6 +106,31 @@ export class ConversaService implements OnModuleInit {
       execucaoId: null,
       chave,
     });
+    // A leitura pode ter falhado antes deste aviso existir; aí o worker não achou a conversa e quem avisa é aqui.
+    await this.avisarFalhaExtracao(comercianteId, documentoId);
     return (await this.caixa.buscarPorChave(comercianteId, chave))!;
+  }
+
+  /**
+   * Aviso de que a leitura da nota falhou de vez. É resposta ao envio do dono, não mensagem proativa
+   * (regra 9): só sai quando a nota entrou pela conversa (existe o aviso `nota_<id>`); nota enviada por
+   * `POST /documentos/notas` não tem conversa a responder. Só avisa documento em `falha` (o worker
+   * também chama em job repetido). Idempotente pela chave `nota_falha_<id>`.
+   */
+  async avisarFalhaExtracao(
+    comercianteId: string,
+    documentoId: string,
+  ): Promise<MensagemGravada | undefined> {
+    const [doc] = await this.db
+      .select({ status: documento.statusExtracao })
+      .from(documento)
+      .where(and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId)))
+      .limit(1);
+    if (doc?.status !== "falha") return undefined;
+    const pelaConversa = await this.caixa.buscarPorChave(comercianteId, `nota_${documentoId}`);
+    if (!pelaConversa) return undefined;
+    const chave = `nota_falha_${documentoId}`;
+    await this.caixa.enviarResposta({ comercianteId, texto: TEXTO_FALHA_NOTA, execucaoId: null, chave });
+    return this.caixa.buscarPorChave(comercianteId, chave);
   }
 }

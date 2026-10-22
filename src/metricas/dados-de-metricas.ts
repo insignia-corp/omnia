@@ -67,9 +67,10 @@ export function contasExigidasNoDia(data: string, contas: readonly ContaParaMetr
 
 /**
  * O período em que a conta tem extrato: do primeiro dia com transação (ou, sem nenhuma, da abertura
- * da conta, ou da própria sincronização quando a abertura não é conhecida) até o maior entre o último dia com transação e o dia da última importação concluída.
- * Uma conta parada que foi sincronizada hoje está em dia mesmo sem movimento recente. Nulo quando
- * não há transação nem importação: sem prova de importação, não há extrato.
+ * da conta, ou da própria sincronização quando a abertura não é conhecida) até o maior entre o
+ * último dia com transação e o dia da última importação concluída. Uma conta parada que foi
+ * sincronizada hoje está em dia mesmo sem movimento recente. Nulo quando não há transação nem
+ * importação: sem prova de importação, não há extrato.
  */
 function intervaloDoExtratoDaConta(
   conta: ContaParaMetrica,

@@ -131,7 +131,7 @@ export async function registrarLimite(
   await db.insert(limiteAlerta).values({
     comercianteId,
     limite: nome,
-    valor: validado === null ? null : String(validado),
+    valor: validado === null ? null : validado.toFixed(4),
   });
 }
 

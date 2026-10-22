@@ -108,9 +108,9 @@ describe("extrato por data de sincronização (e2e)", () => {
   });
 
   it("depois de sincronizar a conta parada, o dia tem total e o gasto fora do padrão volta", async () => {
-    expect(await registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaParada, data: DIA })).toBe(
-      true,
-    );
+    expect(
+      await registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaParada, data: DIA, hoje: DIA }),
+    ).toBe(true);
     const r = await resumoDoDia();
     if (ehDadoAusente(r)) throw new Error(`Esperava resumo, veio ausente: ${r.codigo}`);
     expect(r.valor.gastos_centavos).toBe(GASTO_DIARIO); // só a conta principal gastou no dia
@@ -121,19 +121,47 @@ describe("extrato por data de sincronização (e2e)", () => {
   });
 
   it("a data de sincronização só avança", async () => {
-    await registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaParada, data: "2026-10-10" });
+    await registrarSincronizacaoDaConta(db, {
+      comercianteId,
+      contaId: contaParada,
+      data: "2026-10-10",
+      hoje: DIA,
+    });
     expect(await sincronizadaEm(contaParada)).toBe(DIA);
-    await registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaParada, data: "2026-10-20" });
+    await registrarSincronizacaoDaConta(db, {
+      comercianteId,
+      contaId: contaParada,
+      data: "2026-10-20",
+      hoje: "2026-10-20",
+    });
     expect(await sincronizadaEm(contaParada)).toBe("2026-10-20");
   });
 
+  it("recusa sincronização com data depois de hoje, sem alterar a conta", async () => {
+    const antes = await sincronizadaEm(contaParada);
+    await expect(
+      registrarSincronizacaoDaConta(db, {
+        comercianteId,
+        contaId: contaParada,
+        data: "2026-12-31",
+        hoje: DIA,
+      }),
+    ).rejects.toThrow(/futuro/);
+    expect(await sincronizadaEm(contaParada)).toBe(antes);
+  });
+
   it("não registra sincronização de conta de outro comerciante nem de data impossível", async () => {
-    expect(await registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaDoOutro, data: DIA })).toBe(
-      false,
-    );
+    expect(
+      await registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaDoOutro, data: DIA, hoje: DIA }),
+    ).toBe(false);
     expect(await sincronizadaEm(contaDoOutro)).toBeNull();
     await expect(
-      registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaParada, data: "2026-02-30" }),
+      registrarSincronizacaoDaConta(db, {
+        comercianteId,
+        contaId: contaParada,
+        data: "2026-02-30",
+        hoje: DIA,
+      }),
     ).rejects.toThrow();
   });
 });

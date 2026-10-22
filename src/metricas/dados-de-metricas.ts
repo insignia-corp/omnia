@@ -67,7 +67,7 @@ export function contasExigidasNoDia(data: string, contas: readonly ContaParaMetr
 
 /**
  * O período em que a conta tem extrato: do primeiro dia com transação (ou, sem nenhuma, da abertura
- * da conta) até o maior entre o último dia com transação e o dia da última importação concluída.
+ * da conta, ou da própria sincronização quando a abertura não é conhecida) até o maior entre o último dia com transação e o dia da última importação concluída.
  * Uma conta parada que foi sincronizada hoje está em dia mesmo sem movimento recente. Nulo quando
  * não há transação nem importação: sem prova de importação, não há extrato.
  */
@@ -78,13 +78,15 @@ function intervaloDoExtratoDaConta(
   const sincronizadaEm = conta.ultimaSincronizacaoEm;
   if (!intervalo && sincronizadaEm === null) return null;
   const primeira = intervalo?.primeira ?? conta.saldoInicialEm ?? sincronizadaEm ?? "";
-  const ultima = [intervalo?.ultima ?? "", sincronizadaEm ?? ""].reduce((a, b) => (a > b ? a : b));
+  const ultimaTransacao = intervalo?.ultima ?? "";
+  const ultima =
+    sincronizadaEm !== null && sincronizadaEm > ultimaTransacao ? sincronizadaEm : ultimaTransacao;
   return { primeira, ultima };
 }
 
 /**
- * O período em que todas as contas exigidas no dia têm extrato: da última primeira data até a
- * primeira última data (ver `intervaloDoExtratoDaConta`). Nulo quando não há conta exigida ou
+ * O período em que todas as contas exigidas no dia têm extrato: começa na data de início mais
+ * recente entre elas e termina na data de fim mais antiga (ver `intervaloDoExtratoDaConta`). Nulo quando não há conta exigida ou
  * quando alguma delas não tem transação nem importação. Um intervalo único para o comerciante
  * deixaria o extrato em dia de uma conta esconder o atraso da outra e o total de gastos sairia
  * subestimado.

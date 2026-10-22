@@ -54,4 +54,4 @@ Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-no
 ## Limites conhecidos
 
 - As sobreposições por comerciante ainda não têm onde ser guardadas: não há coluna ou tabela de configuração no modelo de dados, então só a fonte padrão existe. Guardar exige migração.
-- O relatório diário e `list_alert_candidates` ainda não leem os candidatos (#52).
+- O motor diário (as sete regras) é chamado pela ferramenta `list_alert_candidates` do agente (#52), que o roda para o comerciante e a data da sessão. O job de reajuste (#45) só avalia o reajuste após cada nota; ainda não há job que rode o motor diário sem o agente.

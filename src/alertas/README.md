@@ -20,7 +20,7 @@ Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara c
 
 Dado ausente nunca é zero: a regra não gera candidato e o motivo volta em `ausentes` no resultado do motor (por exemplo, `historico_insuficiente` na Esquina, que tem 14 dias de dados).
 
-Os valores dos limites são das métricas: ficam nas constantes `PARAMETROS_*` de [src/metricas](../metricas/README.md) e na seção "Métricas determinísticas" de [docs/guia-desenvolvimento.md](../../docs/guia-desenvolvimento.md). `limites.ts` só os reaproveita como valor inicial. Cada comerciante pode sobrepor os seus por uma `FonteDeLimites`; a fonte padrão não sobrepõe nada. Janelas e tamanho de ranking continuam os da métrica.
+Os valores dos limites são das métricas: ficam nas constantes `PARAMETROS_*` de [src/metricas](../metricas/README.md) e na seção "Métricas determinísticas" de [docs/guia-desenvolvimento.md](../../docs/guia-desenvolvimento.md). `limites.ts` só os reaproveita como valor inicial. Cada comerciante pode sobrepor os seus por uma `FonteDeLimites`; a fonte do módulo (`FonteDeLimitesPostgres`, em `limites-do-comerciante.ts`) lê a tabela `limite_alerta`, onde vale a linha mais recente de cada limite, e `registrarLimite` valida nome e faixa antes de inserir. Janelas e tamanho de ranking continuam os da métrica.
 
 ## Prioridade e ordem (#44)
 
@@ -65,5 +65,5 @@ Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-no
 
 ## Limites conhecidos
 
-- As sobreposições por comerciante ainda não têm onde ser guardadas: não há coluna ou tabela de configuração no modelo de dados, então só a fonte padrão existe. Guardar exige migração.
+- No estoque parado, o limite do comerciante só vale acima de 30 dias, porque a métrica já corta a lista nesse valor. Nenhum chamador grava limites ainda: a escrita pelo agente (com confirmação do dono, regra 7) fica para uma issue própria.
 - O motor diário (as sete regras) é chamado pela ferramenta `list_alert_candidates` do agente (#52), que o roda para o comerciante e a data da sessão. O job de reajuste (#45) só avalia o reajuste após cada nota; ainda não há job que rode o motor diário sem o agente.

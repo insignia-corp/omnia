@@ -530,6 +530,35 @@ export const historicoPrecoMeta = pgTable(
   ],
 );
 
+/**
+ * Limites de alerta que o dono ajustou (issue #147), um limite por linha. Append-only (regra
+ * inviolável 10): mudar um limite insere outra linha e vale a mais recente de cada `limite`; o
+ * anterior fica como histórico. `limite` é um campo de `LimitesDeAlerta` (src/alertas/limites.ts),
+ * ou `janelaSupressaoDias.<tipo>`; o código valida o nome e a faixa antes de gravar. Sem linha, vale
+ * o padrão. `valor` nulo só existe nas janelas de supressão e quer dizer "sem limite de idade".
+ */
+export const limiteAlerta = pgTable(
+  "limite_alerta",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    comercianteId: comercianteId(),
+    limite: text("limite").notNull(),
+    valor: numeric("valor", { precision: 14, scale: 4 }),
+    origem: origemDado("origem").notNull().default("dono"),
+    /** Valor confirmado pelo dono: confiança 1, como as outras linhas de origem `dono`. */
+    confianca: real("confianca").notNull().default(1),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    index("limite_alerta_busca_idx").on(t.comercianteId, t.limite, t.criadoEm),
+    check(
+      "limite_alerta_valor_nulo",
+      sql`${t.valor} is not null or ${t.limite} like 'janelaSupressaoDias.%'`,
+    ),
+    confiancaNaFaixa("limite_alerta_confianca_faixa", t.confianca),
+  ],
+);
+
 /* ----------------------------------------------------------------------------------------------
  * Vendas
  * -------------------------------------------------------------------------------------------- */

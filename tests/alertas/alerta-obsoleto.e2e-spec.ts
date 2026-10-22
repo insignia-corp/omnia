@@ -256,4 +256,61 @@ describe("alerta obsoleto (e2e)", () => {
       expect(vila[0]?.comercianteId).toBe(vilaNova);
     });
   });
+  describe("compra mais antiga no mesmo dia", () => {
+    it("a correção da compra do alerta torna-o obsoleto mesmo com outra nota mais antiga do mesmo dia", async () => {
+      await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, vilaNova));
+      await corrigirCusto(2790);
+      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect(await doProduto("reajuste_de_custo")).toHaveLength(1);
+
+      // Outra nota da Aurora no mesmo dia 16/10, criada antes da do alerta, com o mesmo custo anterior.
+      const antiga = new Date("2000-01-01T00:00:00Z");
+      const [compraAntiga] = await db
+        .insert(schema.compra)
+        .values({
+          comercianteId: vilaNova,
+          fornecedorId: aurora,
+          data: "2026-10-16",
+          totalCentavos: 2490,
+          somaItensCentavos: 2490,
+          origem: "foto_nota",
+          confianca: 1,
+          criadoEm: antiga,
+        })
+        .returning({ id: schema.compra.id });
+      const [item] = await db
+        .insert(schema.itemDeCompra)
+        .values({
+          comercianteId: vilaNova,
+          compraId: compraAntiga!.id,
+          produtoId: arroz,
+          ordem: 1,
+          descricaoNota: "ARROZ 5KG",
+          quantidade: 1,
+          unidade: "un",
+          valorUnitarioCentavos: 2490,
+          valorTotalCentavos: 2490,
+          confianca: 1,
+          origem: "foto_nota",
+        })
+        .returning({ id: schema.itemDeCompra.id });
+      await db.insert(schema.historicoCusto).values({
+        comercianteId: vilaNova,
+        produtoId: arroz,
+        fornecedorId: aurora,
+        data: "2026-10-16",
+        custoUnitarioCentavos: 2490,
+        itemDeCompraId: item!.id,
+        origem: "foto_nota",
+        confianca: 1,
+        criadoEm: antiga,
+      });
+
+      // O dono corrige o custo da nota do alerta para o da nota antiga: não há mais reajuste, e a nota
+      // antiga não é sucessora, então o candidato vira obsoleto.
+      await corrigirCusto(2490);
+      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("obsoleto");
+    });
+  });
 });

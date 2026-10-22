@@ -1,5 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { eq } from "drizzle-orm";
+import { CicloDoAlerta } from "../../alertas/ciclo-do-alerta";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env";
 import { DB, type Db } from "../../infra/database/database.module";
@@ -27,6 +28,8 @@ export const chaveRelatorio = (j: JobRelatorioDiario) => `relatorio_${j.comercia
  */
 @Injectable()
 export class RelatorioDiarioService {
+  private readonly log = new Logger(RelatorioDiarioService.name);
+
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(ENV) private readonly env: Env,
@@ -34,6 +37,7 @@ export class RelatorioDiarioService {
     @Inject(PORTA_AGENTE) private readonly agente: PortaAgente,
     @Inject(FONTE_RELATORIO) private readonly fonte: FonteRelatorio,
     private readonly caixa: CaixaMensagens,
+    private readonly ciclo: CicloDoAlerta,
   ) {}
 
   emSilencioAgora(): boolean {
@@ -53,7 +57,11 @@ export class RelatorioDiarioService {
    */
   async processar(job: JobRelatorioDiario): Promise<ResultadoRelatorio> {
     if (this.emSilencioAgora()) return "silencio";
-    if (await this.caixa.jaTemProativa(job.comercianteId, this.hoje())) return "ja_enviada_hoje";
+    if (await this.caixa.jaTemProativa(job.comercianteId, this.hoje())) {
+      // Um job reentregue depois de uma queda entre o envio e a marcação recupera os alertas do dia.
+      await this.reconciliarAlertas(job.comercianteId);
+      return "ja_enviada_hoje";
+    }
 
     const [dono] = await this.db
       .select({ nome: comerciante.nome })
@@ -74,12 +82,40 @@ export class RelatorioDiarioService {
     });
     // A chamada ao modelo pode atravessar o início do silêncio: reconfere logo antes de entregar.
     if (this.emSilencioAgora()) return "silencio";
-    return this.caixa.enviarProativa({
+    const resultado = await this.caixa.enviarProativa({
       comercianteId: job.comercianteId,
       texto: resposta.mensagem,
       execucaoId: resposta.execucaoId,
       dataEnvio: this.hoje(),
       chave: chaveRelatorio(job),
     });
+    if (resultado === "enviada" && resposta.execucaoId) {
+      await this.marcarAlertasEnviados(job.comercianteId, resposta.execucaoId);
+    }
+    return resultado;
+  }
+
+  private async reconciliarAlertas(comercianteId: string): Promise<void> {
+    try {
+      await this.ciclo.reconciliar(comercianteId, this.hoje(), this.relogio.agora());
+    } catch (e) {
+      this.log.error(
+        `Não reconciliou os alertas enviados de ${this.hoje()} (comerciante ${comercianteId}): ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
+  /**
+   * Depois da entrega, os alertas que o agente escolheu passam a `enviado` (issue #155), o que liga
+   * a supressão de 7 dias. A mensagem já saiu: falha aqui é registrada e nunca desfaz o envio.
+   */
+  private async marcarAlertasEnviados(comercianteId: string, execucaoId: string): Promise<void> {
+    try {
+      await this.ciclo.marcarEnviados(comercianteId, execucaoId, this.relogio.agora());
+    } catch (e) {
+      this.log.error(
+        `Não marcou os alertas como enviados na execução ${execucaoId}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
   }
 }

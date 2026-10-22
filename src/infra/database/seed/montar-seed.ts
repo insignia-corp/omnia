@@ -278,6 +278,12 @@ export function montarSeed(fix: Fixtures, opcoes: OpcoesComerciante): LinhasSeed
       status: "ativo",
       saldoInicialCentavos: fix.perfil.saldo_inicial_conta_centavos,
       saldoInicialEm: primeiraData,
+      // A conta de demonstração foi importada até o último dia do extrato de teste.
+      ultimaSincronizacaoEm:
+        transacoes
+          .map((t) => t.data)
+          .sort()
+          .at(-1) ?? null,
       criadoEm: INSTANTE_SEED,
     },
     fornecedores,

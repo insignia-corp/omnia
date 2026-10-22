@@ -255,7 +255,9 @@ describe("percentual negativo dito em módulo com palavra de direção (regra 8)
     const lista = new NumerosAutorizados([
       { comparacoes: [{ variacao_percentual: -7.29 }, { variacao_percentual: -30.23 }] },
     ]);
-    expect(verificarNumeros("Queda de 7,29% e de 30,23% contra os dias anteriores.", lista).aprovado).toBe(true);
+    expect(verificarNumeros("Queda de 7,29% e de 30,23% contra os dias anteriores.", lista).aprovado).toBe(
+      true,
+    );
     expect(verificarNumeros("Queda de 7,29% e alta de 30,23%.", lista).aprovado).toBe(false);
   });
 

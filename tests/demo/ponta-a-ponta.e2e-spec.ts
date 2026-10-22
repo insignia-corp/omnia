@@ -9,7 +9,7 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { and, asc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -47,6 +47,8 @@ const reajuste = gabarito.alertas_esperados.find(
 // O BullMQ guarda o jobId (comerciante + data) dos jobs concluídos: ids fixos fariam a 2ª execução
 // do teste ser ignorada. Por isso a chave do seed leva um sufixo novo a cada execução.
 const CHAVE_SEED = `e2e-ponta-a-ponta/${randomUUID()}`;
+// O telefone é único no banco: um comerciante que sobrou de uma execução interrompida não pode travar a próxima.
+const TELEFONE = `55629${randomInt(10_000_000, 100_000_000)}`;
 
 // O modelo devolve confiança alta mesmo quando erra: quem reduz é o código.
 const comoDoModelo = (nota: string): RespostaVisao => {
@@ -124,7 +126,7 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
       {
         chave: CHAVE_SEED,
         nome: "E2E Demo Ponta a Ponta",
-        telefoneWhatsapp: "5562900000099",
+        telefoneWhatsapp: TELEFONE,
         margemMetaBps: fix.perfil.margem_meta_bps,
       },
     );
@@ -209,7 +211,10 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
 
   it("o relatório diário roda o motor real, o agente escolhe o reajuste e a mensagem sai verificada no chat web", async () => {
     await app.get(FilaRelatorioDiario).enfileirar({ comercianteId: dono, data: REF });
-    await esperar(async () => ((await proativasDoDia()).length > 0 ? true : undefined));
+    // A mensagem é gravada antes da entrega e o alerta só vira enviado depois: espera o fim do job.
+    await esperar(async () =>
+      (await alertasDoDono()).some((a) => a.id === alertaDoJob && a.status === "enviado") ? true : undefined,
+    );
 
     const lista = (await request(servidor()).get("/chat/mensagens").set(como()).expect(200)).body as Array<{
       direcao: string;

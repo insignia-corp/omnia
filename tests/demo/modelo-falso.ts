@@ -1,5 +1,6 @@
 import type { BetaContentBlock, BetaMessage } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import type { ModeloLinguagem, PedidoModelo } from "../../src/agente/llm/modelo-linguagem";
+import { centavos, formatarBRL } from "../../src/lib/dinheiro/dinheiro";
 
 /** Modelo falso para os e2e do canal: responde sempre com o mesmo texto (sem números) e conta as chamadas. */
 export class ModeloFalso implements ModeloLinguagem {
@@ -32,9 +33,6 @@ export class ModeloFalso implements ModeloLinguagem {
     } as unknown as BetaMessage;
   }
 }
-
-const brl = (centavos: number): string =>
-  `R$ ${(centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** Resposta do modelo falso: texto ou chamada de ferramenta, no formato da API. */
 const resposta = (n: number, content: BetaContentBlock[], stop: "end_turn" | "tool_use"): BetaMessage =>
@@ -133,7 +131,7 @@ export class ModeloRelatorioFalso implements ModeloLinguagem {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    const texto = `O arroz da Aurora subiu ${pct}%: o custo passou de ${brl(m.custo_anterior_centavos)} para ${brl(m.custo_atual_centavos)}.`;
+    const texto = `O arroz da Aurora subiu ${pct}%: o custo passou de ${formatarBRL(centavos(m.custo_anterior_centavos))} para ${formatarBRL(centavos(m.custo_atual_centavos))}.`;
     return Promise.resolve(resposta(n, [{ type: "text", text: texto }] as BetaContentBlock[], "end_turn"));
   }
 }

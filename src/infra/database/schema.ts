@@ -31,8 +31,9 @@ import {
  * - tabela filha aponta para a mãe por chave composta (id, comerciante_id), então o banco
  *   recusa um vínculo entre dados de lojistas diferentes (isolamento, regra inviolável 3);
  * - todo dado extraído ou informado carrega `origem` e `confianca` (regra inviolável 4);
- * - histórico de custo e vínculos nota-produto são append-only (regra inviolável 10, ver a
- *   migração `historico_append_only`); só a exclusão do lojista (LGPD) apaga, em cascata.
+ * - histórico de custo, preço-meta, limites de alerta e vínculos nota-produto são append-only
+ *   (regra inviolável 10, ver a migração `historico_append_only`); só a exclusão do lojista (LGPD)
+ *   apaga, em cascata.
  */
 
 const criadoEm = () => timestamp("criado_em", { withTimezone: true }).notNull().defaultNow();
@@ -534,6 +535,35 @@ export const historicoPrecoMeta = pgTable(
     index("historico_preco_meta_busca_idx").on(t.comercianteId, t.produtoId, t.criadoEm),
     check("historico_preco_meta_positivo", sql`${t.precoMetaCentavos} > 0`),
     confiancaNaFaixa("historico_preco_meta_confianca_faixa", t.confianca),
+  ],
+);
+
+/**
+ * Limites de alerta que o dono ajustou (issue #147), um limite por linha. Append-only (regra
+ * inviolável 10): mudar um limite insere outra linha e vale a mais recente de cada `limite`; o
+ * anterior fica como histórico. `limite` é um campo de `LimitesDeAlerta` (src/alertas/limites.ts),
+ * ou `janelaSupressaoDias.<tipo>`; o código valida o nome e a faixa antes de gravar. Sem linha, vale
+ * o padrão. `valor` nulo só existe nas janelas de supressão e quer dizer "sem limite de idade".
+ */
+export const limiteAlerta = pgTable(
+  "limite_alerta",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    comercianteId: comercianteId(),
+    limite: text("limite").notNull(),
+    valor: numeric("valor", { precision: 14, scale: 4 }),
+    origem: origemDado("origem").notNull().default("dono"),
+    /** Valor confirmado pelo dono: confiança 1, como as outras linhas de origem `dono`. */
+    confianca: real("confianca").notNull().default(1),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    index("limite_alerta_busca_idx").on(t.comercianteId, t.limite, t.criadoEm),
+    check(
+      "limite_alerta_valor_nulo",
+      sql`${t.valor} is not null or ${t.limite} like 'janelaSupressaoDias.%'`,
+    ),
+    confiancaNaFaixa("limite_alerta_confianca_faixa", t.confianca),
   ],
 );
 

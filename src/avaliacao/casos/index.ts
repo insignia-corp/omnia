@@ -1,6 +1,7 @@
 import type { CasoAvaliacao } from "../tipos";
 import { casosDeInjecao } from "./injecao";
 import { casosNumericos } from "./numericas";
+import { casosDeMedicao } from "./relatorio-diario";
 import { casosSemResposta } from "./sem-resposta";
 import { casosDoVerificador } from "./verificador";
 
@@ -9,7 +10,13 @@ import { casosDoVerificador } from "./verificador";
  * sem mexer no runner nem no relatório.
  */
 export function todosOsCasos(): CasoAvaliacao[] {
-  const casos = [...casosNumericos(), ...casosDoVerificador(), ...casosSemResposta(), ...casosDeInjecao()];
+  const casos = [
+    ...casosNumericos(),
+    ...casosDoVerificador(),
+    ...casosSemResposta(),
+    ...casosDeInjecao(),
+    ...casosDeMedicao(),
+  ];
   const repetido = casos.map((c) => c.id).find((id, i, ids) => ids.indexOf(id) !== i);
   if (repetido) throw new Error(`Caso repetido: ${repetido}`);
   return casos;

@@ -1,10 +1,12 @@
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import { DelayedError, Queue, Worker, type Job } from "bullmq";
 import type Redis from "ioredis";
+import { PinoLogger } from "nestjs-pino";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env";
 import { DB, type Db } from "../../infra/database/database.module";
 import { comerciante } from "../../infra/database/schema";
+import { comCorrelacao } from "../../infra/logs/correlacao";
 import { REDIS } from "../../infra/redis/redis.module";
 import { dataLocal, minutosDoDia, RELOGIO, type Relogio } from "../relogio";
 import { fimDoSilencio } from "./horario-silencio";
@@ -31,15 +33,23 @@ export class FilaRelatorioDiario implements OnModuleInit, OnModuleDestroy {
     @Inject(DB) private readonly db: Db,
     @Inject(RELOGIO) private readonly relogio: Relogio,
     private readonly servico: RelatorioDiarioService,
+    private readonly pino: PinoLogger,
   ) {
     this.fila = new Queue(FILA_RELATORIO_DIARIO, { connection: this.redis });
   }
 
   async onModuleInit(): Promise<void> {
-    this.worker = new Worker(FILA_RELATORIO_DIARIO, (job: Job, token?: string) => this.tratar(job, token), {
-      connection: this.redis,
-      concurrency: 2,
-    });
+    this.worker = new Worker(
+      FILA_RELATORIO_DIARIO,
+      (job: Job, token?: string) =>
+        comCorrelacao(this.pino, undefined, { fila: FILA_RELATORIO_DIARIO, jobId: job.id }, () =>
+          this.tratar(job, token),
+        ),
+      {
+        connection: this.redis,
+        concurrency: 2,
+      },
+    );
     // Sem este ouvinte um erro de conexão derruba o processo.
     this.worker.on("error", () => undefined);
     await this.fila.upsertJobScheduler(

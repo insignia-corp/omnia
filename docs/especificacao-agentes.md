@@ -98,12 +98,12 @@ Decisões do orquestrador:
 | Implementação | `AgenteService` atual: loop com tool use, histórico só acrescentado, verificador, regeneração, fallbacks e registro de execução |
 | Entrada | `ContextoSessao` montado pelo código (comerciante, nome do comércio, data de referência) e o texto do gatilho, com a mensagem do dono entre `<mensagem_do_dono>` |
 | Saída | Texto para o canal, já aprovado pelo verificador, ou um fallback sem números. Mais a escolha dos alertas registrada em `select_alerts` |
-| Modelo | Padrão proposto `claude-sonnet-5-5`; `claude-opus-5-5` só se o eval mostrar ganho. Hoje o padrão em `env.ts` é o Opus (decisão 0002); trocar é uma mudança de código listada na seção 9 |
+| Modelo | Padrão `claude-sonnet-5-5` (`LLM_MODELO` em `env.ts`, decisão 0002); `claude-opus-5-5` só se o eval mostrar ganho |
 | Esforço | `low` na conversa (`LLM_ESFORCO_CONVERSA`) e `medium` no relatório diário e na nota processada (`LLM_ESFORCO`); feito em `AgenteService` por gatilho |
 | Limites | `AGENTE_MAX_ITERACOES` (8) e `AGENTE_MAX_REGERACOES` (2) |
 
 **Como decide.**
-- No relatório: chama `list_alert_candidates`, que já devolve os candidatos ranqueados por impacto mensal em centavos (conta feita pelo código). Escolhe até 3, busca o detalhe de cada um quando precisa e registra a escolha e a justificativa em `select_alerts`. Escreve uma frase por alerta com o valor e a ação sugerida.
+- No relatório: chama `list_alert_candidates`, que já devolve os candidatos ordenados por prioridade e, dentro dela, por impacto em centavos, depois confiança (conta feita pelo código; a semana dos últimos 7 dias para reajuste, margem abaixo da meta e espaço para subir preço (os dois primeiros ficam sem impacto em reais quando não há giro); o dia para ticket médio e gasto fora do padrão; giro em alta e estoque parado ficam sem impacto em reais). Escolhe até 3, busca o detalhe de cada um quando precisa e registra a escolha e a justificativa em `select_alerts`. Escreve uma frase por alerta com o valor e a ação sugerida.
 - Na pergunta livre: escolhe a ferramenta que responde. Se nenhuma serve, diz que não sabe e que dado faltaria (regra 6 do prompt). Se falta um dado do dono (por exemplo, o custo de um produto sem nota), usa `ask_owner`.
 - Em nota processada, com o dono em conversa: resume o que mudou e destaca reajustes acima do limite.
 
@@ -112,7 +112,7 @@ Decisões do orquestrador:
 | Ferramenta | Efeito | Prioridade | Observação |
 | --- | --- | --- | --- |
 | `get_daily_summary` | nenhum | P0 | Faturamento, gastos, saldo e comparação com os 7 dias anteriores (#50) |
-| `get_top_products` | nenhum | P0 | Ranking por giro ou receita (#50) |
+| `get_top_products` | nenhum | P0 | Ranking por volume, alta do giro ou receita (#50, #148) |
 | `get_product_margin` | nenhum | P0 | Margem, custo, preço e confiança; dado ausente explícito (#51) |
 | `get_cost_changes` | nenhum | P0 | Reajustes por produto e fornecedor (#51) |
 | `list_alert_candidates` | nenhum | P0 | Candidatos com prioridade e impacto em centavos (#52) |
@@ -184,11 +184,11 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 
 | Mudança | Onde | Issue |
 | --- | --- | --- |
-| Esforço por gatilho (feito) e padrão do modelo para `claude-sonnet-5-5` (falta: só depois do eval #74) | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
+| Esforço por gatilho (feito) e padrão do modelo `claude-sonnet-5-5` (feito em 21/10/2026; o eval #74 mede o ganho do Opus) | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
 | Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
 | Ferramentas P0 (`select_alerts` feito em `select-alerts.ts`; leitura são do plano A) | `src/agente/ferramentas/` | #50 a #53 |
 | `propose_target_price`, `historico_preco_meta` (migração `0008_historico_preco_meta`) e resolução do "sim" em código (feito) | `src/agente/confirmacao/`, `src/agente/ferramentas/`, `src/infra/database/schema.ts` | #104 |
-| Motor de alertas com impacto mensal em centavos e prioridade | `src/alertas/` | #43, #44 |
+| Motor de alertas com impacto em centavos (semana ou dia) e prioridade | `src/alertas/` | #43, #44 |
 | Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
 | Prompts `sistema-v2.md` e `sistema-v3.md` (feitos) | `src/agente/prompts/` | #54, #55, #104 |
 | Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |
@@ -226,7 +226,7 @@ Se o prazo apertar, cortar nesta ordem: Opus (Sonnet em tudo), `compare_supplier
 
 ## 12. Em aberto
 
-- Confirmar `claude-sonnet-5-5` como padrão do Analista (hoje o padrão é o Opus, decisão 0002) e medir `low` contra `medium` no eval. O pensamento é cobrado como saída e é a maior alavanca de custo.
+- `claude-sonnet-5-5` já é o padrão do Analista (decisão 0002, 21/10/2026); falta medir `low` contra `medium` no eval. O pensamento é cobrado como saída e é a maior alavanca de custo.
 - Decidido: gatilho `extracao_nota` no enum atual, sem tabela própria.
 - Confirmar no SDK fixado (`@anthropic-ai/sdk` 0.135.0) o suporte a saída estruturada com o esquema do Zod; se não houver, pedir JSON e validar.
 - Definir o conjunto aceitável de top 3 no gabarito.

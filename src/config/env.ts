@@ -19,7 +19,7 @@ const esquemaEnv = z.object({
 
   // Agente e modelo de linguagem
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  LLM_MODELO: z.string().min(1).default("claude-opus-5-5"),
+  LLM_MODELO: z.string().min(1).default("claude-sonnet-5-5"),
   /** Esforço do modelo no relatório diário e na nota processada. */
   LLM_ESFORCO: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
   /** Esforço na conversa com o dono: resposta curta, latência menor (especificação dos agentes, seção 4). */

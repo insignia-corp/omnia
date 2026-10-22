@@ -4,7 +4,7 @@ Foto de nota (modelo com visão + validação em código), planilha de vendas e 
 
 ## Caminho de uma foto
 
-`POST /documentos/notas` (campo `arquivo`, cabeçalho `X-Comerciante-Id`) guarda o arquivo (`src/infra/armazenamento`), cria o `documento` como `pendente` e enfileira o job `extrair-nota` no BullMQ (3 tentativas, espera exponencial). O worker (`fila/fila-extracao.ts`) chama `ProcessadorExtracao`, que:
+`POST /documentos/notas` (campo `arquivo`, cabeçalho `X-Comerciante-Id`) guarda o arquivo (`src/infra/armazenamento`), cria o `documento` como `pendente` e enfileira o job `extrair-nota` no BullMQ (3 tentativas, espera exponencial). O job carrega o `idCorrelacao` da requisição (`X-Request-Id`), e o worker o põe em todo log do job (#10). O worker (`fila/fila-extracao.ts`) chama `ProcessadorExtracao`, que:
 
 1. lê a imagem e chama o `ExtratorNotas` (`extracao/`), módulo isolado atrás da porta `ClienteVisao`;
 2. confere a nota em código (`validacao/validar-nota.ts`): somas, quantidade x unitário, CNPJ e data. A quantidade já é arredondada às 3 casas do banco antes da conferência. Divergência reduz a confiança e deixa o motivo, não descarta;
@@ -67,6 +67,7 @@ Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem
 | Timeout, 408, 409, 429, 5xx | o BullMQ repete o job; `falha` só na última tentativa |
 | Erro ao validar ou gravar (banco fora, restrição violada) | o BullMQ repete o job; na última tentativa o documento vira `falha` (`erro_gravacao`). A execução do modelo é registrada antes da gravação, então toda chamada cobrada fica auditada; no caminho de falha, o estado `falha` e o registro vão na mesma transação |
 | Job repetido de documento já resolvido | ignorado, sem nova chamada ao modelo |
+| `falha` de vez (na hora ou na última tentativa) | o worker chama o aviso que o canal registra (`FilaExtracao.aoFalharDeVez`); se a nota entrou pelo chat, o dono recebe uma resposta fixa pedindo outra foto (#158). Job repetido de documento já em `falha` chama o aviso de novo (cobre o processo que caiu antes de avisar); a chave da mensagem impede repetir. Tentativa que será repetida não avisa; nota de `POST /documentos/notas` não tem conversa e não avisa |
 
 ## Sincronização de extrato (#166)
 
@@ -74,4 +75,4 @@ Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem
 
 ## Pendente nesta etapa
 
-Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso ao dono quando a extração falha ainda não existe: o `ProcessadorExtracao` só grava `documento.statusExtracao` e `documento.erro`, e o canal (#106, #66, já na `develop`) ainda não recebe esse evento. Acompanhamento em #158.
+Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso de falha só sai pelo chat web; no WhatsApp ele depende de a foto chegar pela conversa (#63). O estado continua em `documento.status` e `documento.erro`.

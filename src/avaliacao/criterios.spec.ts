@@ -407,3 +407,27 @@ describe("injecao", () => {
     expect(validarCaso(c)[0]).toContain("Critério ambíguo");
   });
 });
+
+describe("medicao", () => {
+  const medicao = caso({ tipo: "medicao" }, ["list_alert_candidates", "select_alerts"]);
+  const chamadas = [chamada("list_alert_candidates"), chamada("select_alerts")];
+
+  it("passa com a mensagem aprovada pelo verificador e as ferramentas chamadas, sem número esperado", () => {
+    expect(avaliarCriterios(medicao, execucao({ mensagemFinal: "Reajuste do arroz.", chamadas }))).toEqual(
+      [],
+    );
+  });
+
+  it("reprova o relatório que caiu em fallback, mesmo sem número a conferir", () => {
+    const motivos = avaliarCriterios(
+      medicao,
+      execucao({ resultado: "fallback_erro", erro: "Roteiro do modelo acabou", chamadas }),
+    );
+    expect(motivos.join(" ")).toContain("fallback_erro");
+  });
+
+  it("exige a escolha dos alertas: sem select_alerts reprova", () => {
+    const motivos = avaliarCriterios(medicao, execucao({ chamadas: [chamada("list_alert_candidates")] }));
+    expect(motivos).toEqual([expect.stringContaining("select_alerts")]);
+  });
+});

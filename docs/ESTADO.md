@@ -6,7 +6,7 @@ Atualizado em: 2026-10-21 · commit base: `d62d2a7` (`develop` após o PR 169) �
 
 ## Etapa
 
-- Etapa 0 (base): feita. A CI também confere variáveis de ambiente contra `.env.example`, deriva das migrações e `comerciante_id` em toda tabela (guardas no `.github/workflows/ci.yml`, PR 152). Resta ligar a CI como status obrigatório na proteção das branches (#7) e o id de correlação entre requisição e jobs (#10, no PR 163).
+- Etapa 0 (base): feita. A CI também confere variáveis de ambiente contra `.env.example`, deriva das migrações e `comerciante_id` em toda tabela (guardas no `.github/workflows/ci.yml`, PR 152). Id de correlação entre requisição e jobs nos logs (#10). Resta ligar a CI como status obrigatório na proteção das branches (#7).
 - Etapa 1 (dados de teste e gabarito): feita. Falta só a revisão do gabarito de métricas por uma segunda pessoa (#16). Detalhe em `fixtures/README.md`.
 - Etapa 2 (ingestão): na `develop`, armazenamento, upload e fila BullMQ, Extrator com Zod, validações em código, revisão de item e pergunta ao dono, vínculo por catálogo, similaridade, código de barras e sugestão do modelo confirmada pelo dono (#27), planilha de vendas CSV e XLSX (#28) e NF-e em XML (#29). Falta a integração Pluggy em sandbox (#30, P2, adiada: só entra se sobrar tempo; o que está fora do escopo é o Open Finance real), e o fluxo de resolução de importação parcial de planilha (#142). Detalhe em `src/ingestao/README.md`.
 - Etapa 3 (métricas): feita, com o épico #31 fechado. Margem, variação de custo, giro, resumo diário, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço batem com o gabarito, e o conjunto de alertas esperados também (#41). Débitos em #143 (extrato por conta), #144 (propagar origem e confiança do produto) e #148 (critério de receita). Detalhe em `src/metricas/README.md`.
@@ -40,12 +40,11 @@ Gerados em 2026-10-21 sobre a `develop` em `d62d2a7`, com Node 24 (via `npx`), P
 
 ## Pendências
 
-- Eval com modelo real ainda não rodou (`npm run eval -- --modelo real` exige `ANTHROPIC_API_KEY`); custo e latência da decisão 0003 seguem estimativas até lá, e a troca do modelo padrão `claude-opus-5-5` por Sonnet (decisão 0002) depende dele; o PR 165 faz a troca para `claude-sonnet-5-5`.
+- Eval com modelo real ainda não rodou (`npm run eval -- --modelo real` exige `ANTHROPIC_API_KEY`); custo e latência da decisão 0003 seguem estimativas até lá, e o modelo padrão já é `claude-sonnet-5-5` (decisão 0002, trocado em 21/10/2026); o eval diz se o Opus compensa.
 - A chamada real ao modelo com visão (`cliente-visao-anthropic.ts`) não foi exercida: sem chave no ambiente. Primeiro uso: enviar 3 fotos de `fixtures/notas/` e conferir `execucao_agente`.
 - Extração de nota que falha não avisa o dono: `ProcessadorExtracao.falhar` só grava `documento.statusExtracao` e `erro` e registra a execução, e o `ConversaService` envia só o aviso inicial de leitura. Fica pendente até o worker enviar a mensagem fixa de falha (#158, em PR 163; detalhe em `src/ingestao/README.md`).
 - O relatório diário com modelo real ainda não fecha na `develop`: o `AgenteService` exige um `select_alerts` bem-sucedido ou um `list_alert_candidates` sem candidato, o catálogo real não tem `list_alert_candidates` (#52) e nada chama o motor de alertas, que já está na `develop`, até #45 e #52, então um relatório real termina no fallback de erro. Só os testes usam dublês.
 - Alertas: o candidato do dia pode ficar velho quando o dado muda (#157). Higiene de documentação (`send_message`, status de PRs, label do Pluggy) em #159.
-- A CLI do eval e a rodada usam por padrão o prompt `sistema-v2`, e o `AgenteModule` carrega o `v3`: alinhar antes da primeira rodada com `--modelo real`.
 - O alerta ainda não grava os status `enviado` e `descartado`, então a supressão por status não funciona de ponta a ponta (#155).
 - `get_product_margin`: a descrição de nota deve seguir o mesmo critério da busca por nome (#167).
 - Planilha importada com linha rejeitada fica em `revisao` e as vendas dela entram nas métricas com confiança 0,5 sem caminho para voltar (#142).

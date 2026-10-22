@@ -4,6 +4,7 @@ import type { Env } from "../config/env";
 import { DB, type Db } from "../infra/database/database.module";
 import { MetricasModule } from "../metricas/metricas.module";
 import { MetricasService } from "../metricas/metricas.service";
+import { CicloDoAlerta } from "./ciclo-do-alerta";
 import { criarHoje } from "./jobs/hoje";
 import { FilaReajuste } from "./jobs/fila-reajuste";
 import { VerificadorDeReajuste } from "./jobs/verificar-reajuste";
@@ -36,8 +37,9 @@ import {
       useFactory: (db: Db, motor: MotorDeAlertas, env: Env) =>
         new VerificadorDeReajuste(db, motor, criarHoje(env)),
     },
+    { provide: CicloDoAlerta, inject: [DB], useFactory: (db: Db) => new CicloDoAlerta(db) },
     FilaReajuste,
   ],
-  exports: [MotorDeAlertas, FilaReajuste],
+  exports: [MotorDeAlertas, FilaReajuste, CicloDoAlerta],
 })
 export class AlertasModule {}

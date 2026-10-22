@@ -1,0 +1,3254 @@
+{
+  "id": "754875e6-6ccd-4ec6-bd86-74d4f727a990",
+  "prevId": "2196e2bb-30c4-47c4-bb52-e1e6e9307e31",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.alerta": {
+      "name": "alerta",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_alerta",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prioridade": {
+          "name": "prioridade",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "status_alerta",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'candidato'"
+        },
+        "data_referencia": {
+          "name": "data_referencia",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chave": {
+          "name": "chave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "produto_id": {
+          "name": "produto_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fornecedor_id": {
+          "name": "fornecedor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metricas_apoio": {
+          "name": "metricas_apoio",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "justificativa": {
+          "name": "justificativa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "execucao_id": {
+          "name": "execucao_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "enviado_em": {
+          "name": "enviado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "alerta_comerciante_data_idx": {
+          "name": "alerta_comerciante_data_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "data_referencia",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "alerta_comerciante_id_comerciante_id_fk": {
+          "name": "alerta_comerciante_id_comerciante_id_fk",
+          "tableFrom": "alerta",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "alerta_produto_fk": {
+          "name": "alerta_produto_fk",
+          "tableFrom": "alerta",
+          "tableTo": "produto",
+          "columnsFrom": [
+            "produto_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "alerta_fornecedor_fk": {
+          "name": "alerta_fornecedor_fk",
+          "tableFrom": "alerta",
+          "tableTo": "fornecedor",
+          "columnsFrom": [
+            "fornecedor_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "alerta_execucao_fk": {
+          "name": "alerta_execucao_fk",
+          "tableFrom": "alerta",
+          "tableTo": "execucao_agente",
+          "columnsFrom": [
+            "execucao_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "alerta_idempotencia_uq": {
+          "name": "alerta_idempotencia_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "tipo",
+            "chave",
+            "data_referencia"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "alerta_prioridade_faixa": {
+          "name": "alerta_prioridade_faixa",
+          "value": "\"alerta\".\"prioridade\" between 1 and 3"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.chamada_ferramenta": {
+      "name": "chamada_ferramenta",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "execucao_id": {
+          "name": "execucao_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ferramenta": {
+          "name": "ferramenta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entrada": {
+          "name": "entrada",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "saida": {
+          "name": "saida",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "erro": {
+          "name": "erro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "menor_confianca": {
+          "name": "menor_confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "latencia_ms": {
+          "name": "latencia_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "chamada_ferramenta_execucao_idx": {
+          "name": "chamada_ferramenta_execucao_idx",
+          "columns": [
+            {
+              "expression": "execucao_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ordem",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "chamada_ferramenta_comerciante_id_comerciante_id_fk": {
+          "name": "chamada_ferramenta_comerciante_id_comerciante_id_fk",
+          "tableFrom": "chamada_ferramenta",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chamada_ferramenta_execucao_fk": {
+          "name": "chamada_ferramenta_execucao_fk",
+          "tableFrom": "chamada_ferramenta",
+          "tableTo": "execucao_agente",
+          "columnsFrom": [
+            "execucao_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.comerciante": {
+      "name": "comerciante",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefone_whatsapp": {
+          "name": "telefone_whatsapp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo_comercio": {
+          "name": "tipo_comercio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'mercadinho'"
+        },
+        "margem_meta_bps": {
+          "name": "margem_meta_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2500
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "comerciante_telefone_whatsapp_unique": {
+          "name": "comerciante_telefone_whatsapp_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "telefone_whatsapp"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "comerciante_margem_meta_faixa": {
+          "name": "comerciante_margem_meta_faixa",
+          "value": "\"comerciante\".\"margem_meta_bps\" between 0 and 10000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.compra": {
+      "name": "compra",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "documento_id": {
+          "name": "documento_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fornecedor_id": {
+          "name": "fornecedor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "numero_documento": {
+          "name": "numero_documento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_centavos": {
+          "name": "total_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "soma_itens_centavos": {
+          "name": "soma_itens_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "compra_comerciante_data_idx": {
+          "name": "compra_comerciante_data_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "data",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "compra_fornecedor_idx": {
+          "name": "compra_fornecedor_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fornecedor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "compra_comerciante_id_comerciante_id_fk": {
+          "name": "compra_comerciante_id_comerciante_id_fk",
+          "tableFrom": "compra",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "compra_documento_fk": {
+          "name": "compra_documento_fk",
+          "tableFrom": "compra",
+          "tableTo": "documento",
+          "columnsFrom": [
+            "documento_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "compra_fornecedor_fk": {
+          "name": "compra_fornecedor_fk",
+          "tableFrom": "compra",
+          "tableTo": "fornecedor",
+          "columnsFrom": [
+            "fornecedor_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "compra_id_comerciante_uq": {
+          "name": "compra_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        },
+        "compra_documento_uq": {
+          "name": "compra_documento_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "documento_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "compra_confianca_faixa": {
+          "name": "compra_confianca_faixa",
+          "value": "\"compra\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.consentimento": {
+      "name": "consentimento",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_consentimento",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "versao_termo": {
+          "name": "versao_termo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "concedido_em": {
+          "name": "concedido_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "revogado_em": {
+          "name": "revogado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "consentimento_comerciante_idx": {
+          "name": "consentimento_comerciante_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tipo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "consentimento_comerciante_id_comerciante_id_fk": {
+          "name": "consentimento_comerciante_id_comerciante_id_fk",
+          "tableFrom": "consentimento",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.conta": {
+      "name": "conta",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "instituicao": {
+          "name": "instituicao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conexao_id": {
+          "name": "conexao_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'corrente'"
+        },
+        "status": {
+          "name": "status",
+          "type": "status_conta",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ativo'"
+        },
+        "saldo_inicial_centavos": {
+          "name": "saldo_inicial_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "saldo_inicial_em": {
+          "name": "saldo_inicial_em",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ultima_sincronizacao_em": {
+          "name": "ultima_sincronizacao_em",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "conta_comerciante_idx": {
+          "name": "conta_comerciante_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "conta_comerciante_id_comerciante_id_fk": {
+          "name": "conta_comerciante_id_comerciante_id_fk",
+          "tableFrom": "conta",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "conta_id_comerciante_uq": {
+          "name": "conta_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        },
+        "conta_conexao_uq": {
+          "name": "conta_conexao_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "conexao_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.documento": {
+      "name": "documento",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_documento",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "arquivo_caminho": {
+          "name": "arquivo_caminho",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "arquivo_hash": {
+          "name": "arquivo_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status_extracao": {
+          "name": "status_extracao",
+          "type": "status_extracao",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendente'"
+        },
+        "confianca_media": {
+          "name": "confianca_media",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "extracao_json": {
+          "name": "extracao_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivos_validacao": {
+          "name": "motivos_validacao",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "erro": {
+          "name": "erro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "processado_em": {
+          "name": "processado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "documento_comerciante_status_idx": {
+          "name": "documento_comerciante_status_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status_extracao",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "documento_comerciante_id_comerciante_id_fk": {
+          "name": "documento_comerciante_id_comerciante_id_fk",
+          "tableFrom": "documento",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "documento_id_comerciante_uq": {
+          "name": "documento_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        },
+        "documento_hash_uq": {
+          "name": "documento_hash_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "arquivo_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "documento_confianca_faixa": {
+          "name": "documento_confianca_faixa",
+          "value": "\"documento\".\"confianca_media\" is null or \"documento\".\"confianca_media\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.execucao_agente": {
+      "name": "execucao_agente",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gatilho": {
+          "name": "gatilho",
+          "type": "gatilho_execucao",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entrada": {
+          "name": "entrada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "modelo": {
+          "name": "modelo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "versao_prompt": {
+          "name": "versao_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resultado": {
+          "name": "resultado",
+          "type": "resultado_execucao",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mensagem_final": {
+          "name": "mensagem_final",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "iteracoes": {
+          "name": "iteracoes",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bloqueios_verificador": {
+          "name": "bloqueios_verificador",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "detalhes_verificador": {
+          "name": "detalhes_verificador",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "tokens_entrada": {
+          "name": "tokens_entrada",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tokens_saida": {
+          "name": "tokens_saida",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tokens_cache_leitura": {
+          "name": "tokens_cache_leitura",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "custo_estimado_microdolares": {
+          "name": "custo_estimado_microdolares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latencia_ms": {
+          "name": "latencia_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "erro": {
+          "name": "erro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "execucao_agente_comerciante_idx": {
+          "name": "execucao_agente_comerciante_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "execucao_agente_comerciante_id_comerciante_id_fk": {
+          "name": "execucao_agente_comerciante_id_comerciante_id_fk",
+          "tableFrom": "execucao_agente",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "execucao_agente_id_comerciante_uq": {
+          "name": "execucao_agente_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.fornecedor": {
+      "name": "fornecedor",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cnpj": {
+          "name": "cnpj",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fornecedor_comerciante_idx": {
+          "name": "fornecedor_comerciante_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fornecedor_comerciante_id_comerciante_id_fk": {
+          "name": "fornecedor_comerciante_id_comerciante_id_fk",
+          "tableFrom": "fornecedor",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "fornecedor_id_comerciante_uq": {
+          "name": "fornecedor_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        },
+        "fornecedor_cnpj_uq": {
+          "name": "fornecedor_cnpj_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "cnpj"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "fornecedor_confianca_faixa": {
+          "name": "fornecedor_confianca_faixa",
+          "value": "\"fornecedor\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.historico_custo": {
+      "name": "historico_custo",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "produto_id": {
+          "name": "produto_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fornecedor_id": {
+          "name": "fornecedor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "custo_unitario_centavos": {
+          "name": "custo_unitario_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_de_compra_id": {
+          "name": "item_de_compra_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "historico_custo_busca_idx": {
+          "name": "historico_custo_busca_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "produto_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fornecedor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "data",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "historico_custo_item_idx": {
+          "name": "historico_custo_item_idx",
+          "columns": [
+            {
+              "expression": "item_de_compra_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "historico_custo_comerciante_id_comerciante_id_fk": {
+          "name": "historico_custo_comerciante_id_comerciante_id_fk",
+          "tableFrom": "historico_custo",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "historico_custo_produto_fk": {
+          "name": "historico_custo_produto_fk",
+          "tableFrom": "historico_custo",
+          "tableTo": "produto",
+          "columnsFrom": [
+            "produto_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "historico_custo_fornecedor_fk": {
+          "name": "historico_custo_fornecedor_fk",
+          "tableFrom": "historico_custo",
+          "tableTo": "fornecedor",
+          "columnsFrom": [
+            "fornecedor_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "historico_custo_item_fk": {
+          "name": "historico_custo_item_fk",
+          "tableFrom": "historico_custo",
+          "tableTo": "item_de_compra",
+          "columnsFrom": [
+            "item_de_compra_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "historico_custo_nao_negativo": {
+          "name": "historico_custo_nao_negativo",
+          "value": "\"historico_custo\".\"custo_unitario_centavos\" >= 0"
+        },
+        "historico_custo_confianca_faixa": {
+          "name": "historico_custo_confianca_faixa",
+          "value": "\"historico_custo\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.historico_preco_meta": {
+      "name": "historico_preco_meta",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "produto_id": {
+          "name": "produto_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preco_meta_centavos": {
+          "name": "preco_meta_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anterior_centavos": {
+          "name": "anterior_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'dono'"
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "historico_preco_meta_busca_idx": {
+          "name": "historico_preco_meta_busca_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "produto_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "historico_preco_meta_comerciante_id_comerciante_id_fk": {
+          "name": "historico_preco_meta_comerciante_id_comerciante_id_fk",
+          "tableFrom": "historico_preco_meta",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "historico_preco_meta_produto_fk": {
+          "name": "historico_preco_meta_produto_fk",
+          "tableFrom": "historico_preco_meta",
+          "tableTo": "produto",
+          "columnsFrom": [
+            "produto_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "historico_preco_meta_positivo": {
+          "name": "historico_preco_meta_positivo",
+          "value": "\"historico_preco_meta\".\"preco_meta_centavos\" > 0"
+        },
+        "historico_preco_meta_confianca_faixa": {
+          "name": "historico_preco_meta_confianca_faixa",
+          "value": "\"historico_preco_meta\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.item_de_compra": {
+      "name": "item_de_compra",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "compra_id": {
+          "name": "compra_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "produto_id": {
+          "name": "produto_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descricao_nota": {
+          "name": "descricao_nota",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantidade": {
+          "name": "quantidade",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unidade": {
+          "name": "unidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor_unitario_centavos": {
+          "name": "valor_unitario_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor_total_centavos": {
+          "name": "valor_total_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revisao_pendente": {
+          "name": "revisao_pendente",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "item_de_compra_produto_idx": {
+          "name": "item_de_compra_produto_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "produto_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "item_de_compra_comerciante_id_comerciante_id_fk": {
+          "name": "item_de_compra_comerciante_id_comerciante_id_fk",
+          "tableFrom": "item_de_compra",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "item_de_compra_compra_fk": {
+          "name": "item_de_compra_compra_fk",
+          "tableFrom": "item_de_compra",
+          "tableTo": "compra",
+          "columnsFrom": [
+            "compra_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "item_de_compra_produto_fk": {
+          "name": "item_de_compra_produto_fk",
+          "tableFrom": "item_de_compra",
+          "tableTo": "produto",
+          "columnsFrom": [
+            "produto_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "item_de_compra_id_comerciante_uq": {
+          "name": "item_de_compra_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        },
+        "item_de_compra_ordem_uq": {
+          "name": "item_de_compra_ordem_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "compra_id",
+            "ordem"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "item_de_compra_quantidade_positiva": {
+          "name": "item_de_compra_quantidade_positiva",
+          "value": "\"item_de_compra\".\"quantidade\" > 0"
+        },
+        "item_de_compra_confianca_faixa": {
+          "name": "item_de_compra_confianca_faixa",
+          "value": "\"item_de_compra\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.item_de_venda": {
+      "name": "item_de_venda",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "venda_id": {
+          "name": "venda_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "produto_id": {
+          "name": "produto_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantidade": {
+          "name": "quantidade",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preco_unitario_centavos": {
+          "name": "preco_unitario_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor_total_centavos": {
+          "name": "valor_total_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "item_de_venda_venda_idx": {
+          "name": "item_de_venda_venda_idx",
+          "columns": [
+            {
+              "expression": "venda_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "item_de_venda_produto_idx": {
+          "name": "item_de_venda_produto_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "produto_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "item_de_venda_comerciante_id_comerciante_id_fk": {
+          "name": "item_de_venda_comerciante_id_comerciante_id_fk",
+          "tableFrom": "item_de_venda",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "item_de_venda_venda_fk": {
+          "name": "item_de_venda_venda_fk",
+          "tableFrom": "item_de_venda",
+          "tableTo": "venda",
+          "columnsFrom": [
+            "venda_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "item_de_venda_produto_fk": {
+          "name": "item_de_venda_produto_fk",
+          "tableFrom": "item_de_venda",
+          "tableTo": "produto",
+          "columnsFrom": [
+            "produto_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "item_de_venda_quantidade_positiva": {
+          "name": "item_de_venda_quantidade_positiva",
+          "value": "\"item_de_venda\".\"quantidade\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.limite_alerta": {
+      "name": "limite_alerta",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "limite": {
+          "name": "limite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor": {
+          "name": "valor",
+          "type": "numeric(14, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'dono'"
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "limite_alerta_busca_idx": {
+          "name": "limite_alerta_busca_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "limite",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "limite_alerta_comerciante_id_comerciante_id_fk": {
+          "name": "limite_alerta_comerciante_id_comerciante_id_fk",
+          "tableFrom": "limite_alerta",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "limite_alerta_valor_nulo": {
+          "name": "limite_alerta_valor_nulo",
+          "value": "\"limite_alerta\".\"valor\" is not null or \"limite_alerta\".\"limite\" like 'janelaSupressaoDias.%'"
+        },
+        "limite_alerta_confianca_faixa": {
+          "name": "limite_alerta_confianca_faixa",
+          "value": "\"limite_alerta\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.mapeamento_planilha": {
+      "name": "mapeamento_planilha",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assinatura": {
+          "name": "assinatura",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mapeamento": {
+          "name": "mapeamento",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confirmado_pelo_dono": {
+          "name": "confirmado_pelo_dono",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mapeamento_planilha_comerciante_id_comerciante_id_fk": {
+          "name": "mapeamento_planilha_comerciante_id_comerciante_id_fk",
+          "tableFrom": "mapeamento_planilha",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "mapeamento_planilha_assinatura_uq": {
+          "name": "mapeamento_planilha_assinatura_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "assinatura"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.mensagem": {
+      "name": "mensagem",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "direcao": {
+          "name": "direcao",
+          "type": "direcao_mensagem",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "canal": {
+          "name": "canal",
+          "type": "canal_mensagem",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'web'"
+        },
+        "categoria_template": {
+          "name": "categoria_template",
+          "type": "categoria_template",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "custo_estimado_microdolares": {
+          "name": "custo_estimado_microdolares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "proativa": {
+          "name": "proativa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "data_envio": {
+          "name": "data_envio",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chave_idempotencia": {
+          "name": "chave_idempotencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_externo": {
+          "name": "id_externo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "execucao_id": {
+          "name": "execucao_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "mensagem_id_externo_uq": {
+          "name": "mensagem_id_externo_uq",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "canal",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id_externo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"mensagem\".\"id_externo\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mensagem_uma_proativa_por_dia_uq": {
+          "name": "mensagem_uma_proativa_por_dia_uq",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "data_envio",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"mensagem\".\"proativa\" and \"mensagem\".\"direcao\" = 'enviada'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mensagem_comerciante_idx": {
+          "name": "mensagem_comerciante_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "mensagem_comerciante_id_comerciante_id_fk": {
+          "name": "mensagem_comerciante_id_comerciante_id_fk",
+          "tableFrom": "mensagem",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "mensagem_execucao_fk": {
+          "name": "mensagem_execucao_fk",
+          "tableFrom": "mensagem",
+          "tableTo": "execucao_agente",
+          "columnsFrom": [
+            "execucao_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "mensagem_idempotencia_uq": {
+          "name": "mensagem_idempotencia_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "chave_idempotencia"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pergunta_dono": {
+      "name": "pergunta_dono",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_pergunta",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "status_pergunta",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendente'"
+        },
+        "pergunta": {
+          "name": "pergunta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contexto": {
+          "name": "contexto",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "resposta": {
+          "name": "resposta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "item_de_compra_id": {
+          "name": "item_de_compra_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "respondida_em": {
+          "name": "respondida_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "pergunta_dono_status_idx": {
+          "name": "pergunta_dono_status_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pergunta_dono_comerciante_id_comerciante_id_fk": {
+          "name": "pergunta_dono_comerciante_id_comerciante_id_fk",
+          "tableFrom": "pergunta_dono",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "pergunta_dono_item_fk": {
+          "name": "pergunta_dono_item_fk",
+          "tableFrom": "pergunta_dono",
+          "tableTo": "item_de_compra",
+          "columnsFrom": [
+            "item_de_compra_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.produto": {
+      "name": "produto",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "codigo_barras": {
+          "name": "codigo_barras",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sku": {
+          "name": "sku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unidade": {
+          "name": "unidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'un'"
+        },
+        "categoria": {
+          "name": "categoria",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preco_meta_centavos": {
+          "name": "preco_meta_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "margem_meta_bps": {
+          "name": "margem_meta_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "produto_comerciante_idx": {
+          "name": "produto_comerciante_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "produto_nome_trgm_idx": {
+          "name": "produto_nome_trgm_idx",
+          "columns": [
+            {
+              "expression": "nome",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "produto_comerciante_id_comerciante_id_fk": {
+          "name": "produto_comerciante_id_comerciante_id_fk",
+          "tableFrom": "produto",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "produto_id_comerciante_uq": {
+          "name": "produto_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        },
+        "produto_codigo_barras_uq": {
+          "name": "produto_codigo_barras_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "codigo_barras"
+          ]
+        },
+        "produto_sku_uq": {
+          "name": "produto_sku_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "sku"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "produto_confianca_faixa": {
+          "name": "produto_confianca_faixa",
+          "value": "\"produto\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.transacao": {
+      "name": "transacao",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conta_id": {
+          "name": "conta_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor_centavos": {
+          "name": "valor_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_transacao",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "categoria": {
+          "name": "categoria",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_externo": {
+          "name": "id_externo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'banco'"
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "transacao_comerciante_data_idx": {
+          "name": "transacao_comerciante_data_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "data",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transacao_comerciante_id_comerciante_id_fk": {
+          "name": "transacao_comerciante_id_comerciante_id_fk",
+          "tableFrom": "transacao",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "transacao_conta_fk": {
+          "name": "transacao_conta_fk",
+          "tableFrom": "transacao",
+          "tableTo": "conta",
+          "columnsFrom": [
+            "conta_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "transacao_id_externo_uq": {
+          "name": "transacao_id_externo_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "conta_id",
+            "id_externo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "transacao_valor_positivo": {
+          "name": "transacao_valor_positivo",
+          "value": "\"transacao\".\"valor_centavos\" > 0"
+        },
+        "transacao_confianca_faixa": {
+          "name": "transacao_confianca_faixa",
+          "value": "\"transacao\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.venda": {
+      "name": "venda",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "documento_id": {
+          "name": "documento_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data": {
+          "name": "data",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hora": {
+          "name": "hora",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "numero_cupom": {
+          "name": "numero_cupom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_centavos": {
+          "name": "total_centavos",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'planilha'"
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "venda_comerciante_data_idx": {
+          "name": "venda_comerciante_data_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "data",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "venda_comerciante_id_comerciante_id_fk": {
+          "name": "venda_comerciante_id_comerciante_id_fk",
+          "tableFrom": "venda",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "venda_documento_fk": {
+          "name": "venda_documento_fk",
+          "tableFrom": "venda",
+          "tableTo": "documento",
+          "columnsFrom": [
+            "documento_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "venda_id_comerciante_uq": {
+          "name": "venda_id_comerciante_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "comerciante_id"
+          ]
+        },
+        "venda_cupom_uq": {
+          "name": "venda_cupom_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "comerciante_id",
+            "data",
+            "numero_cupom"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "venda_confianca_faixa": {
+          "name": "venda_confianca_faixa",
+          "value": "\"venda\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.vinculo_descricao_produto": {
+      "name": "vinculo_descricao_produto",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fornecedor_id": {
+          "name": "fornecedor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "descricao_normalizada": {
+          "name": "descricao_normalizada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "produto_id": {
+          "name": "produto_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "metodo": {
+          "name": "metodo",
+          "type": "metodo_vinculo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confirmado_pelo_dono": {
+          "name": "confirmado_pelo_dono",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "confirmado_em": {
+          "name": "confirmado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "vinculo_busca_idx": {
+          "name": "vinculo_busca_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "descricao_normalizada",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vinculo_descricao_trgm_idx": {
+          "name": "vinculo_descricao_trgm_idx",
+          "columns": [
+            {
+              "expression": "descricao_normalizada",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "gin_trgm_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "vinculo_descricao_produto_comerciante_id_comerciante_id_fk": {
+          "name": "vinculo_descricao_produto_comerciante_id_comerciante_id_fk",
+          "tableFrom": "vinculo_descricao_produto",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "vinculo_fornecedor_fk": {
+          "name": "vinculo_fornecedor_fk",
+          "tableFrom": "vinculo_descricao_produto",
+          "tableTo": "fornecedor",
+          "columnsFrom": [
+            "fornecedor_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "vinculo_produto_fk": {
+          "name": "vinculo_produto_fk",
+          "tableFrom": "vinculo_descricao_produto",
+          "tableTo": "produto",
+          "columnsFrom": [
+            "produto_id",
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id",
+            "comerciante_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "vinculo_confianca_faixa": {
+          "name": "vinculo_confianca_faixa",
+          "value": "\"vinculo_descricao_produto\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.canal_mensagem": {
+      "name": "canal_mensagem",
+      "schema": "public",
+      "values": [
+        "web",
+        "whatsapp"
+      ]
+    },
+    "public.categoria_template": {
+      "name": "categoria_template",
+      "schema": "public",
+      "values": [
+        "utilidade",
+        "marketing",
+        "servico",
+        "autenticacao"
+      ]
+    },
+    "public.direcao_mensagem": {
+      "name": "direcao_mensagem",
+      "schema": "public",
+      "values": [
+        "enviada",
+        "recebida"
+      ]
+    },
+    "public.gatilho_execucao": {
+      "name": "gatilho_execucao",
+      "schema": "public",
+      "values": [
+        "relatorio_diario",
+        "mensagem_dono",
+        "nota_processada",
+        "extracao_nota",
+        "vinculo_produto"
+      ]
+    },
+    "public.metodo_vinculo": {
+      "name": "metodo_vinculo",
+      "schema": "public",
+      "values": [
+        "codigo_barras",
+        "similaridade",
+        "modelo",
+        "dono"
+      ]
+    },
+    "public.origem_dado": {
+      "name": "origem_dado",
+      "schema": "public",
+      "values": [
+        "foto_nota",
+        "nfe",
+        "planilha",
+        "banco",
+        "dono"
+      ]
+    },
+    "public.resultado_execucao": {
+      "name": "resultado_execucao",
+      "schema": "public",
+      "values": [
+        "aprovada",
+        "fallback_verificador",
+        "fallback_erro",
+        "recusa_modelo"
+      ]
+    },
+    "public.status_alerta": {
+      "name": "status_alerta",
+      "schema": "public",
+      "values": [
+        "candidato",
+        "enviado",
+        "descartado"
+      ]
+    },
+    "public.status_conta": {
+      "name": "status_conta",
+      "schema": "public",
+      "values": [
+        "ativo",
+        "revogado",
+        "expirado",
+        "erro"
+      ]
+    },
+    "public.status_extracao": {
+      "name": "status_extracao",
+      "schema": "public",
+      "values": [
+        "pendente",
+        "processando",
+        "extraido",
+        "revisao",
+        "falha"
+      ]
+    },
+    "public.status_pergunta": {
+      "name": "status_pergunta",
+      "schema": "public",
+      "values": [
+        "pendente",
+        "respondida",
+        "expirada",
+        "cancelada"
+      ]
+    },
+    "public.tipo_alerta": {
+      "name": "tipo_alerta",
+      "schema": "public",
+      "values": [
+        "reajuste_de_custo",
+        "margem_abaixo_da_meta",
+        "espaco_para_subir_preco",
+        "giro_em_alta",
+        "estoque_parado",
+        "ticket_medio_em_queda",
+        "gasto_fora_do_padrao"
+      ]
+    },
+    "public.tipo_consentimento": {
+      "name": "tipo_consentimento",
+      "schema": "public",
+      "values": [
+        "banco",
+        "notas"
+      ]
+    },
+    "public.tipo_documento": {
+      "name": "tipo_documento",
+      "schema": "public",
+      "values": [
+        "foto_nota",
+        "nfe",
+        "planilha"
+      ]
+    },
+    "public.tipo_pergunta": {
+      "name": "tipo_pergunta",
+      "schema": "public",
+      "values": [
+        "confirmar_item",
+        "confirmar_vinculo",
+        "confirmar_documento",
+        "informar_custo",
+        "confirmar_acao"
+      ]
+    },
+    "public.tipo_transacao": {
+      "name": "tipo_transacao",
+      "schema": "public",
+      "values": [
+        "entrada",
+        "saida"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

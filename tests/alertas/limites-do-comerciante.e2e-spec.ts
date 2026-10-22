@@ -41,8 +41,13 @@ describe("limites de alerta por comerciante (e2e)", () => {
   let vilaNova: string;
   let esquina: string;
 
-  const tiposDe = async (comercianteId: string): Promise<string[]> =>
-    (await motor.executar({ comercianteId, dataReferencia: REF })).candidatos.map((c) => c.tipo).sort();
+  /** O motor devolve também os candidatos já gravados no dia, então cada rodada parte sem alertas. */
+  const tiposDe = async (comercianteId: string): Promise<string[]> => {
+    await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, comercianteId));
+    return (await motor.executar({ comercianteId, dataReferencia: REF })).candidatos
+      .map((c) => c.tipo)
+      .sort();
+  };
 
   beforeAll(async () => {
     await migrar(url);

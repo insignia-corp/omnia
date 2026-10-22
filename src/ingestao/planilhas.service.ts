@@ -8,7 +8,7 @@ import {
   UnprocessableEntityException,
   UnsupportedMediaTypeException,
 } from "@nestjs/common";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { ARMAZENAMENTO, ErroArmazenamento, type Armazenamento } from "../infra/armazenamento/armazenamento";
 import { detectarTipo } from "../infra/armazenamento/tipo-arquivo";
@@ -201,8 +201,8 @@ export class PlanilhasService {
    * O dono fecha a revisão de uma planilha com linhas rejeitadas: segue sem elas. O documento vai para
    * `extraido` e as vendas voltam à confiança que tinham (o teto de 0,5 só vale fora de `extraido`).
    * Nada é apagado (regra 10): o relatório com as linhas rejeitadas continua no documento, agora com a
-   * resolução (decisão, origem e data). A troca é condicional ao status `revisao`, então duas chamadas
-   * ao mesmo tempo resolvem uma vez só.
+   * resolução (decisão, origem e data). A troca é condicional ao status `revisao` (e o relatório é
+   * mesclado no próprio UPDATE), então duas chamadas ao mesmo tempo resolvem uma vez só.
    */
   async resolver(comercianteId: string, documentoId: string, corpo: unknown): Promise<EstadoPlanilha> {
     const parsed = corpoResolucaoSchema.safeParse(corpo);
@@ -217,15 +217,19 @@ export class PlanilhasService {
     if (doc.statusExtracao !== "revisao") {
       throw new ConflictException("Só uma planilha em revisão pode ser resolvida");
     }
-    const relatorio = doc.extracaoJson as RelatorioImportacao;
     const resolucao: ResolucaoImportacao = {
       decisao: parsed.data.decisao,
       origem: "dono",
       em: new Date().toISOString(),
     };
+    // A resolução entra no relatório que está no banco na hora da troca (não num que foi lido antes), então
+    // as linhas rejeitadas e os contadores nunca são substituídos por uma cópia velha.
     const [atualizado] = await this.db
       .update(documento)
-      .set({ statusExtracao: "extraido", extracaoJson: { ...relatorio, resolucao } })
+      .set({
+        statusExtracao: "extraido",
+        extracaoJson: sql`coalesce(${documento.extracaoJson}, '{}'::jsonb) || ${JSON.stringify({ resolucao })}::jsonb`,
+      })
       .where(and(dono, eq(documento.statusExtracao, "revisao")))
       .returning();
     if (!atualizado) throw new ConflictException("Só uma planilha em revisão pode ser resolvida");

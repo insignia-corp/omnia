@@ -65,5 +65,5 @@ Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-no
 
 ## Limites conhecidos
 
-- No estoque parado, o limite do comerciante só vale acima de 30 dias, porque a métrica já corta a lista nesse valor. Nenhum chamador grava limites ainda: a escrita pelo agente (com confirmação do dono, regra 7) fica para uma issue própria.
+- No estoque parado, o limite do comerciante só vale a partir de 30 dias (o validador recusa menos), porque a métrica só marca parado acima desse corte e completa a lista com os mais próximos. Linha de `limite_alerta` fora da faixa, gravada sem passar por `registrarLimite`, é ignorada na leitura. Nenhum chamador grava limites ainda: a escrita pelo agente (com confirmação do dono, regra 7) fica para uma issue própria.
 - O motor diário (as sete regras) é chamado pela ferramenta `list_alert_candidates` do agente (#52), que o roda para o comerciante e a data da sessão. O job de reajuste (#45) só avalia o reajuste após cada nota; ainda não há job que rode o motor diário sem o agente.

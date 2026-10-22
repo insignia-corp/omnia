@@ -27,6 +27,7 @@ describe("validarLimite", () => {
     expect(() => validarLimite("gastoLimiteDesvio", 3.12345)).toThrow(LimiteInvalidoError);
     expect(validarLimite("gastoLimiteDesvio", 3.1234)).toBe(3.1234);
     expect(() => validarLimite("prioridade1MinCentavos", 10_000_000_000)).toThrow(LimiteInvalidoError);
+    expect(() => validarLimite("confiancaMinima", 0.10000000001)).toThrow(LimiteInvalidoError);
   });
 
   it("estoque parado só aceita limite de 30 dias ou mais, porque a métrica já corta nesse valor", () => {
@@ -60,6 +61,16 @@ describe("sobreposicaoDasLinhas", () => {
     expect(limites.janelaSupressaoDias.estoque_parado).toBe(14);
     expect(limites.janelaSupressaoDias.reajuste_de_custo).toBeNull();
     expect(limites.janelaSupressaoDias.giro_em_alta).toBe(LIMITES_PADRAO.janelaSupressaoDias.giro_em_alta);
+  });
+
+  it("ignora linha fora da faixa, gravada sem passar pelo validador", () => {
+    const limites = mesclarLimites(
+      sobreposicaoDasLinhas([
+        { limite: "estoqueParadoLimiteDias", valor: "14.0000" },
+        { limite: "reajusteLimiteBps", valor: "-5.0000" },
+      ]),
+    );
+    expect(limites).toEqual(LIMITES_PADRAO);
   });
 
   it("ignora linha com nome que o código não conhece, sem apagar o padrão", () => {

@@ -25,7 +25,8 @@ const FAIXAS: Readonly<Record<LimiteNumerico, Faixa>> = {
   reajusteLimiteBps: { min: 1, max: 100_000, inteiro: true },
   reajusteJanelaDias: { min: 1, max: 365, inteiro: true },
   giroAltaMinimaBps: { min: 0, max: 100_000, inteiro: true },
-  // A métrica já corta a lista em 30 dias: abaixo disso o limite não mudaria nada.
+  // Piso da issue #147: a métrica só marca parado acima de 30 dias e completa a lista com os mais próximos,
+  // então um limite menor não teria cobertura garantida. O limite do comerciante só sobe esse corte.
   estoqueParadoLimiteDias: { min: 30, max: 3650, inteiro: true },
   ticketQuedaLimiteBps: { min: 1, max: 10_000, inteiro: true },
   gastoLimiteDesvio: { min: 0.1, max: 100, inteiro: false },
@@ -36,9 +37,6 @@ const FAIXAS: Readonly<Record<LimiteNumerico, Faixa>> = {
 
 const PREFIXO_SUPRESSAO = "janelaSupressaoDias.";
 const FAIXA_SUPRESSAO: Faixa = { min: 0, max: 3650, inteiro: true };
-
-/** Nome de um limite como fica em `limite_alerta.limite`: campo de `LimitesDeAlerta` ou `janelaSupressaoDias.<tipo>`. */
-export type NomeDoLimite = LimiteNumerico | `janelaSupressaoDias.${TipoAlerta}`;
 
 export class LimiteInvalidoError extends Error {}
 
@@ -63,7 +61,7 @@ export function validarLimite(nome: string, valor: number | null): number | null
   }
   const { min, max, inteiro } = regra.faixa;
   // A coluna guarda 4 casas: mais que isso seria arredondado em silêncio.
-  const cabeNaColuna = Math.abs(valor * 10_000 - Math.round(valor * 10_000)) < 1e-6;
+  const cabeNaColuna = Math.abs(valor * 10_000 - Math.round(valor * 10_000)) < 1e-9;
   if (
     !Number.isFinite(valor) ||
     valor < min ||
@@ -78,6 +76,16 @@ export function validarLimite(nome: string, valor: number | null): number | null
   return valor;
 }
 
+function limiteValido(nome: string, valor: number | null): boolean {
+  try {
+    validarLimite(nome, valor);
+    return true;
+  } catch (erro) {
+    if (erro instanceof LimiteInvalidoError) return false;
+    throw erro;
+  }
+}
+
 /** Monta a sobreposição que o motor mescla com o padrão a partir das linhas vigentes. */
 export function sobreposicaoDasLinhas(
   linhas: ReadonlyArray<{ limite: string; valor: string | null }>,
@@ -86,6 +94,8 @@ export function sobreposicaoDasLinhas(
   const janelas: Partial<Record<TipoAlerta, number | null>> = {};
   for (const { limite, valor } of linhas) {
     const numero = valor === null ? null : Number(valor);
+    // Linha gravada fora de `registrarLimite` e fora da faixa não vale: fica o padrão.
+    if (!limiteValido(limite, numero)) continue;
     const tipo = tipoDaSupressao(limite);
     if (tipo) janelas[tipo] = numero;
     else if (Object.hasOwn(FAIXAS, limite) && numero !== null) numericos[limite as LimiteNumerico] = numero;

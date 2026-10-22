@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { readFileSync } from "node:fs";
+import { ferramentasPlanoA } from "../../src/agente/ferramentas/ferramentas-plano-a";
 import { MotorDeAlertas } from "../../src/alertas/motor-de-alertas";
 import {
   FonteDeLimitesPostgres,
@@ -110,22 +111,40 @@ describe("limites de alerta por comerciante (e2e)", () => {
   });
 
   it("a tabela é append-only: alterar ou apagar uma linha falha", async () => {
+    await registrarLimite(db, vilaNova, "confiancaMinima", 0.9);
     await expect(
-      db
-        .update(schema.limiteAlerta)
-        .set({ valor: "1" })
-        .where(eq(schema.limiteAlerta.comercianteId, vilaNova)),
-    ).rejects.toThrow();
+      pool.query("update limite_alerta set valor = 1 where comerciante_id = $1", [vilaNova]),
+    ).rejects.toThrow(/append-only/);
     await expect(
-      db.delete(schema.limiteAlerta).where(eq(schema.limiteAlerta.comercianteId, vilaNova)),
-    ).rejects.toThrow();
+      pool.query("delete from limite_alerta where comerciante_id = $1", [vilaNova]),
+    ).rejects.toThrow(/append-only/);
   });
 
   it("o banco recusa nulo fora das janelas de supressão", async () => {
     await expect(
-      db
-        .insert(schema.limiteAlerta)
-        .values({ comercianteId: vilaNova, limite: "reajusteLimiteBps", valor: null }),
-    ).rejects.toThrow();
+      pool.query("insert into limite_alerta (comerciante_id, limite, valor) values ($1, $2, null)", [
+        vilaNova,
+        "reajusteLimiteBps",
+      ]),
+    ).rejects.toThrow(/limite_alerta_valor_nulo/);
+  });
+
+  it("a ferramenta do agente usa os limites do comerciante da sessão e não os do outro", async () => {
+    const ferramenta = ferramentasPlanoA({ db }).find((f) => f.nome === "list_alert_candidates");
+    if (!ferramenta) throw new Error("list_alert_candidates não está no plano A");
+    const tipos = async (comercianteId: string): Promise<string[]> => {
+      await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, comercianteId));
+      const saida = (await ferramenta.executar(
+        { comercianteId, nomeComercio: "teste", dataReferencia: REF },
+        {},
+      )) as { candidatos: Array<{ tipo: string }> };
+      return saida.candidatos.map((c) => c.tipo).sort();
+    };
+    const vilaAntes = await tipos(vilaNova);
+    const esquinaAntes = await tipos(esquina);
+    expect(vilaAntes).toContain("reajuste_de_custo");
+    await registrarLimite(db, vilaNova, "reajusteLimiteBps", 99_000);
+    expect(await tipos(vilaNova)).not.toContain("reajuste_de_custo");
+    expect(await tipos(esquina)).toEqual(esquinaAntes);
   });
 });

@@ -128,6 +128,18 @@ describe("resolução de planilha com linha rejeitada (e2e)", () => {
     expect(vendas.rowCount).toBe(1);
   });
 
+  it("duas resoluções ao mesmo tempo resolvem uma vez só: uma 200 e a outra 409", async () => {
+    const nova = await enviar(
+      a,
+      planilha(linhaBoa, linhaRuim).replace("5001", "6001").replace("5002", "6002"),
+    );
+    const id = (nova.body as { documento_id: string }).documento_id;
+    const respostas = await Promise.all([resolver(a, id), resolver(a, id)]);
+    expect(respostas.map((r) => r.status).sort()).toEqual([200, 409]);
+    const doc = await db.select().from(schema.documento).where(eq(schema.documento.id, id));
+    expect(doc[0]?.statusExtracao).toBe("extraido");
+  });
+
   it("resolver de novo, ou uma planilha que não está em revisão, devolve conflito", async () => {
     await resolver(a, documentoId).expect(409);
     const limpa = await enviar(b, planilha(linhaBoa)).expect(200);

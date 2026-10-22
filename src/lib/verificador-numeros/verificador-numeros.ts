@@ -194,7 +194,11 @@ function extrairNumerosDeTexto(texto: string): number[] {
 }
 
 /** "queda de 7,29%" para -7.29: percentual sem sinal escrito, com palavra de direção negativa. */
-function autorizadoPorDirecao(mensagem: string, e: NumeroEncontrado, autorizados: NumerosAutorizados): boolean {
+function autorizadoPorDirecao(
+  mensagem: string,
+  e: NumeroEncontrado,
+  autorizados: NumerosAutorizados,
+): boolean {
   if (e.valor <= 0 || !e.texto.endsWith("%") || /^[+]|R\$/.test(e.texto)) return false;
   if (!autorizados.contemQuedaPercentual(e.valor)) return false;
   return direcaoDoPercentual(mensagem, e.posicao, e.posicao + e.texto.length) === "negativa";

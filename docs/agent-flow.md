@@ -1,6 +1,6 @@
 # Fluxo do agente
 
-Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado em 2026-10-21: o verificador (base da Etapa 0, #112), o registro de execuções (#57; PRs #112 e #131), o loop do Analista, o histórico da conversa e `select_alerts` (PR #133) estão na `develop`; as ferramentas de leitura de métricas e `list_alert_candidates` também (PRs #145, #168, #169 e #174), `ask_owner` e `save_owner_answer` (PR #132) e a ação com confirmação do dono (`propose_target_price`, #104; PR #141), também na `develop`. A tabela de ferramentas abaixo marca o que já roda. A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
+Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado em 2026-10-21: o verificador (base da Etapa 0, #112), o registro de execuções (#57; PRs #112 e #131), o loop do Analista (#55), o histórico da conversa e `select_alerts` (PR #133) estão na `develop`; as ferramentas de leitura de métricas e `list_alert_candidates` também (PRs #145, #168, #169 e #174), `ask_owner` e `save_owner_answer` (PR #132) e a ação com confirmação do dono (`propose_target_price`, #104; PR #141), também na `develop`. A tabela de ferramentas abaixo marca o que já roda. A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
 
 ## Dois agentes e um orquestrador em código
 
@@ -83,7 +83,7 @@ O agente não envia nada: devolve a mensagem já aprovada e o canal a entrega. P
 ### Relatório diário, passo a passo
 
 1. O job (plano C) dispara `relatorio_diario` com a data de referência da execução.
-2. O modelo chama `list_alert_candidates`, que devolve os candidatos já ordenados por prioridade e, dentro dela, por impacto em centavos (conta do código).
+2. O modelo chama `list_alert_candidates`, que devolve os candidatos já ordenados por prioridade e, dentro dela, por impacto em centavos e depois confiança (conta do código).
 3. Escolhe até 3 e registra a escolha com `select_alerts`, uma justificativa curta por alerta. A ferramenta confere os ids contra os candidatos do comerciante na data e devolve só dados do banco (as métricas de apoio), que passam a ser as fontes dos números. A justificativa é texto do modelo: fica na entrada da chamada, para os bastidores, e não volta na saída. Sem `select_alerts` bem-sucedido (ou sem candidato), o loop não aprova o relatório.
 4. Escreve uma frase por alerta, com o valor e a ação sugerida.
 5. O verificador confere cada número. Aprovada, a mensagem volta ao canal. A decisão (quais alertas e por quê) fica em `chamada_ferramenta`, na ordem, e alimenta a tela de bastidores.

@@ -2,6 +2,7 @@ import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Executor } from "../infra/database/database.module";
 import { alerta, produto } from "../infra/database/schema";
 import type { CustoDeCompra } from "../metricas/dados-de-metricas";
+import type { OrigemDado } from "../metricas/resultado-metrica";
 import { RepositorioMetricasPostgres } from "../metricas/repositorio-metricas";
 import type { TipoAlerta, Prioridade } from "./tipos";
 
@@ -85,12 +86,12 @@ export interface RepositorioAlertas {
     dataReferencia: string,
     produtoIds?: ReadonlySet<string>,
   ): Promise<AlertaGravado[]>;
-  /** Leituras de custo vigentes do par produto e fornecedor até `ate` (só leitura) e a confiança do produto. */
+  /** Leituras de custo vigentes do par produto e fornecedor até `ate` (só leitura) e origem e confiança do produto. */
   leiturasDoPar(
     comercianteId: string,
     ate: string,
     par: { produtoId: string; fornecedorId: string },
-  ): Promise<{ custos: CustoDeCompra[]; confiancaDoProduto: number }>;
+  ): Promise<{ custos: CustoDeCompra[]; produto: { origem: OrigemDado; confianca: number } }>;
   /** Marca como `obsoleto` os candidatos `ids` do comerciante. Só sai de `candidato`. */
   marcarObsoletosPorId(comercianteId: string, ids: readonly string[]): Promise<number>;
   /**
@@ -304,19 +305,20 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
     comercianteId: string,
     ate: string,
     par: { produtoId: string; fornecedorId: string },
-  ): Promise<{ custos: CustoDeCompra[]; confiancaDoProduto: number }> {
+  ): Promise<{ custos: CustoDeCompra[]; produto: { origem: OrigemDado; confianca: number } }> {
     const todas = await new RepositorioMetricasPostgres(this.db).custosDeCompra(
       comercianteId,
       ate,
       par.produtoId,
     );
     const [p] = await this.db
-      .select({ confianca: produto.confianca })
+      .select({ origem: produto.origem, confianca: produto.confianca })
       .from(produto)
       .where(and(eq(produto.comercianteId, comercianteId), eq(produto.id, par.produtoId)));
     return {
       custos: todas.filter((c) => c.fornecedorId === par.fornecedorId),
-      confiancaDoProduto: p?.confianca ?? 0,
+      // Produto que não aparece: confiança zero, para o recálculo nunca parecer mais seguro do que é.
+      produto: { origem: p?.origem ?? "dono", confianca: p?.confianca ?? 0 },
     };
   }
 

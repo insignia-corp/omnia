@@ -39,7 +39,8 @@ describe("recalcularReajuste (#186)", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X"),
       custos: [leitura("W", "2026-10-10", 2000), leitura("X", "2026-10-16", 2800)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toMatchObject({
@@ -68,16 +69,18 @@ describe("recalcularReajuste (#186)", () => {
         },
       }),
       custos: [leitura("W", "2026-10-10", 2000, 1, 0.9), leitura("X", "2026-10-16", 2800, 2, 1)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
+    // Como a métrica: período da compra anterior até a data de referência, origens das leituras e do produto.
     expect(r).toMatchObject({
       metricasApoio: {
         fonte: {
-          periodo: { inicio: "2026-10-10", fim: "2026-10-16" },
+          periodo: { inicio: "2026-10-10", fim: "2026-10-19" },
           n_registros: 2,
           menor_confianca: 0.9,
-          origens: ["foto_nota"],
+          origens: ["dono", "foto_nota"],
         },
       },
     });
@@ -88,17 +91,41 @@ describe("recalcularReajuste (#186)", () => {
     const forte = recalcularReajuste({
       metricasApoio: apoio("X", { unidades_7_dias: 100 }),
       custos: [leitura("W", "2026-10-10", 2000), leitura("X", "2026-10-16", 2800)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites: alto,
     });
     expect(forte).toMatchObject({ prioridade: 1, metricasApoio: { impacto_centavos: 80_000 } });
     const duvida = recalcularReajuste({
       metricasApoio: apoio("X", { unidades_7_dias: 100 }),
       custos: [leitura("W", "2026-10-10", 2000, 1, 0.1), leitura("X", "2026-10-16", 2800)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites: alto,
     });
     expect(duvida).toMatchObject({ prioridade: 2 });
+  });
+
+  it("a confiança do produto também rebaixa a menor confiança (como na métrica)", () => {
+    const r = recalcularReajuste({
+      metricasApoio: apoio("X"),
+      custos: [leitura("W", "2026-10-10", 2000), leitura("X", "2026-10-16", 2800)],
+      produto: { origem: "dono", confianca: 0.3 },
+      dataReferencia: "2026-10-19",
+      limites,
+    });
+    expect(r).toMatchObject({ metricasApoio: { menor_confianca: 0.3, fonte: { menor_confianca: 0.3 } } });
+  });
+
+  it("duas leituras da mesma compra do alerta não contam como compra anterior", () => {
+    const r = recalcularReajuste({
+      metricasApoio: apoio("X"),
+      custos: [leitura("X", "2026-10-16", 2790, 1), leitura("X", "2026-10-16", 2790, 2)],
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
+      limites,
+    });
+    expect(r).toEqual({ situacao: "desfeito" });
   });
 
   it("2ª compra do par no dia: a compra do alerta não é a atual, mas a alta dela continua", () => {
@@ -109,7 +136,8 @@ describe("recalcularReajuste (#186)", () => {
         leitura("X", "2026-10-16", 2790),
         leitura("Y", "2026-10-16", 2790),
       ],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toMatchObject({ situacao: "vale", metricasApoio: { custo_anterior_centavos: 2490 } });
@@ -119,7 +147,8 @@ describe("recalcularReajuste (#186)", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X"),
       custos: [leitura("Z", "2026-10-16", 2490, 1), leitura("X", "2026-10-16", 2790, 2)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toMatchObject({ situacao: "vale", metricasApoio: { custo_anterior_centavos: 2490 } });
@@ -130,7 +159,8 @@ describe("recalcularReajuste (#186)", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X"),
       custos: [leitura("X", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2490, 2)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toEqual({ situacao: "desfeito" });
@@ -140,7 +170,8 @@ describe("recalcularReajuste (#186)", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X"),
       custos: [leitura("X", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2790, 2)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toEqual({ situacao: "desfeito" });
@@ -154,7 +185,8 @@ describe("recalcularReajuste (#186)", () => {
         leitura("X", "2026-10-16", 2790, 1),
         leitura("Z", "2026-10-16", 2790, 2),
       ],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toMatchObject({
@@ -167,7 +199,8 @@ describe("recalcularReajuste (#186)", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X"),
       custos: [leitura("W", "2026-10-10", 2490), leitura("X", "2026-10-16", 2500)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toEqual({ situacao: "desfeito" });
@@ -177,7 +210,8 @@ describe("recalcularReajuste (#186)", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X"),
       custos: [leitura("W", "2026-10-10", 10_000), leitura("X", "2026-10-16", 10_500)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites: { ...limites, reajusteLimiteBps: 500 },
     });
     expect(r).toEqual({ situacao: "desfeito" });
@@ -187,7 +221,8 @@ describe("recalcularReajuste (#186)", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X"),
       custos: [leitura("W", "2026-10-10", 3000), leitura("X", "2026-10-16", 2500)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toEqual({ situacao: "desfeito" });
@@ -198,7 +233,8 @@ describe("recalcularReajuste (#186)", () => {
       recalcularReajuste({
         metricasApoio: apoio("X"),
         custos: [leitura("W", "2026-10-10", 2000)],
-        confiancaDoProduto: 1,
+        produto: { origem: "dono", confianca: 1 },
+        dataReferencia: "2026-10-19",
         limites,
       }),
     ).toEqual({ situacao: "sem_dado" });
@@ -206,17 +242,19 @@ describe("recalcularReajuste (#186)", () => {
       recalcularReajuste({
         metricasApoio: {},
         custos: [leitura("X", "2026-10-16", 2800)],
-        confiancaDoProduto: 1,
+        produto: { origem: "dono", confianca: 1 },
+        dataReferencia: "2026-10-19",
         limites,
       }),
     ).toEqual({ situacao: "sem_dado" });
   });
 
-  it("a menor confiança entre as leituras, o produto e o giro rebaixa a prioridade e vai para o apoio", () => {
+  it("a menor confiança entre as leituras e o giro vai para o apoio", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X", { giro_fonte: { menor_confianca: 0.6 } }),
       custos: [leitura("W", "2026-10-10", 2000, 1, 0.9), leitura("X", "2026-10-16", 2800, 2, 0.95)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toMatchObject({ situacao: "vale", metricasApoio: { menor_confianca: 0.6 } });
@@ -226,7 +264,8 @@ describe("recalcularReajuste (#186)", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X", { unidades_7_dias: undefined }),
       custos: [leitura("W", "2026-10-10", 2000), leitura("X", "2026-10-16", 2800)],
-      confiancaDoProduto: 1,
+      produto: { origem: "dono", confianca: 1 },
+      dataReferencia: "2026-10-19",
       limites,
     });
     expect(r).toMatchObject({ situacao: "vale", prioridade: 3, metricasApoio: { impacto_centavos: null } });

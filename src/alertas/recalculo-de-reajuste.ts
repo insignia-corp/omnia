@@ -7,10 +7,17 @@
  * vem antes dela. Função pura, sem acesso a banco.
  */
 import { centavos, ErroDinheiro, multiplicar } from "../lib/dinheiro/dinheiro";
-import { compararCustos, type CustoDeCompra } from "../metricas/dados-de-metricas";
+import {
+  compararCustos,
+  procedenciaDoProduto,
+  type CustoDeCompra,
+  type ProdutoParaMetrica,
+} from "../metricas/dados-de-metricas";
 import { percentualDeBps, razaoEmBps } from "../metricas/pontos-base";
+import { procedenciaDeUmRegistro, resultadoMetrica } from "../metricas/resultado-metrica";
 import type { LimitesDeAlerta } from "./limites";
 import { prioridadeDe } from "./prioridade";
+import { fonteDe } from "./regra";
 import type { Prioridade } from "./tipos";
 
 export type ReajusteRecalculado =
@@ -26,8 +33,10 @@ export interface EntradaDoRecalculo {
   metricasApoio: Record<string, unknown>;
   /** Leituras vigentes do par produto e fornecedor do alerta, até a data de referência. */
   custos: readonly CustoDeCompra[];
-  /** Confiança do cadastro do produto, que a métrica também considera. */
-  confiancaDoProduto: number;
+  /** Origem e confiança do cadastro do produto, que a métrica também considera. */
+  produto: Pick<ProdutoParaMetrica, "origem" | "confianca">;
+  /** A data da execução: fecha o período da procedência, como na métrica. */
+  dataReferencia: string;
   limites: LimitesDeAlerta;
 }
 
@@ -60,7 +69,7 @@ export function recalcularReajuste(entrada: EntradaDoRecalculo): ReajusteRecalcu
       if (!(e instanceof ErroDinheiro)) throw e;
     }
   }
-  const confianca = Math.min(atual.confianca, anterior.confianca, entrada.confiancaDoProduto);
+  const confianca = Math.min(atual.confianca, anterior.confianca, entrada.produto.confianca);
   const doGiro = numero(
     (metricasApoio.giro_fonte as { menor_confianca?: unknown } | undefined)?.menor_confianca,
   );
@@ -79,12 +88,17 @@ export function recalcularReajuste(entrada: EntradaDoRecalculo): ReajusteRecalcu
       impacto_centavos: impacto,
       menor_confianca: menorConfianca,
       // Procedência das leituras usadas agora (regra 4): as duas compras, não o conjunto da gravação.
-      fonte: {
-        periodo: { inicio: anterior.data, fim: atual.data },
-        n_registros: 2,
-        menor_confianca: confianca,
-        origens: [...new Set([anterior.origem, atual.origem])].sort(),
-      },
+      fonte: fonteDe(
+        resultadoMetrica(
+          null,
+          { inicio: anterior.data < atual.data ? anterior.data : atual.data, fim: entrada.dataReferencia },
+          [
+            procedenciaDeUmRegistro(anterior.origem, anterior.confianca),
+            procedenciaDeUmRegistro(atual.origem, atual.confianca),
+            procedenciaDoProduto({ id: "", nome: "", margemMetaBps: null, ...entrada.produto }),
+          ],
+        ),
+      ),
     },
   };
 }

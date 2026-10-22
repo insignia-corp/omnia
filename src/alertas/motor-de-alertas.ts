@@ -174,7 +174,7 @@ export class MotorDeAlertas {
           contexto,
           limites,
           produtoIds,
-          new Set(achados.filter((c) => !jaTratado(c)).map((c) => c.chave)),
+          new Set(ordenados.map((c) => c.chave)),
           new Set(achados.filter(jaTratado).map((c) => c.chave)),
         )
       : 0;
@@ -213,7 +213,12 @@ export class MotorDeAlertas {
         produtoId: alerta.produtoId,
         fornecedorId: alerta.fornecedorId,
       });
-      const r = recalcularReajuste({ metricasApoio: alerta.metricasApoio, ...leituras, limites });
+      const r = recalcularReajuste({
+        metricasApoio: alerta.metricasApoio,
+        ...leituras,
+        dataReferencia,
+        limites,
+      });
       if (r.situacao === "desfeito") obsoletos.push(alerta.id);
       else if (r.situacao === "vale") {
         await this.alertas.atualizarCandidato(comercianteId, alerta.id, {

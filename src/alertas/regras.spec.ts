@@ -211,6 +211,28 @@ describe("regra de margem abaixo da meta", () => {
     expect(candidatos[0]).toMatchObject({ impactoCentavos: null, confianca: 0.9 });
   });
 
+  it("ausência só de alguns produtos: informa quais, para o motor não os dar como obsoletos", async () => {
+    const ausente = dadoAusente("sem_custo", "Sem nota de compra.");
+    const r = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () =>
+        Promise.resolve([
+          { produto_id: "p1", resultado: resultado(margem()) },
+          { produto_id: "p2", resultado: ausente },
+        ]),
+    });
+    expect(r.produtosSemDado).toEqual(["p2"]);
+    expect(r.candidatos.map((c) => c.chave)).toEqual(["p1"]);
+  });
+
+  it("sem nenhuma margem a regra inteira ficou sem dado: não informa produtos", async () => {
+    const r = await rodar(regraMargemAbaixoDaMeta, {
+      giro: giroDe36,
+      margensDosProdutos: () => Promise.resolve([]),
+    });
+    expect(r.produtosSemDado).toBeUndefined();
+  });
+
   it("com o impacto vindo do giro, a confiança é a menor entre a da margem e a do giro", async () => {
     const { candidatos } = await rodar(regraMargemAbaixoDaMeta, {
       giro: () => Promise.resolve(giro([giroDoProduto("p1")], undefined, 0.5)),
@@ -404,6 +426,21 @@ describe("regra de espaço para subir preço", () => {
     expect(prioridadeDe({ impactoCentavos: 88_400, confianca: 1 }, LIMITES_PADRAO)).toBe(1);
   });
 
+  it("produto de giro alto sem margem calculável é informado como sem dado, não como obsoleto", async () => {
+    const dois = giro([giroDoProduto("p1"), giroDoProduto("p2")]);
+    const r = await rodar(regraEspacoParaSubirPreco, {
+      giro: () => Promise.resolve({ ...dois, valor: { ...dois.valor, giro_alto: ["p1", "p2"] } }),
+      margensDosProdutos: () =>
+        Promise.resolve([
+          { produto_id: "p1", resultado: resultado(margem({ abaixo_da_meta: false })) },
+          { produto_id: "p2", resultado: dadoAusente("sem_custo", "Sem nota.") },
+        ]),
+    });
+    // p1 foi avaliado (margem acima da meta: sem candidato); só p2 ficou sem dado.
+    expect(r.produtosSemDado).toEqual(["p2"]);
+    expect(r.candidatos).toEqual([]);
+  });
+
   it("giro ausente não gera candidato", async () => {
     const r = await rodar(regraEspacoParaSubirPreco, {
       giro: () => Promise.resolve(dadoAusente("vendas_incompletas", "Faltam vendas.")),
@@ -542,9 +579,14 @@ describe("regra de gasto fora do padrão", () => {
       (await rodar(regraGastoForaDoPadrao, { gastoForaDoPadrao: () => Promise.resolve(gasto(3)) }))
         .candidatos,
     ).toEqual([]);
+    const nulo = await rodar(regraGastoForaDoPadrao, {
+      gastoForaDoPadrao: () => Promise.resolve(gasto(null)),
+    });
+    expect(nulo.candidatos).toEqual([]);
+    // Sem medida não é "deixou de disparar": é ausente, e o candidato do dia não vira obsoleto.
+    expect(nulo.ausentes.map((a) => a.codigo)).toEqual(["desvio_nulo"]);
     expect(
-      (await rodar(regraGastoForaDoPadrao, { gastoForaDoPadrao: () => Promise.resolve(gasto(null)) }))
-        .candidatos,
+      (await rodar(regraGastoForaDoPadrao, { gastoForaDoPadrao: () => Promise.resolve(gasto(3)) })).ausentes,
     ).toEqual([]);
     const ausente = await rodar(regraGastoForaDoPadrao, {
       gastoForaDoPadrao: () => Promise.resolve(dadoAusente("sem_extrato_no_dia", "Sem extrato.")),

@@ -164,7 +164,7 @@ export const tipoAlerta = pgEnum("tipo_alerta", [
   "ticket_medio_em_queda",
   "gasto_fora_do_padrao",
 ]);
-export const statusAlerta = pgEnum("status_alerta", ["candidato", "enviado", "descartado"]);
+export const statusAlerta = pgEnum("status_alerta", ["candidato", "enviado", "descartado", "obsoleto"]);
 export const direcaoMensagem = pgEnum("direcao_mensagem", ["enviada", "recebida"]);
 export const canalMensagem = pgEnum("canal_mensagem", ["web", "whatsapp"]);
 /** Tipo da mensagem no formato da WhatsApp Cloud API (`button`: toque em botão de modelo). */
@@ -224,6 +224,13 @@ export const conta = pgTable(
     /** Saldo na data em que a conta entrou no sistema; o saldo de um dia soma as transações a partir daí. */
     saldoInicialCentavos: bigint("saldo_inicial_centavos", { mode: "number" }),
     saldoInicialEm: date("saldo_inicial_em", { mode: "string" }),
+    /**
+     * Último dia cujo extrato foi importado por inteiro (data de corte, não o dia da execução: se o
+     * banco lança com atraso, o importador grava ontem), mesmo sem transação nova. Separa "sem
+     * movimento" de "sem importação": a cobertura de extrato usa a maior entre esta data e a da
+     * última transação. Nula enquanto nenhuma importação terminou.
+     */
+    ultimaSincronizacaoEm: date("ultima_sincronizacao_em", { mode: "string" }),
     criadoEm: criadoEm(),
   },
   (t) => [

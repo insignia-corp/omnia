@@ -91,6 +91,38 @@ class RepositorioFalso implements RepositorioAlertas {
     this.chamadasDe.push(comercianteId);
     return Promise.resolve(this.existentes.filter((e) => tipos.includes(e.tipo)));
   }
+  /** Travas pedidas (comerciante e dia) e se a execução rodou dentro delas. */
+  travas: string[] = [];
+  async comExclusao<T>(comercianteId: string, dia: string, corpo: () => Promise<T>): Promise<T> {
+    this.travas.push(`${comercianteId}|${dia}`);
+    return corpo();
+  }
+  /** O que o motor pediu para marcar como obsoleto. */
+  obsoletados: Array<{
+    tipos: readonly TipoAlerta[];
+    manter: string[];
+    produtoIds?: ReadonlySet<string>;
+    excluir?: ReadonlyArray<{ tipo: TipoAlerta; produtoId: string }>;
+  }> = [];
+  marcarObsoletos(
+    comercianteId: string,
+    _dia: string,
+    escopo: {
+      tipos: readonly TipoAlerta[];
+      produtoIds?: ReadonlySet<string>;
+      excluir?: ReadonlyArray<{ tipo: TipoAlerta; produtoId: string }>;
+      manter: ReadonlyArray<{ tipo: TipoAlerta; chave: string }>;
+    },
+  ) {
+    this.chamadasDe.push(comercianteId);
+    this.obsoletados.push({
+      tipos: escopo.tipos,
+      manter: escopo.manter.map((m) => `${m.tipo}|${m.chave}`),
+      ...(escopo.produtoIds ? { produtoIds: escopo.produtoIds } : {}),
+      ...(escopo.excluir ? { excluir: escopo.excluir } : {}),
+    });
+    return Promise.resolve(0);
+  }
   candidatosDoDia(comercianteId: string) {
     this.chamadasDe.push(comercianteId);
     return Promise.resolve([] as AlertaGravado[]);
@@ -360,5 +392,160 @@ describe("motor de alertas: opções do job pós-nota", () => {
     const { motor, repositorio } = motorCom([variacao()], giro(10));
     await motor.executar({ comercianteId: "c1", dataReferencia: REF }, { tipos: ["estoque_parado"] });
     expect(repositorio.gravados).toEqual([]);
+  });
+});
+
+describe("motor de alertas: candidato obsoleto (#157)", () => {
+  const regraQue = (tipo: TipoAlerta, candidatos: string[], ausente = false): RegraDeAlerta => ({
+    tipo,
+    avaliar: () =>
+      Promise.resolve({
+        candidatos: candidatos.map((chave) => ({
+          tipo,
+          chave,
+          produtoId: chave,
+          fornecedorId: null,
+          metricasApoio: {},
+          impactoCentavos: 0,
+          confianca: 1,
+        })),
+        ausentes: ausente ? [{ tipo, codigo: "sem_dado", motivo: "sem dado" }] : [],
+      }),
+  });
+
+  const rodar = async (regras: RegraDeAlerta[], opcoes = {}, preparar?: (r: RepositorioFalso) => void) => {
+    const repositorio = new RepositorioFalso();
+    preparar?.(repositorio);
+    const motor = new MotorDeAlertas({} as MetricasService, repositorio, semLimites, regras);
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF }, opcoes);
+    return repositorio;
+  };
+
+  it("pede para marcar como obsoleto o que a regra deixou de disparar: só o que continua vale fica", async () => {
+    const r = await rodar([regraQue("estoque_parado", ["a"]), regraQue("giro_em_alta", [])]);
+    expect(r.obsoletados).toHaveLength(1);
+    expect(r.obsoletados[0]?.tipos).toEqual(["estoque_parado", "giro_em_alta"]);
+    expect(r.obsoletados[0]?.manter).toEqual(["estoque_parado|a"]);
+  });
+
+  it("regra sem dado (ausente) não marca nada como obsoleto: sem dado não dá para dizer que deixou de valer", async () => {
+    const r = await rodar([regraQue("estoque_parado", [], true), regraQue("giro_em_alta", [])]);
+    expect(r.obsoletados[0]?.tipos).toEqual(["giro_em_alta"]);
+  });
+
+  it("ausência só de alguns produtos: a regra segue avaliada, e esses produtos ficam de fora do obsoleto", async () => {
+    const parcial: RegraDeAlerta = {
+      tipo: "margem_abaixo_da_meta",
+      avaliar: () =>
+        Promise.resolve({
+          candidatos: [],
+          ausentes: [{ tipo: "margem_abaixo_da_meta", codigo: "sem_custo", motivo: "sem custo" }],
+          produtosSemDado: ["p9"],
+        }),
+    };
+    const r = await rodar([parcial]);
+    expect(r.obsoletados[0]?.tipos).toEqual(["margem_abaixo_da_meta"]);
+    expect(r.obsoletados[0]?.excluir).toEqual([{ tipo: "margem_abaixo_da_meta", produtoId: "p9" }]);
+  });
+
+  it("a ausência de um produto numa regra não protege os candidatos dele em outra regra", async () => {
+    const semDado: RegraDeAlerta = {
+      tipo: "margem_abaixo_da_meta",
+      avaliar: () =>
+        Promise.resolve({
+          candidatos: [],
+          ausentes: [{ tipo: "margem_abaixo_da_meta", codigo: "sem_custo", motivo: "sem custo" }],
+          produtosSemDado: ["p9"],
+        }),
+    };
+    const r = await rodar([semDado, regraQue("giro_em_alta", [])]);
+    // Só margem/p9 é poupado: o giro de p9 (outra regra, que avaliou) pode virar obsoleto.
+    expect(r.obsoletados[0]?.excluir).toEqual([{ tipo: "margem_abaixo_da_meta", produtoId: "p9" }]);
+    expect(r.obsoletados[0]?.tipos).toEqual(["margem_abaixo_da_meta", "giro_em_alta"]);
+  });
+
+  it("o reajuste nunca entra nos tipos que podem virar obsoletos", async () => {
+    // A métrica só olha a compra atual do par: uma nota nova ou a correção de uma nota do dia faria a alta
+    // sumir sem ter sido refutada.
+    const r = await rodar([regraQue("reajuste_de_custo", []), regraQue("giro_em_alta", [])]);
+    expect(r.obsoletados[0]?.tipos).toEqual(["giro_em_alta"]);
+  });
+
+  it("cada execução roda dentro da trava do comerciante e do dia", async () => {
+    const r = await rodar([regraQue("estoque_parado", ["a"])]);
+    expect(r.travas).toEqual([`c1|${REF}`]);
+  });
+
+  it("a execução restrita a produtos (job) só marca obsoleto dentro desses produtos", async () => {
+    const r = await rodar([regraQue("estoque_parado", ["a", "b"])], { produtoIds: new Set(["a"]) });
+    expect(r.obsoletados[0]?.produtoIds).toEqual(new Set(["a"]));
+    expect(r.gravados.map((g) => g.chave)).toEqual(["a"]);
+  });
+
+  it("candidato que continua valendo mas o job não regrava (semRepetirGravados) NÃO vira obsoleto", async () => {
+    const r = await rodar([regraQue("estoque_parado", ["a"])], { semRepetirGravados: true }, (rep) => {
+      rep.existentes = [{ tipo: "estoque_parado", chave: "a" }];
+    });
+    expect(r.gravados).toEqual([]);
+    expect(r.obsoletados[0]?.manter).toEqual(["estoque_parado|a"]);
+  });
+
+  it("candidato do dia que passou a ser suprimido por um alerta já tratado vira obsoleto", async () => {
+    const r = await rodar([regraQue("estoque_parado", ["a"])], {}, (rep) => {
+      rep.tratados = [{ tipo: "estoque_parado", chave: "a", dataReferencia: "2026-10-18" }];
+    });
+    expect(r.gravados).toEqual([]);
+    expect(r.obsoletados[0]?.manter).toEqual([]);
+  });
+});
+
+describe("motor de alertas: o mesmo reajuste sob outra chave (#157)", () => {
+  const tratado = (extra: Partial<AlertaJaTratado>): AlertaJaTratado => ({
+    tipo: "reajuste_de_custo",
+    chave: "p1:f1:compra-ANTIGA",
+    produtoId: "p1",
+    fornecedorId: "f1",
+    metricasApoio: { custo_atual_centavos: 115, custo_anterior_centavos: 100 },
+    dataReferencia: "2026-10-16",
+    ...extra,
+  });
+  const dataHa = (dias: number) =>
+    new Date(Date.parse(`${REF}T00:00:00Z`) - dias * 86_400_000).toISOString().slice(0, 10);
+
+  const gravadosCom = async (tratados: AlertaJaTratado[]) => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.tratados = tratados;
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    return repositorio.gravados;
+  };
+
+  it("mesmo produto, fornecedor e custos, tratado há 3 dias sob outra chave: é o mesmo reajuste", async () => {
+    expect(await gravadosCom([tratado({ dataReferencia: dataHa(3) })])).toEqual([]);
+  });
+
+  it("tratado no próprio dia (a correção do dono troca a chave no mesmo dia) também é o mesmo reajuste", async () => {
+    expect(await gravadosCom([tratado({ dataReferencia: REF })])).toEqual([]);
+  });
+
+  it("só dentro da janela: tratado há 7 dias já não vale (outro movimento de preço meses depois pode alertar)", async () => {
+    expect(await gravadosCom([tratado({ dataReferencia: dataHa(7) })])).toHaveLength(1);
+    expect(await gravadosCom([tratado({ dataReferencia: dataHa(6) })])).toEqual([]);
+  });
+
+  it("custo novo ou anterior diferente, ou outro fornecedor, ou outro produto: é outro reajuste", async () => {
+    for (const extra of [
+      { metricasApoio: { custo_atual_centavos: 120, custo_anterior_centavos: 100 } },
+      { metricasApoio: { custo_atual_centavos: 115, custo_anterior_centavos: 90 } },
+      { fornecedorId: "f2" },
+      { produtoId: "p2" },
+    ]) {
+      expect(await gravadosCom([tratado({ dataReferencia: dataHa(3), ...extra })])).toHaveLength(1);
+    }
+  });
+
+  it("só vale para reajuste: outro tipo com os mesmos números não suprime", async () => {
+    expect(
+      await gravadosCom([tratado({ dataReferencia: dataHa(3), tipo: "margem_abaixo_da_meta" })]),
+    ).toHaveLength(1);
   });
 });

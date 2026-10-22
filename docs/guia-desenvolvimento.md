@@ -53,7 +53,7 @@ O banco é PostgreSQL. Duas regras valem para todas as tabelas: valores em dinhe
 | Documento | comerciante, tipo (foto de nota, NF-e, planilha), arquivo, status da extração, confiança média |
 | Compra e item de compra | documento, fornecedor, data, total; por item: produto, quantidade, custo unitário, confiança |
 | Venda e item de venda | data, origem; por item: produto, quantidade, preço unitário |
-| Alerta | comerciante, tipo, prioridade, métricas de apoio (JSON), status (candidato, enviado, descartado) |
+| Alerta | comerciante, tipo, prioridade, métricas de apoio (JSON), status (candidato, enviado, descartado, obsoleto) |
 | Mensagem | direção (enviada ou recebida), categoria do template, texto, custo estimado |
  
 A tabela Mensagem, junto de um registro de tokens por execução do agente, é o que permite calcular o custo real por lojista e fechar a hipótese de preço.
@@ -116,7 +116,7 @@ O motor de alertas apenas lista candidatos com prioridade. Quem decide o que ent
 O código aplica estas regras além da tabela. Os valores iniciais ficam nas constantes `PARAMETROS_*` de [src/metricas](../src/metricas/README.md), e o teste de regressão confere que são os do gabarito.
 
 - Sem custo ou sem venda a margem não sai: a métrica devolve dado ausente, com a pergunta ao dono, nunca uma estimativa.
-- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio, gasto fora do padrão) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. No resumo, o extrato tem o próprio intervalo: sem extrato para o dia, `gastos_centavos` e `saldo_do_dia_centavos` são dado ausente. A cobertura vale por conta (conta ativa sem extrato no dia, ou sem nenhuma transação, também deixa o dia ausente): regra e limitação em `src/metricas/README.md`. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias, e a receita por produto quando cobrem os 7 dias.
+- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio, gasto fora do padrão) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. No resumo, o extrato tem o próprio intervalo: sem extrato para o dia, `gastos_centavos` e `saldo_do_dia_centavos` são dado ausente. A cobertura vale por conta (conta ativa sem extrato no dia, ou sem transação e sem sincronização, também deixa o dia ausente): regra e limitação em `src/metricas/README.md`. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias, e a receita por produto quando cobrem os 7 dias.
 - Venda de planilha cuja importação ainda pede revisão do dono (documento fora de `extraido`) entra nas métricas com confiança 0,5, não 1; volta ao valor original quando o documento é resolvido.
 - O custo de cada item de compra vale pela leitura mais recente de `historico_custo`, então a correção do dono prevalece sem apagar a leitura do modelo. O custo mais recente de um produto é o de maior data; o empate desempata pela criação.
 - A variação de custo compara notas diferentes: duas linhas do mesmo produto na mesma nota não são um reajuste.

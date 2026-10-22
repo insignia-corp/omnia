@@ -154,9 +154,9 @@ describe("alerta obsoleto (e2e)", () => {
       ).rejects.toThrow(/candidatos de hoje/);
     });
 
-    it("o reajuste nunca vira obsoleto: a métrica só olha a compra atual do par", async () => {
-      // O custo corrigido para R$ 25,00 já desfez o reajuste, mas o candidato fica como estava.
-      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("candidato");
+    it("o reajuste que a correção desfez também vira obsoleto (a alta da própria compra voltou ao limite)", async () => {
+      // O custo corrigido para R$ 25,00 (0,4% sobre os R$ 24,90): não é mais reajuste.
+      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("obsoleto");
     });
 
     it("repetir sem mudança não grava nem marca nada", async () => {
@@ -262,6 +262,161 @@ describe("alerta obsoleto (e2e)", () => {
       await motor.executar({ comercianteId: esquina, dataReferencia: REF });
       const vila = await doProduto("reajuste_de_custo");
       expect(vila[0]?.comercianteId).toBe(vilaNova);
+    });
+  });
+  describe("reajuste de uma compra que deixou de ser a atual do par (#186)", () => {
+    let seq = 0;
+    const base = (dia: string) => new Date(`${dia}T12:00:00Z`);
+    /** Uma nota do arroz com o fornecedor `f`; a leitura nasce no instante `criadoEm` (define a ordem). */
+    const nota = async (f: string, data: string, custoCentavos: number, criadoEm: Date) => {
+      const [c] = await db
+        .insert(schema.compra)
+        .values({
+          comercianteId: vilaNova,
+          fornecedorId: f,
+          data,
+          totalCentavos: custoCentavos,
+          somaItensCentavos: custoCentavos,
+          origem: "foto_nota",
+          confianca: 1,
+          criadoEm,
+        })
+        .returning({ id: schema.compra.id });
+      const [item] = await db
+        .insert(schema.itemDeCompra)
+        .values({
+          comercianteId: vilaNova,
+          compraId: c!.id,
+          produtoId: arroz,
+          ordem: 1,
+          descricaoNota: "ARROZ 5KG",
+          quantidade: 1,
+          unidade: "un",
+          valorUnitarioCentavos: custoCentavos,
+          valorTotalCentavos: custoCentavos,
+          confianca: 1,
+          origem: "foto_nota",
+        })
+        .returning({ id: schema.itemDeCompra.id });
+      await leitura(f, data, item!.id, custoCentavos, criadoEm);
+      return { compraId: c!.id, itemId: item!.id };
+    };
+    const leitura = (f: string, data: string, itemId: string, custoCentavos: number, criadoEm: Date) =>
+      db.insert(schema.historicoCusto).values({
+        comercianteId: vilaNova,
+        produtoId: arroz,
+        fornecedorId: f,
+        data,
+        custoUnitarioCentavos: custoCentavos,
+        itemDeCompraId: itemId,
+        origem: "dono",
+        confianca: 1,
+        criadoEm,
+      });
+    const novoFornecedor = async () => {
+      const [f] = await db
+        .insert(schema.fornecedor)
+        .values({ comercianteId: vilaNova, nome: `Fornecedor ${++seq} do reajuste`, origem: "dono" })
+        .returning({ id: schema.fornecedor.id });
+      return f!.id;
+    };
+    const doPar = async (f: string) =>
+      (await doProduto("reajuste_de_custo")).filter((l) => l.fornecedorId === f);
+    const rodar = () => motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+    const DIA = "2026-10-18";
+
+    it("2ª compra do par no mesmo dia: a alta da primeira continua, o candidato fica", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2490, base("2026-10-17"));
+      await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      expect(await doPar(f)).toHaveLength(1);
+      await nota(f, DIA, 2790, new Date("2026-10-18T15:00:00Z"));
+      const r = await rodar();
+      const linhas = await doPar(f);
+      expect(r.obsoletos).toBe(0);
+      expect(linhas.map((l) => l.status)).toEqual(["candidato"]);
+      expect(linhas[0]?.metricasApoio).toMatchObject({
+        custo_anterior_centavos: 2490,
+        custo_atual_centavos: 2790,
+      });
+    });
+
+    it("nota anterior do dia lida errada e corrigida pelo dono, sem compra mais antiga: o reajuste vira obsoleto", async () => {
+      const f = await novoFornecedor();
+      const z = await nota(f, DIA, 2490, new Date("2026-10-18T09:00:00Z"));
+      await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      expect((await doPar(f))[0]).toMatchObject({ status: "candidato" });
+      await leitura(f, DIA, z.itemId, 2790, new Date());
+      const r = await rodar();
+      expect((await doPar(f))[0]).toMatchObject({ status: "obsoleto" });
+      expect(r.candidatos.some((c) => c.fornecedorId === f)).toBe(false);
+    });
+
+    it("nota anterior do dia corrigida, com compra mais barata antes: fica candidato com os números recalculados", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2000, base("2026-10-17"));
+      const z = await nota(f, DIA, 2490, new Date("2026-10-18T09:00:00Z"));
+      await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      const [antes] = await doPar(f);
+      expect(antes?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2490 });
+      await leitura(f, DIA, z.itemId, 2790, new Date());
+      await rodar();
+      const [depois] = await doPar(f);
+      expect(depois).toMatchObject({ id: antes!.id, status: "candidato" });
+      // Nenhum número velho: a alta agora é contra os R$ 20,00 da compra anterior.
+      expect(depois?.metricasApoio).toMatchObject({
+        custo_anterior_centavos: 2000,
+        custo_atual_centavos: 2790,
+        variacao_bps: 3950,
+      });
+    });
+
+    it("reemitirCustos da nota mais antiga do dia (leitura nova, mesmo custo) não derruba o reajuste quando há compra anterior", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2490, base("2026-10-17"));
+      const a = await nota(f, DIA, 2490, new Date("2026-10-18T09:00:00Z"));
+      await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      expect(await doPar(f)).toHaveLength(1);
+      await leitura(f, DIA, a.itemId, 2490, new Date());
+      await rodar();
+      expect((await doPar(f))[0]).toMatchObject({ status: "candidato" });
+    });
+
+    it("correção do dono da própria nota para dentro do limite: obsoleto; de volta para a alta: reativa", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2490, base("2026-10-17"));
+      const x = await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      await leitura(f, DIA, x.itemId, 2500, new Date());
+      await rodar();
+      expect((await doPar(f))[0]).toMatchObject({ status: "obsoleto" });
+      await leitura(f, DIA, x.itemId, 2800, new Date());
+      await rodar();
+      expect((await doPar(f))[0]).toMatchObject({ status: "candidato" });
+      expect((await doPar(f))[0]?.metricasApoio).toMatchObject({ custo_atual_centavos: 2800 });
+    });
+
+    it("enviado ou descartado nunca é tocado pela reavaliação", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2490, base("2026-10-17"));
+      const x = await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      const [alvo] = await doPar(f);
+      await db.update(schema.alerta).set({ status: "enviado" }).where(eq(schema.alerta.id, alvo!.id));
+      await leitura(f, DIA, x.itemId, 2500, new Date());
+      await rodar();
+      expect((await doPar(f))[0]).toMatchObject({ status: "enviado", metricasApoio: alvo!.metricasApoio });
+    });
+
+    it("o reajuste de outro lojista não é reavaliado nem alterado", async () => {
+      const antes = await db.select().from(schema.alerta).where(eq(schema.alerta.comercianteId, esquina));
+      await rodar();
+      const depois = await db.select().from(schema.alerta).where(eq(schema.alerta.comercianteId, esquina));
+      expect(depois).toEqual(antes);
     });
   });
 });

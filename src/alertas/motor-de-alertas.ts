@@ -6,10 +6,11 @@
  */
 import { diasEntre, somarDias } from "../lib/datas/datas";
 import { MetricasService } from "../metricas/metricas.service";
-import { mesclarLimites, type FonteDeLimites } from "./limites";
+import { mesclarLimites, type FonteDeLimites, type LimitesDeAlerta } from "./limites";
 import { compararCandidatos, ordenarGravados, prioridadeDe } from "./prioridade";
 import { MetricasDaExecucao, type CandidatoDeAlerta, type MotivoAusente, type RegraDeAlerta } from "./regra";
 import type { AlertaGravado, AlertaJaTratado, RepositorioAlertas } from "./repositorio-alertas";
+import { recalcularReajuste } from "./recalculo-de-reajuste";
 import { REGRAS_DE_ALERTA } from "./regras";
 import type { TipoAlerta } from "./tipos";
 
@@ -152,8 +153,8 @@ export class MotorDeAlertas {
     // O candidato do dia que a regra não dispara mais (depois de uma correção do dono) vira obsoleto.
     // Só nas regras que avaliaram com dado: sem dado (ausente) não dá para dizer que deixou de valer. Um
     // candidato que continua valendo mas foi só barrado pela repetição do job fica como está. O reajuste
-    // fica de fora: a métrica só olha a compra atual do par, então uma nota nova ou a correção de uma nota
-    // do dia faria a alta sumir sem ter sido refutada (ver "Candidato obsoleto" no README).
+    // fica de fora daqui: a métrica só olha a compra atual do par, então uma nota nova ou a correção de uma
+    // nota do dia faria a alta sumir sem ter sido refutada. Ele é tratado à parte, por `reavaliarReajustes`.
     const avaliados = regras
       .filter((_, i) => resultados[i]!.ausentes.length === 0 || resultados[i]!.produtosSemDado !== undefined)
       .map((r) => r.tipo)
@@ -168,12 +169,59 @@ export class MotorDeAlertas {
       ...(semDado.length > 0 ? { excluir: semDado } : {}),
       manter: achados.filter((c) => !jaTratado(c)).map((c) => ({ tipo: c.tipo, chave: c.chave })),
     });
+    const reajustesObsoletos = regras.some((r) => r.tipo === "reajuste_de_custo")
+      ? await this.reavaliarReajustes(
+          contexto,
+          limites,
+          produtoIds,
+          new Set(achados.filter((c) => !jaTratado(c)).map((c) => c.chave)),
+          new Set(achados.filter(jaTratado).map((c) => c.chave)),
+        )
+      : 0;
     return {
       candidatos: ordenarGravados(await this.alertas.candidatosDoDia(comercianteId, dataReferencia)),
       gravados,
       suprimidos,
       ausentes,
-      obsoletos,
+      obsoletos: obsoletos + reajustesObsoletos,
     };
+  }
+
+  /**
+   * Os reajustes do dia que a regra não devolveu mais (uma nota nova no dia, a correção do dono de uma
+   * nota): a variação da própria compra do alerta é refeita com as leituras vigentes (#186). Alta no limite
+   * ou abaixo dele, ou sem compra anterior: vira `obsoleto`. Ainda acima do limite: números e prioridade
+   * atualizados. Um que só foi suprimido por um alerta já tratado também vira `obsoleto`. Sem leitura da
+   * compra (sem dado) fica como está. Devolve quantos viraram obsoletos.
+   */
+  private async reavaliarReajustes(
+    { comercianteId, dataReferencia }: ContextoDoMotor,
+    limites: LimitesDeAlerta,
+    produtoIds: ReadonlySet<string> | undefined,
+    chavesQueContinuam: ReadonlySet<string>,
+    chavesSuprimidas: ReadonlySet<string>,
+  ): Promise<number> {
+    const abertos = await this.alertas.reajustesEmAberto(comercianteId, dataReferencia, produtoIds);
+    const obsoletos: string[] = [];
+    for (const alerta of abertos) {
+      if (chavesQueContinuam.has(alerta.chave)) continue;
+      if (chavesSuprimidas.has(alerta.chave) || alerta.produtoId === null || alerta.fornecedorId === null) {
+        obsoletos.push(alerta.id);
+        continue;
+      }
+      const leituras = await this.alertas.leiturasDoPar(comercianteId, dataReferencia, {
+        produtoId: alerta.produtoId,
+        fornecedorId: alerta.fornecedorId,
+      });
+      const r = recalcularReajuste({ metricasApoio: alerta.metricasApoio, ...leituras, limites });
+      if (r.situacao === "desfeito") obsoletos.push(alerta.id);
+      else if (r.situacao === "vale") {
+        await this.alertas.atualizarCandidato(comercianteId, alerta.id, {
+          prioridade: r.prioridade,
+          metricasApoio: r.metricasApoio,
+        });
+      }
+    }
+    return this.alertas.marcarObsoletosPorId(comercianteId, obsoletos);
   }
 }

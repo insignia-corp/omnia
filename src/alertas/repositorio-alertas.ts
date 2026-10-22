@@ -1,6 +1,8 @@
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Executor } from "../infra/database/database.module";
-import { alerta } from "../infra/database/schema";
+import { alerta, produto } from "../infra/database/schema";
+import type { CustoDeCompra } from "../metricas/dados-de-metricas";
+import { RepositorioMetricasPostgres } from "../metricas/repositorio-metricas";
 import type { TipoAlerta, Prioridade } from "./tipos";
 
 export interface AlertaGravado {
@@ -74,6 +76,32 @@ export interface RepositorioAlertas {
       manter: ReadonlyArray<Pick<AlertaJaTratado, "tipo" | "chave">>;
     },
   ): Promise<number>;
+  /**
+   * Os candidatos de `reajuste_de_custo` do dia, de `produtoIds` se informados. O motor refaz a variação
+   * dos que a regra não devolveu mais (#186).
+   */
+  reajustesEmAberto(
+    comercianteId: string,
+    dataReferencia: string,
+    produtoIds?: ReadonlySet<string>,
+  ): Promise<AlertaGravado[]>;
+  /** Leituras de custo vigentes do par produto e fornecedor até `ate` (só leitura) e a confiança do produto. */
+  leiturasDoPar(
+    comercianteId: string,
+    ate: string,
+    par: { produtoId: string; fornecedorId: string },
+  ): Promise<{ custos: CustoDeCompra[]; confiancaDoProduto: number }>;
+  /** Marca como `obsoleto` os candidatos `ids` do comerciante. Só sai de `candidato`. */
+  marcarObsoletosPorId(comercianteId: string, ids: readonly string[]): Promise<number>;
+  /**
+   * Troca prioridade e métricas de apoio de um candidato, só se algo mudou e só enquanto for `candidato`.
+   * Devolve se a linha mudou.
+   */
+  atualizarCandidato(
+    comercianteId: string,
+    id: string,
+    novo: { prioridade: Prioridade; metricasApoio: Record<string, unknown> },
+  ): Promise<boolean>;
   /** Os candidatos do dia, sem ordem garantida dentro do nível: o motor ordena. */
   candidatosDoDia(comercianteId: string, dataReferencia: string): Promise<AlertaGravado[]>;
 }
@@ -240,6 +268,93 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
       )
       .returning({ id: alerta.id });
     return marcados.length;
+  }
+
+  async reajustesEmAberto(
+    comercianteId: string,
+    dataReferencia: string,
+    produtoIds?: ReadonlySet<string>,
+  ): Promise<AlertaGravado[]> {
+    const linhas = await this.db
+      .select()
+      .from(alerta)
+      .where(
+        and(
+          eq(alerta.comercianteId, comercianteId),
+          eq(alerta.dataReferencia, dataReferencia),
+          eq(alerta.status, "candidato"),
+          eq(alerta.tipo, "reajuste_de_custo"),
+        ),
+      );
+    return linhas
+      .filter((l) => !produtoIds || (l.produtoId !== null && produtoIds.has(l.produtoId)))
+      .map((l) => ({
+        id: l.id,
+        tipo: l.tipo,
+        chave: l.chave,
+        prioridade: l.prioridade as Prioridade,
+        dataReferencia: l.dataReferencia,
+        produtoId: l.produtoId,
+        fornecedorId: l.fornecedorId,
+        metricasApoio: l.metricasApoio as Record<string, unknown>,
+      }));
+  }
+
+  async leiturasDoPar(
+    comercianteId: string,
+    ate: string,
+    par: { produtoId: string; fornecedorId: string },
+  ): Promise<{ custos: CustoDeCompra[]; confiancaDoProduto: number }> {
+    const todas = await new RepositorioMetricasPostgres(this.db).custosDeCompra(
+      comercianteId,
+      ate,
+      par.produtoId,
+    );
+    const [p] = await this.db
+      .select({ confianca: produto.confianca })
+      .from(produto)
+      .where(and(eq(produto.comercianteId, comercianteId), eq(produto.id, par.produtoId)));
+    return {
+      custos: todas.filter((c) => c.fornecedorId === par.fornecedorId),
+      confiancaDoProduto: p?.confianca ?? 0,
+    };
+  }
+
+  async marcarObsoletosPorId(comercianteId: string, ids: readonly string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const marcados = await this.db
+      .update(alerta)
+      .set({ status: "obsoleto" })
+      .where(
+        and(
+          inArray(alerta.id, [...ids]),
+          eq(alerta.comercianteId, comercianteId),
+          eq(alerta.status, "candidato"),
+        ),
+      )
+      .returning({ id: alerta.id });
+    return marcados.length;
+  }
+
+  async atualizarCandidato(
+    comercianteId: string,
+    id: string,
+    novo: { prioridade: Prioridade; metricasApoio: Record<string, unknown> },
+  ): Promise<boolean> {
+    const mudou = await this.db
+      .update(alerta)
+      .set({ prioridade: novo.prioridade, metricasApoio: novo.metricasApoio })
+      .where(
+        and(
+          eq(alerta.id, id),
+          eq(alerta.comercianteId, comercianteId),
+          eq(alerta.status, "candidato"),
+          sql`(${alerta.prioridade} is distinct from ${novo.prioridade}
+            or ${alerta.metricasApoio} is distinct from ${JSON.stringify(novo.metricasApoio)}::jsonb)`,
+        ),
+      )
+      .returning({ id: alerta.id });
+    return mudou.length > 0;
   }
 
   async candidatosDoDia(comercianteId: string, dataReferencia: string): Promise<AlertaGravado[]> {

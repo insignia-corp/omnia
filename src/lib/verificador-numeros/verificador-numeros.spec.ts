@@ -185,3 +185,81 @@ describe("identificadores não autorizam números (regra 8)", () => {
     expect(verificarNumeros(`Veja ${UUID_COM_99}.`, new NumerosAutorizados()).aprovado).toBe(false);
   });
 });
+
+describe("percentual negativo dito em módulo com palavra de direção (regra 8)", () => {
+  const resumo = {
+    comparacao_faturamento: { variacao_percentual: -7.29, variacao_bps: -729 },
+    vendas_ontem_centavos: -15000,
+    unidades: -3,
+    margem_percentual: 27.7,
+  };
+  const a = new NumerosAutorizados([resumo]);
+
+  it.each([
+    "Faturamento em queda de 7,29% contra os dias anteriores.",
+    "O faturamento caiu 7,29% em relação aos dias anteriores.",
+    "Houve recuo de 7,29% no faturamento.",
+    "A queda foi de 7,29%.",
+    "O faturamento ficou 7,29% menor que antes.",
+    "Vendeu 7,29% abaixo da média.",
+    "Vendeu 7,29% a menos que ontem.",
+    "Teve 7,29% de queda nas vendas.",
+    "A variação foi negativa em 7,29%.",
+    "Houve queda de 7,29%, com margem de 27,7%.",
+  ])("aprova o valor absoluto com direção coerente: %s", (mensagem) => {
+    expect(verificarNumeros(mensagem, a).aprovado).toBe(true);
+  });
+
+  it.each([
+    "O faturamento teve alta de 7,29%.",
+    "O faturamento subiu 7,29% contra os dias anteriores.",
+    "Vendeu 7,29% acima da média.",
+    "Vendeu 7,29% a mais que ontem.",
+    "Houve aumento de 7,29% no faturamento.",
+    "Houve queda de 27,7% e alta de 7,29%.",
+    "O faturamento caiu, mas a margem subiu 7,29%.",
+  ])("barra o sentido errado: %s", (mensagem) => {
+    expect(verificarNumeros(mensagem, a).aprovado).toBe(false);
+  });
+
+  it.each([
+    "O faturamento variou 7,29% contra os dias anteriores.",
+    "A variação foi de 7,29%.",
+    "Houve queda nas vendas. A margem é de 7,29%.",
+    "Houve queda nas vendas, mas a margem foi de 7,29%.",
+    "Queda de 7,29 pontos.",
+  ])("barra o caso ambíguo sem direção coerente: %s", (mensagem) => {
+    expect(verificarNumeros(mensagem, a).aprovado).toBe(false);
+  });
+
+  it("barra valor que não existe em nenhuma saída, mesmo com direção", () => {
+    expect(verificarNumeros("Queda de 7,30% no faturamento.", a).aprovado).toBe(false);
+    expect(verificarNumeros("Queda de 30,23% no faturamento.", a).aprovado).toBe(false);
+    expect(verificarNumeros("Alta de 30,23% no faturamento.", a).aprovado).toBe(false);
+  });
+
+  it("não vale para sinal explícito errado nem para outras chaves", () => {
+    expect(verificarNumeros("Queda de +7,29%.", a).aprovado).toBe(false);
+    expect(verificarNumeros("Queda de 7,29.", a).aprovado).toBe(false);
+  });
+
+  it("dinheiro e contagem seguem exigindo o sinal da ferramenta", () => {
+    expect(verificarNumeros("Queda de R$ 150,00 nas vendas.", a).aprovado).toBe(false);
+    expect(verificarNumeros("O saldo caiu R$ 150,00.", a).aprovado).toBe(false);
+    expect(verificarNumeros("Queda de 3 unidades.", a).aprovado).toBe(false);
+    expect(verificarNumeros("Queda de 729 pontos.", a).aprovado).toBe(false);
+    expect(verificarNumeros("Saldo de R$ -150,00 e -3 unidades.", a).aprovado).toBe(true);
+  });
+
+  it("a mesma regra vale em lista, com um verbo para vários valores", () => {
+    const lista = new NumerosAutorizados([
+      { comparacoes: [{ variacao_percentual: -7.29 }, { variacao_percentual: -30.23 }] },
+    ]);
+    expect(verificarNumeros("Queda de 7,29% e de 30,23% contra os dias anteriores.", lista).aprovado).toBe(true);
+    expect(verificarNumeros("Queda de 7,29% e alta de 30,23%.", lista).aprovado).toBe(false);
+  });
+
+  it("um valor positivo da ferramenta continua valendo ao lado de uma queda", () => {
+    expect(verificarNumeros("Margem de 27,7% e queda de 7,29%.", a).aprovado).toBe(true);
+  });
+});

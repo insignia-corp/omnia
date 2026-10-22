@@ -59,6 +59,7 @@
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:cov": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
     "test:e2e": "node --env-file-if-exists=.env --experimental-vm-modules ./node_modules/jest/bin/jest.js -c jest.e2e.config.js --runInBand",
+    "test:web": "node --test web/whatsapp/testes/*.test.mjs",
     "fixtures:gerar": "tsx scripts/fixtures/gerar-tudo.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/infra/database/migrar.ts",

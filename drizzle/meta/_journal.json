@@ -64,6 +64,13 @@
       "when": 1792555428923,
       "tag": "0008_historico_preco_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792638767086,
+      "tag": "0009_alerta_obsoleto",
+      "breakpoints": true
     }
   ]
 }

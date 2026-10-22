@@ -39,7 +39,7 @@ async function inserirEmLotes<T>(linhas: T[], inserir: (lote: T[]) => Promise<un
   for (let i = 0; i < linhas.length; i += LOTE) await inserir(linhas.slice(i, i + LOTE));
 }
 
-async function inserir(tx: Db, l: LinhasSeed): Promise<void> {
+export async function inserirLinhasSeed(tx: Db, l: LinhasSeed): Promise<void> {
   await tx.insert(schema.comerciante).values(l.comerciante);
   await tx.insert(schema.consentimento).values(l.consentimentos);
   await tx.insert(schema.conta).values(l.conta);
@@ -85,7 +85,7 @@ export async function semear(db: Db, fix: Fixtures = carregarFixtures()): Promis
       ),
     );
     await tx.execute(`SET LOCAL omnia.exclusao_autorizada = 'off'`);
-    for (const linhas of comerciantes) await inserir(tx, linhas);
+    for (const linhas of comerciantes) await inserirLinhasSeed(tx, linhas);
   });
   return comerciantes.map((c) => ({
     comerciante: c.comerciante.nome,

@@ -346,8 +346,21 @@ export const regraGastoForaDoPadrao: RegraDeAlerta = {
     const gasto = await metricas.gastoForaDoPadrao();
     if (ehDadoAusente(gasto)) return semCandidato("gasto_fora_do_padrao", gasto);
     const g = gasto.valor;
-    // Desvio nulo (desvio absoluto mediano zero) não mede nada: sem candidato, nunca zero.
-    if (g.desvio === null || g.desvio <= limites.gastoLimiteDesvio) return { candidatos: [], ausentes: [] };
+    // Desvio nulo (desvio absoluto mediano zero) não mede nada: é dado ausente, não "a regra deixou de
+    // disparar", para o candidato do dia não virar obsoleto sem ter sido refutado.
+    if (g.desvio === null) {
+      return {
+        candidatos: [],
+        ausentes: [
+          {
+            tipo: "gasto_fora_do_padrao",
+            codigo: "desvio_nulo",
+            motivo: "O desvio dos gastos do período é zero, então o dia não tem como ser comparado.",
+          },
+        ],
+      };
+    }
+    if (g.desvio <= limites.gastoLimiteDesvio) return { candidatos: [], ausentes: [] };
     return {
       ausentes: [],
       candidatos: [

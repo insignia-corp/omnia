@@ -578,9 +578,14 @@ describe("regra de gasto fora do padrão", () => {
       (await rodar(regraGastoForaDoPadrao, { gastoForaDoPadrao: () => Promise.resolve(gasto(3)) }))
         .candidatos,
     ).toEqual([]);
+    const nulo = await rodar(regraGastoForaDoPadrao, {
+      gastoForaDoPadrao: () => Promise.resolve(gasto(null)),
+    });
+    expect(nulo.candidatos).toEqual([]);
+    // Sem medida não é "deixou de disparar": é ausente, e o candidato do dia não vira obsoleto.
+    expect(nulo.ausentes.map((a) => a.codigo)).toEqual(["desvio_nulo"]);
     expect(
-      (await rodar(regraGastoForaDoPadrao, { gastoForaDoPadrao: () => Promise.resolve(gasto(null)) }))
-        .candidatos,
+      (await rodar(regraGastoForaDoPadrao, { gastoForaDoPadrao: () => Promise.resolve(gasto(3)) })).ausentes,
     ).toEqual([]);
     const ausente = await rodar(regraGastoForaDoPadrao, {
       gastoForaDoPadrao: () => Promise.resolve(dadoAusente("sem_extrato_no_dia", "Sem extrato.")),

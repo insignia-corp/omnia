@@ -191,8 +191,25 @@ const acoes = {
   abrirLista(origem) {
     abrirLista(origem);
   },
-  abrirLink(url) {
-    window.open(new URL(url, location.href).href, "_blank", "noopener");
+  async abrirLink(url) {
+    const destino = new URL(url, location.href);
+    if (destino.origin !== location.origin) {
+      window.open(destino.href, "_blank", "noopener");
+      return;
+    }
+    // Na mesma origem, confere antes se a página existe: no servidor estático da demo não há /painel.
+    const aba = window.open("", "_blank");
+    try {
+      const r = await fetch(destino.href, { method: "HEAD" });
+      if (!r.ok) throw new Error(String(r.status));
+      if (aba) {
+        aba.opener = null;
+        aba.location.href = destino.href;
+      } else location.href = destino.href;
+    } catch {
+      aba?.close();
+      avisar("O painel ainda não está disponível aqui. Rode o backend ou informe ?painel=<endereço>.");
+    }
   },
   ampliarImagem(src, legenda) {
     $("img-ampliada").src = src;

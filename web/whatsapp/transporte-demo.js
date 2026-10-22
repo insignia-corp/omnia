@@ -284,19 +284,33 @@ function painel(url) {
 
 const normalizar = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 
+// "sal 6 por 1,30", "arroz 16 x 27,90", "sal 6 por r$ 1,30"
+const CORRECAO = /^([a-z][a-z ]*?)\s+(\d+)\s*(?:un\.?\s*)?(?:por|x|a)\s*(?:r\$\s*)?(\d+(?:,\d{1,2})?)$/;
+
+/** "1,3" e "1,30" para 130 centavos, só com inteiros (regra 2). */
+const centavosDoTexto = (valor) => {
+  const [inteiro, decimais = ""] = valor.split(",");
+  return Number(inteiro) * 100 + Number(decimais.padEnd(2, "0"));
+};
+
 /** Descobre a intenção pelo id do botão ou por palavras do texto. */
-function intencao(m) {
+function intencao(m, estado) {
   const it = m.interactive;
   const id = it?.button_reply?.id ?? it?.list_reply?.id ?? m.button?.payload;
   if (id) return id;
   if (m.type === "image") return "nota_foto";
   if (m.type === "document") return "nota_xml";
   const t = normalizar(m.text?.body ?? "");
+  if (estado.aguardandoCorrecao && CORRECAO.test(t)) return "corrigir_valor";
+  // Perguntas que o agente não sabe responder vêm antes dos períodos (casos q33 e q36 da avaliação).
+  if (/\blucro\b/.test(t)) return "sem_lucro";
+  if (/\b(que vem|proximo|proxima|previsao|prever|vai ser|vou faturar|vai dar)\b/.test(t))
+    return "sem_previsao";
   if (/\b(semana|semanal)\b/.test(t)) return "resumo_semana";
   if (/\b(mes|mensal)\b/.test(t)) return "resumo_mes";
   if (/\b(resumo|diario|ontem|vendi|vendas|faturamento|faturei)\b/.test(t)) return "resumo_dia";
   if (/\b(painel|dashboard|grafico|graficos|relatorio)\b/.test(t)) return "painel";
-  if (/\b(margem|margens|lucro)\b/.test(t)) return "margens";
+  if (/\b(margem|margens)\b/.test(t)) return "margens";
   if (/\b(preco|precos|sugest)/.test(t)) return "sugerir_preco";
   if (/\b(aviso|avisos|alerta|alertas|feedback|como (estou|esta|ta)|importa|novidade)/.test(t))
     return "avisos";
@@ -308,9 +322,47 @@ function intencao(m) {
   return "nao_sei";
 }
 
-/** Respostas do agente para uma mensagem do dono: lista de mensagens de saída, em ordem. */
-export function responder(m, config) {
-  switch (intencao(m)) {
+function corrigirItem(texto) {
+  const [, nome, qtd, valor] = CORRECAO.exec(normalizar(texto)) ?? [];
+  const primeira = nome?.trim().split(" ")[0] ?? "";
+  const item = D.nota.itens.find(([n]) =>
+    normalizar(n)
+      .split(" ")
+      .some((p) => p.startsWith(primeira)),
+  );
+  if (!item) return null;
+  const [nomeItem, qtdAntes, unitAntes] = item;
+  const quantidade = Number(qtd);
+  const unitario = centavosDoTexto(valor);
+  const novaSoma = D.nota.total - qtdAntes * unitAntes + quantidade * unitario;
+  return botoes(
+    [
+      `Anotei a correção: *${nomeItem}*: ${quantidade} un. x ${reais(unitario)} = ${reais(quantidade * unitario)} (antes ${qtdAntes} un. x ${reais(unitAntes)}).`,
+      "",
+      novaSoma === D.nota.total
+        ? `A soma dos itens continua batendo com o total da nota (${reais(D.nota.total)}).`
+        : `Com isso a soma dos itens fica em *${reais(novaSoma)}*, diferente do total impresso na nota (${reais(D.nota.total)}). Confere?`,
+    ].join("\n"),
+    [
+      ["nota_ok", "Está certo"],
+      ["nota_corrigir", "Corrigir de novo"],
+    ],
+  );
+}
+
+const AJUDA_CORRECAO = `Me diga o item, a quantidade e o valor unitário certo, por exemplo: _sal 6 por 1,30_. Os itens da nota são: ${D.nota.itens.map(([n]) => n).join(", ")}.`;
+
+/**
+ * Respostas do agente para uma mensagem do dono: lista de mensagens de saída, em ordem.
+ * `estado` guarda o que a conversa espera (proposta de preço, correção de item) e é alterado aqui.
+ * @param {{ propostaPendente?: boolean, aguardandoCorrecao?: boolean }} [estado]
+ */
+export function responder(m, config, estado = {}) {
+  const tinhaProposta = Boolean(estado.propostaPendente);
+  estado.propostaPendente = false;
+  const intento = intencao(m, estado);
+  estado.aguardandoCorrecao = false;
+  switch (intento) {
     case "menu":
       return [
         menu(
@@ -335,8 +387,17 @@ export function responder(m, config) {
     case "margens":
       return [margens()];
     case "sugerir_preco":
+      estado.propostaPendente = true;
       return [sugerirPreco()];
     case "confirmar_preco":
+      // Regra 7: só grava o que o dono confirmou. O botão já é contextual; um "sim" solto só vale com proposta aberta.
+      if (!tinhaProposta && m.type === "text")
+        return [
+          botoes("Não tenho nenhuma sugestão de preço esperando sua confirmação. Quer que eu calcule uma?", [
+            ["sugerir_preco", "Sugerir preço"],
+            ["menu", "Menu"],
+          ]),
+        ];
       return [
         texto(
           `Pronto, guardei *${reais(precoParaMeta(D.arroz.custoAtual, D.metaBps))}* como preço-meta do ${D.arroz.nome}. Te aviso se a margem cair de novo.`,
@@ -362,8 +423,25 @@ export function responder(m, config) {
     case "nota_ok":
       return [texto("Obrigado! Guardei a nota no seu histórico de compras.")];
     case "nota_corrigir":
+      estado.aguardandoCorrecao = true;
+      return [texto(AJUDA_CORRECAO)];
+    case "corrigir_valor": {
+      const correcao = corrigirItem(m.text?.body ?? "");
+      if (correcao) return [correcao];
+      estado.aguardandoCorrecao = true;
+      return [texto(`Não achei esse item na nota. ${AJUDA_CORRECAO}`)];
+    }
+    case "sem_lucro":
       return [
-        texto("Me diga o item e o valor certo, por exemplo: _sal 6 por 1,30_. Eu confiro a soma e corrijo."),
+        texto(
+          "Ainda não consigo dizer o seu lucro: faltam o custo de todos os produtos e as despesas confirmadas. Se você me mandar as notas de compra que faltam, eu passo a calcular. Enquanto isso, posso te mostrar faturamento, gastos e margem dos produtos que já conheço.",
+        ),
+      ];
+    case "sem_previsao":
+      return [
+        texto(
+          "Não faço previsão de faturamento com os dados que tenho. Posso te mostrar como foram os últimos dias, a semana e o mês até agora.",
+        ),
       ];
     case "painel":
       return [painel(config.painelUrl)];
@@ -393,6 +471,9 @@ export function criarTransporteDemo(config) {
   let ultimaDoDono = null;
   let proativaEnviadaEm = null;
   let fila = Promise.resolve();
+  let estado = {};
+  // Limpar a conversa troca a geração; respostas de mensagens anteriores param no próximo passo.
+  let geracao = 0;
 
   const emitir = (e) => ouvintes.forEach((o) => o(e));
 
@@ -406,15 +487,19 @@ export function criarTransporteDemo(config) {
     emitir({ tipo: "mensagem", mensagem: m });
   }
 
-  async function processar(m) {
+  async function processar(m, g) {
+    const valendo = () => g === geracao;
     await esperar(250);
+    if (!valendo()) return;
     emitir({ tipo: "status", id: m.id, status: "delivered" });
     await esperar(500);
+    if (!valendo()) return;
     emitir({ tipo: "status", id: m.id, status: "read" });
-    const respostas = responder(m, config);
+    const respostas = responder(m, config, estado);
     for (const [i, r] of respostas.entries()) {
       emitir({ tipo: "digitando", ativo: true });
       await esperar(tempoDigitando(r) + (m.type === "image" && i === 1 ? 2200 : 0));
+      if (!valendo()) return;
       emitir({ tipo: "digitando", ativo: false });
       entregar(r);
       await esperar(250);
@@ -428,15 +513,21 @@ export function criarTransporteDemo(config) {
     },
     async enviar(m) {
       ultimaDoDono = m.timestamp;
-      fila = fila.then(() => processar(m)).catch((e) => console.error(e));
+      const g = geracao;
+      fila = fila.then(() => processar(m, g)).catch((e) => console.error(e));
       await Promise.resolve();
     },
     aoEvento(ouvinte) {
       ouvintes.push(ouvinte);
     },
+    /**
+     * Limpa só a conversa: cancela respostas pendentes e esquece o que ela esperava. A janela de 24 h e
+     * a marca da proativa do dia continuam, como no WhatsApp (apagar a conversa não muda o lado da empresa).
+     */
     async reiniciar() {
-      ultimaDoDono = null;
-      proativaEnviadaEm = null;
+      geracao += 1;
+      estado = {};
+      emitir({ tipo: "digitando", ativo: false });
     },
     /** Relatório das 7h (modelo). Regra 9: no máximo 1 mensagem proativa por dia. */
     async simularProativa() {

@@ -150,6 +150,18 @@ describe("extrato por data de sincronização (e2e)", () => {
     expect(await sincronizadaEm(contaParada)).toBe(antes);
   });
 
+  it("conta revogada não recebe sincronização", async () => {
+    const [c] = await db
+      .insert(schema.conta)
+      .values({ comercianteId, instituicao: "Banco antigo", status: "revogado" })
+      .returning({ id: schema.conta.id });
+    if (!c) throw new Error("conta não criada");
+    expect(
+      await registrarSincronizacaoDaConta(db, { comercianteId, contaId: c.id, data: DIA, hoje: DIA }),
+    ).toBe(false);
+    expect(await sincronizadaEm(c.id)).toBeNull();
+  });
+
   it("não registra sincronização de conta de outro comerciante nem de data impossível", async () => {
     expect(
       await registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaDoOutro, data: DIA, hoje: DIA }),

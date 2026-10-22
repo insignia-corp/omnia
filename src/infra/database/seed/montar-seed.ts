@@ -280,8 +280,7 @@ export function montarSeed(fix: Fixtures, opcoes: OpcoesComerciante): LinhasSeed
       saldoInicialEm: primeiraData,
       // A conta de demonstração foi importada até o último dia do extrato de teste.
       ultimaSincronizacaoEm:
-        fix.transacoes
-          .filter((t) => t.valorCentavos > 0)
+        transacoes
           .map((t) => t.data)
           .sort()
           .at(-1) ?? null,

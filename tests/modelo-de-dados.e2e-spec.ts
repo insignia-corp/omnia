@@ -175,6 +175,16 @@ describe("modelo de dados e seed (e2e)", () => {
       expect(erro?.code).toBe("23503");
     });
 
+    it("a conta do seed foi sincronizada até o último dia do extrato de teste", async () => {
+      const [linha] = await consultar<{ ultima: string; em: string }>(
+        `select to_char(max(t.data), 'YYYY-MM-DD') as ultima, to_char(c.ultima_sincronizacao_em, 'YYYY-MM-DD') as em
+         from conta c join transacao t on t.conta_id = c.id and t.comerciante_id = c.comerciante_id
+         where c.comerciante_id = $1 group by c.id`,
+        [vilaNova],
+      );
+      expect(linha?.em).toBe(linha?.ultima);
+    });
+
     // Lê o banco já migrado: vale para a imagem do banco de teste, que é recriada a cada execução da CI.
     // Num banco local antigo, uma tabela de outra branch pode aparecer na lista; rode `npm run db:reset`.
     it("toda tabela do lojista tem comerciante_id obrigatório (regra inviolável 3)", async () => {

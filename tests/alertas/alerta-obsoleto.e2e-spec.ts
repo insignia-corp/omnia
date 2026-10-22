@@ -257,6 +257,8 @@ describe("alerta obsoleto (e2e)", () => {
     });
   });
   describe("compra mais antiga no mesmo dia", () => {
+    let itemAntigo: string;
+
     it("a correção da compra do alerta torna-o obsoleto mesmo com outra nota mais antiga do mesmo dia", async () => {
       await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, vilaNova));
       await corrigirCusto(2790);
@@ -294,6 +296,7 @@ describe("alerta obsoleto (e2e)", () => {
           origem: "foto_nota",
         })
         .returning({ id: schema.itemDeCompra.id });
+      itemAntigo = item!.id;
       await db.insert(schema.historicoCusto).values({
         comercianteId: vilaNova,
         produtoId: arroz,
@@ -311,6 +314,28 @@ describe("alerta obsoleto (e2e)", () => {
       await corrigirCusto(2490);
       await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
       expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("obsoleto");
+    });
+
+    it("a reemissão de custos da nota mais antiga a torna a compra atual: o reajuste da outra nota não vira obsoleto sem ser refutado", async () => {
+      // O custo da nota do alerta volta a R$ 27,90: reajuste de R$ 24,90 para R$ 27,90, candidato de novo.
+      await corrigirCusto(2790);
+      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("candidato");
+
+      // O dono responde uma pergunta da nota antiga: uma leitura nova do item, com o mesmo custo, que
+      // passa a valer como a mais recente do par. A métrica vê a nota antiga como atual e uma queda.
+      await db.insert(schema.historicoCusto).values({
+        comercianteId: vilaNova,
+        produtoId: arroz,
+        fornecedorId: aurora,
+        data: "2026-10-16",
+        custoUnitarioCentavos: 2490,
+        itemDeCompraId: itemAntigo,
+        origem: "dono",
+        confianca: 1,
+      });
+      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("candidato");
     });
   });
 });

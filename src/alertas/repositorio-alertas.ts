@@ -1,6 +1,8 @@
-import { and, asc, eq, gt, gte, inArray, lt, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Executor } from "../infra/database/database.module";
-import { alerta, compra, historicoCusto, itemDeCompra } from "../infra/database/schema";
+import { alerta } from "../infra/database/schema";
+import { compararCustos } from "../metricas/dados-de-metricas";
+import { RepositorioMetricasPostgres } from "../metricas/repositorio-metricas";
 import type { TipoAlerta, Prioridade } from "./tipos";
 
 export interface AlertaGravado {
@@ -255,9 +257,10 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
   /**
    * Um reajuste cuja compra foi sucedida por outra do mesmo produto e fornecedor (uma segunda nota no
    * mesmo dia, por exemplo) não foi refutado: a regra só olha a compra mais recente e deixa de enxergar a
-   * alta. O alerta fica como candidato. "Sucedida" usa a data e a criação da própria compra, que a
-   * correção do dono de uma leitura não mexe (a leitura corrigida é nova, a compra não): uma compra mais
-   * antiga, ou a correção da própria compra, não isenta.
+   * alta. O alerta fica como candidato. "Sucedida" usa a mesma régua da métrica de variação de custo: a
+   * compra atual do par é a da última leitura vigente por item, na ordem de `compararCustos`, até a data
+   * de referência. Assim a correção do dono e a reemissão de custos de uma nota (leituras novas) mexem na
+   * ordem aqui como mexem na métrica.
    */
   private async substituidoPorCompraMaisNova(
     comercianteId: string,
@@ -267,40 +270,16 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
     if (l.tipo !== "reajuste_de_custo" || l.produtoId === null || l.fornecedorId === null) return false;
     const compraId = (l.metricasApoio as Record<string, unknown>).compra_atual_id;
     if (typeof compraId !== "string") return false;
-    const [propria] = await this.db
-      .select({ data: compra.data, criadoEm: compra.criadoEm })
-      .from(compra)
-      .where(and(eq(compra.id, compraId), eq(compra.comercianteId, comercianteId)));
-    if (!propria) return false;
-    const [sucessora] = await this.db
-      .select({ id: compra.id })
-      .from(historicoCusto)
-      .innerJoin(
-        itemDeCompra,
-        and(
-          eq(itemDeCompra.id, historicoCusto.itemDeCompraId),
-          eq(itemDeCompra.comercianteId, historicoCusto.comercianteId),
-        ),
-      )
-      .innerJoin(
-        compra,
-        and(eq(compra.id, itemDeCompra.compraId), eq(compra.comercianteId, itemDeCompra.comercianteId)),
-      )
-      .where(
-        and(
-          eq(historicoCusto.comercianteId, comercianteId),
-          eq(historicoCusto.produtoId, l.produtoId),
-          eq(historicoCusto.fornecedorId, l.fornecedorId),
-          ne(compra.id, compraId),
-          lte(compra.data, dataReferencia),
-          or(
-            gt(compra.data, propria.data),
-            and(eq(compra.data, propria.data), gt(compra.criadoEm, propria.criadoEm)),
-          ),
-        ),
-      )
-      .limit(1);
-    return sucessora !== undefined;
+    const custos = await new RepositorioMetricasPostgres(this.db).custosDeCompra(
+      comercianteId,
+      dataReferencia,
+      l.produtoId,
+    );
+    const atual = custos
+      .filter((c) => c.fornecedorId === l.fornecedorId)
+      .sort(compararCustos)
+      .at(-1);
+    return atual !== undefined && atual.compraId !== compraId;
   }
 
   async candidatosDoDia(comercianteId: string, dataReferencia: string): Promise<AlertaGravado[]> {

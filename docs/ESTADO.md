@@ -9,7 +9,7 @@ Atualizado em: 2026-10-21 · commit base: `d62d2a7` (`develop` após o PR 169) �
 - Etapa 0 (base): feita. A CI também confere variáveis de ambiente contra `.env.example`, deriva das migrações e `comerciante_id` em toda tabela (guardas no `.github/workflows/ci.yml`, PR 152). Resta ligar a CI como status obrigatório na proteção das branches (#7) e o id de correlação entre requisição e jobs (#10, no PR 163).
 - Etapa 1 (dados de teste e gabarito): feita. Falta só a revisão do gabarito de métricas por uma segunda pessoa (#16). Detalhe em `fixtures/README.md`.
 - Etapa 2 (ingestão): na `develop`, armazenamento, upload e fila BullMQ, Extrator com Zod, validações em código, revisão de item e pergunta ao dono, vínculo por catálogo, similaridade, código de barras e sugestão do modelo confirmada pelo dono (#27), planilha de vendas CSV e XLSX (#28) e NF-e em XML (#29). Falta a integração Pluggy em sandbox (#30, P2, adiada: só entra se sobrar tempo; o que está fora do escopo é o Open Finance real), e o fluxo de resolução de importação parcial de planilha (#142). Detalhe em `src/ingestao/README.md`.
-- Etapa 3 (métricas): feita, com o épico #31 fechado. Margem, variação de custo, giro, resumo diário, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço batem com o gabarito, e o conjunto de alertas esperados também (#41). Débitos em #143 (extrato por conta), #144 (propagar origem e confiança do produto) e #148 (critério de receita). Detalhe em `src/metricas/README.md`.
+- Etapa 3 (métricas): feita, com o épico #31 fechado. Margem, variação de custo, giro, resumo diário, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço batem com o gabarito, e o conjunto de alertas esperados também (#41). Os débitos #143 (extrato por conta), #144 (origem e confiança do produto) e #148 (critério de receita) estão fechados (PRs 170 e 169). Detalhe em `src/metricas/README.md`.
 - Etapa 4 (motor de alertas): o motor de regras com prioridade e supressão está na `develop` (#43 e #44, fechadas; PR 153). O job de reajuste após cada nota e o teste de detecção (#45 e #46, PR 173) estão na `develop`. Abertas: limites configuráveis por comerciante (#147), status `enviado` e `descartado` do alerta (#155) e candidato do dia que fica velho (#157).
 - Etapa 5 (agente): na `develop`, núcleo, verificador, registro de execuções, loop diário e modo conversa (#55, fechada), `ask_owner`, `save_owner_answer`, `propose_target_price` e `select_alerts` (o envio não é ferramenta: o `AgenteService` devolve o texto verificado e o `MessageChannel` entrega), ação com confirmação do dono e preço-meta (#104), as ferramentas de leitura `get_daily_summary`, `get_top_products`, `get_product_margin` e `get_cost_changes` (#50, #51, #149 e #156, fechadas; PRs 145, 160 e 168). `list_alert_candidates` (#52, fechada; PR 174), que roda o motor para o comerciante e a data da sessão. Critério `receita` em `get_top_products` e receita por produto (#148, fechada; PR 169).
 - Etapa 6 (canal): na `develop`, `MessageChannel`, chat web como plano B, escolha por `CANAL`, job do relatório diário com chave de idempotência e horário de silêncio (#64, #66, #106); o ciclo completo com modelo real ainda não foi exercitado de ponta a ponta (ver Pendências). WhatsApp (#59 a #63) e áudio (#107) não começaram.
@@ -34,9 +34,8 @@ Gerados em 2026-10-21 sobre a `develop` em `d62d2a7`, com Node 24 (via `npx`), P
 ## Em PR aberto
 
 - PR 163: aviso ao dono quando a leitura da nota falha de vez (#158) e id de correlação entre requisição e jobs (#10).
-- PR 164: `get_product_margin` resolve produtos de mesmo nome e usa descrições confirmadas (#156).
+- PR 164: `get_product_margin` com a correção do dono, descrições iguais em fornecedores diferentes e esquema com `produto` obrigatório; a #156 já foi fechada pelo PR 168 e este PR vem sobre ele.
 - PR 165: modelo padrão do agente passa a `claude-sonnet-5-5`.
-- PR 171: este checkpoint.
 
 ## Pendências
 

@@ -103,7 +103,7 @@ Decisões do orquestrador:
 | Limites | `AGENTE_MAX_ITERACOES` (8) e `AGENTE_MAX_REGERACOES` (2) |
 
 **Como decide.**
-- No relatório: chama `list_alert_candidates`, que já devolve os candidatos ranqueados por impacto em centavos (conta feita pelo código; a semana dos últimos 7 dias para os de volume, o dia para ticket e gasto). Escolhe até 3, busca o detalhe de cada um quando precisa e registra a escolha e a justificativa em `select_alerts`. Escreve uma frase por alerta com o valor e a ação sugerida.
+- No relatório: chama `list_alert_candidates`, que já devolve os candidatos ranqueados por impacto em centavos (conta feita pelo código; a semana dos últimos 7 dias para reajuste, margem abaixo da meta e espaço para subir preço; o dia para ticket médio e gasto fora do padrão; giro em alta e estoque parado ficam sem impacto em reais). Escolhe até 3, busca o detalhe de cada um quando precisa e registra a escolha e a justificativa em `select_alerts`. Escreve uma frase por alerta com o valor e a ação sugerida.
 - Na pergunta livre: escolhe a ferramenta que responde. Se nenhuma serve, diz que não sabe e que dado faltaria (regra 6 do prompt). Se falta um dado do dono (por exemplo, o custo de um produto sem nota), usa `ask_owner`.
 - Em nota processada, com o dono em conversa: resume o que mudou e destaca reajustes acima do limite.
 

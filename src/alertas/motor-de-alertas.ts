@@ -79,9 +79,13 @@ export class MotorDeAlertas {
     const resultados = await Promise.all(
       regras.map((regra) => regra.avaliar({ comercianteId, dataReferencia, limites, metricas })),
     );
-    const achados = resultados
-      .flatMap((r) => r.candidatos)
-      .filter((c) => !produtoIds || (c.produtoId !== null && produtoIds.has(c.produtoId)));
+    const achados = await this.alinharReajustes(
+      contexto,
+      limites,
+      resultados
+        .flatMap((r) => r.candidatos)
+        .filter((c) => !produtoIds || (c.produtoId !== null && produtoIds.has(c.produtoId))),
+    );
     const ausentes = resultados.flatMap((r) => r.ausentes);
 
     const tiposComJanela = Object.keys(limites.janelaSupressaoDias) as TipoAlerta[];
@@ -185,6 +189,46 @@ export class MotorDeAlertas {
       ausentes,
       obsoletos: obsoletos + reajustesObsoletos,
     };
+  }
+
+  /**
+   * Os reajustes que a regra devolve passam pelo mesmo recálculo dos que ela não devolve (ordem estável das
+   * compras, #186). A métrica ordena as notas do dia pelo `criadoEm` da leitura, que a reemissão de custos
+   * renova a cada resposta do dono: sem este alinhamento a regra e o recálculo discordariam sobre a mesma
+   * compra, e o status e os números oscilariam conforme o caminho que rodou por último. Alta desfeita: o
+   * candidato não é gravado (e o do dia, se existir, vira obsoleto em `reavaliarReajustes`). Ainda acima do
+   * limite: valem os números recalculados. Sem leitura da compra: fica o que a regra devolveu.
+   */
+  private async alinharReajustes(
+    { comercianteId, dataReferencia }: ContextoDoMotor,
+    limites: LimitesDeAlerta,
+    achados: CandidatoDeAlerta[],
+  ): Promise<CandidatoDeAlerta[]> {
+    const alinhados: CandidatoDeAlerta[] = [];
+    for (const c of achados) {
+      if (c.tipo !== "reajuste_de_custo" || c.produtoId === null || c.fornecedorId === null) {
+        alinhados.push(c);
+        continue;
+      }
+      const leituras = await this.alertas.leiturasDoPar(comercianteId, dataReferencia, {
+        produtoId: c.produtoId,
+        fornecedorId: c.fornecedorId,
+      });
+      const r = recalcularReajuste({ metricasApoio: c.metricasApoio, ...leituras, dataReferencia, limites });
+      if (r.situacao === "desfeito") continue;
+      if (r.situacao === "sem_dado") {
+        alinhados.push(c);
+        continue;
+      }
+      const { impacto_centavos: impacto, menor_confianca: confianca, ...apoio } = r.metricasApoio;
+      alinhados.push({
+        ...c,
+        metricasApoio: apoio as CandidatoDeAlerta["metricasApoio"],
+        impactoCentavos: typeof impacto === "number" ? impacto : null,
+        confianca: typeof confianca === "number" ? confianca : null,
+      });
+    }
+    return alinhados;
   }
 
   /**

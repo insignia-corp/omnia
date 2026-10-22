@@ -648,18 +648,49 @@ describe("motor de alertas: reajuste obsoleto pela variação da própria compra
     });
   });
 
-  it("o reajuste que a regra ainda devolve é atualizado pelo upsert, não reavaliado", async () => {
+  it("o reajuste que a regra devolve passa pelo mesmo recálculo: alta desfeita na ordem estável não é gravada e o do dia vira obsoleto", async () => {
+    // A regra (ordem pela leitura) devolve a compra-16, mas na ordem das compras ela não tem alta.
     const { motor, repositorio } = motorCom([variacao()], giro(10));
-    repositorio.reajustes = [gravado("p1:f1:compra-16")];
-    // Leituras que, se reavaliado, o tornariam desfeito: a regra ainda o devolve, então não é reavaliado.
+    repositorio.reajustes = [
+      gravado("p1:f1:compra-16", {
+        metricasApoio: {
+          compra_atual_id: "compra-16",
+          custo_anterior_centavos: 2490,
+          custo_atual_centavos: 2790,
+        },
+      }),
+    ];
     repositorio.leituras = {
-      custos: [leitura("p1:f1:compra-16", "2026-10-16", 2790, 1)],
+      custos: [leitura("compra-16", "2026-10-16", 2790, 1), leitura("Z", "2026-10-16", 2790, 2)],
       produto: { origem: "dono", confianca: 1 },
     };
     await motor.executar({ comercianteId: "c1", dataReferencia: REF });
-    expect(repositorio.pares).toEqual([]);
-    expect(repositorio.obsoletadosPorId).toEqual([]);
-    expect(repositorio.atualizados).toEqual([]);
+    expect(repositorio.gravados).toEqual([]);
+    expect(repositorio.obsoletadosPorId).toEqual(["id-p1:f1:compra-16"]);
+  });
+
+  it("o reajuste que a regra devolve é gravado com os números recalculados, não com os da regra", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    repositorio.leituras = {
+      custos: [leitura("W", "2026-10-10", 2000, 1), leitura("compra-16", "2026-10-16", 2790, 2)],
+      produto: { origem: "dono", confianca: 1 },
+    };
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados).toHaveLength(1);
+    expect(repositorio.gravados[0]?.metricasApoio).toMatchObject({
+      custo_anterior_centavos: 2000,
+      custo_atual_centavos: 2790,
+      impacto_centavos: 7900,
+    });
+  });
+
+  it("sem leitura da compra, o reajuste que a regra devolve é gravado como a regra calculou", async () => {
+    const { motor, repositorio } = motorCom([variacao()], giro(10));
+    await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.gravados[0]?.metricasApoio).toMatchObject({
+      custo_anterior_centavos: 100,
+      custo_atual_centavos: 115,
+    });
   });
 
   it("job pós-nota (semRepetirGravados): o reajuste já gravado que a regra devolve também é recalculado, sem número velho", async () => {

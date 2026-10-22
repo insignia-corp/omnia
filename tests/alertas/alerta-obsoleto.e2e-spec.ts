@@ -429,6 +429,39 @@ describe("alerta obsoleto (e2e)", () => {
       expect((await doPar(f))[0]).toMatchObject({ status: "candidato" });
     });
 
+    it("a regra devolve a nota depois da reemissão (a ordem dela é pela leitura): vale a ordem das compras, sem número errado", async () => {
+      const f = await novoFornecedor();
+      await nota(f, "2026-10-17", 2000, base("2026-10-17"));
+      const x = await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await rodar();
+      expect((await doPar(f))[0]?.metricasApoio).toMatchObject({
+        custo_anterior_centavos: 2000,
+        variacao_bps: 3950,
+      });
+      await nota(f, DIA, 2490, new Date("2026-10-18T15:00:00Z"));
+      // O dono responde a pergunta da nota X: a leitura nova põe a X por último na ordem da métrica, que
+      // então toma a nota mais nova (R$ 24,90) como a anterior dela.
+      await leitura(f, DIA, x.itemId, 2790, instanteDepois());
+      await rodar();
+      const linhas = await doPar(f);
+      expect(linhas).toHaveLength(1);
+      expect(linhas[0]).toMatchObject({ status: "candidato" });
+      expect(linhas[0]?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2000, variacao_bps: 3950 });
+    });
+
+    it("a regra devolve uma alta que não existe na ordem das compras: o alerta falso não é gravado, nem oscila", async () => {
+      const f = await novoFornecedor();
+      await nota(f, DIA, 2790, new Date("2026-10-18T09:00:00Z"));
+      const x = await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
+      await nota(f, DIA, 2490, new Date("2026-10-18T15:00:00Z"));
+      await rodar();
+      expect(await doPar(f)).toHaveLength(0);
+      await leitura(f, DIA, x.itemId, 2790, instanteDepois());
+      await rodar();
+      await rodar();
+      expect(await doPar(f)).toHaveLength(0);
+    });
+
     it("correção do dono da própria nota para dentro do limite: obsoleto; de volta para a alta: reativa", async () => {
       const f = await novoFornecedor();
       await nota(f, "2026-10-17", 2490, base("2026-10-17"));

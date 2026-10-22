@@ -11,6 +11,7 @@ import {
   compararNomes,
   compararTexto,
   custoMaisRecente,
+  procedenciaDoProduto,
   type CustoDeCompra,
   type ProdutoParaMetrica,
   type UltimaVendaDoProduto,
@@ -80,7 +81,11 @@ export function calcularEstoqueParado(
         dias_sem_venda: dias,
         parado: dias > parametros.limiteDias,
       },
-      fontes: [ultima, procedenciaDeUmRegistro(compra.origem, compra.confianca)],
+      fontes: [
+        ultima,
+        procedenciaDeUmRegistro(compra.origem, compra.confianca),
+        procedenciaDoProduto(produto),
+      ],
     });
   }
 

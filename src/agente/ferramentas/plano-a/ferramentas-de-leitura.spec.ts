@@ -3,6 +3,7 @@ import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { Db } from "../../../infra/database/database.module";
 import type { MetricasService } from "../../../metricas/metricas.service";
+import { produtoNaoEncontrado } from "../../../metricas/produto-nao-encontrado";
 import { dadoAusente, ehDadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
 import { NumerosAutorizados, verificarNumeros } from "../../../lib/verificador-numeros/verificador-numeros";
 import type { ContextoSessao, Ferramenta } from "../ferramenta";
@@ -69,7 +70,16 @@ const margem = (produtoId: string) => ({
 
 /** `sim` é a similaridade do nome todo; `palavra` (word_similarity) vale `sim` quando não é dada. */
 const dbCom = (
-  linhas: Array<{ produto_id: string; nome: string; sim: number; palavra?: number; codigo_barras?: string }>,
+  linhas: Array<{
+    produto_id: string;
+    nome: string;
+    sim: number;
+    palavra?: number;
+    codigo_barras?: string | null;
+    sku?: string | null;
+    cadastrado_em?: string;
+    descricao_de_nota?: string | null;
+  }>,
   confirmado?: string | Array<{ produtoId: string; fornecedorId: string | null }>,
 ) =>
   ({
@@ -364,7 +374,43 @@ describe("ferramentas de leitura do plano A", () => {
       expect(alta.n_registros).toBe(12);
       expect(alta.menor_confianca).toBe(0.92);
       expect(f.entrada.parse({}).criterio).toBe("volume");
-      expect(f.entrada.safeParse({ criterio: "receita" }).success).toBe(false);
+      expect(f.entrada.safeParse({ criterio: "receita" }).success).toBe(true);
+      expect(f.entrada.safeParse({ criterio: "lucro" }).success).toBe(false);
+    });
+
+    it("receita devolve o ranking de receita da métrica, com a procedência dela", async () => {
+      const ranking = [
+        { produto_id: randomUUID(), nome: "Cerveja Lata", receita_centavos: 125990 },
+        { produto_id: randomUUID(), nome: "Água 500ml", receita_centavos: 80050 },
+      ];
+      const receitaPorProduto = jest.fn(async () =>
+        metrica({ periodo, por_produto: ranking, maior_receita: ranking }),
+      );
+      const f = criarGetTopProducts({ receitaPorProduto } as unknown as MetricasService);
+      const saida = (await f.executar(contexto, { criterio: "receita" })) as ResultadoMetrica<{
+        criterio: string;
+        produtos: typeof ranking;
+      }>;
+      expect(receitaPorProduto).toHaveBeenCalledWith(contexto);
+      expect(saida.valor).toEqual({ criterio: "receita", produtos: ranking });
+      expect([saida.n_registros, saida.menor_confianca, saida.origens, saida.periodo]).toEqual([
+        12,
+        0.92,
+        ["planilha"],
+        periodo,
+      ]);
+      // Regra 8: a receita em centavos autoriza o valor em reais, e só ele.
+      const autorizados = new NumerosAutorizados([saida]);
+      expect(verificarNumeros("Cerveja Lata faturou R$ 1.259,90.", autorizados).aprovado).toBe(true);
+      expect(verificarNumeros("Cerveja Lata faturou R$ 1.300,00.", autorizados).aprovado).toBe(false);
+    });
+
+    it("repassa a receita ausente", async () => {
+      const ausente = dadoAusente("historico_insuficiente", "Sem vendas na semana.");
+      const f = criarGetTopProducts({
+        receitaPorProduto: jest.fn(async () => ausente),
+      } as unknown as MetricasService);
+      expect(await f.executar(contexto, { criterio: "receita" })).toBe(ausente);
     });
 
     it("repassa o giro ausente", async () => {
@@ -515,7 +561,6 @@ describe("ferramentas de leitura do plano A", () => {
     it("descrição que o dono já confirmou na nota liga sozinha, com confiança 1", async () => {
       const { mock, metricas: m } = servico();
       const id = randomUUID();
-      // Pela similaridade os dois empatam (seria sugestão): só a descrição confirmada decide.
       const banco = dbCom(
         [
           { produto_id: id, nome: "Leite integral 1L", sim: 1 },
@@ -552,6 +597,8 @@ describe("ferramentas de leitura do plano A", () => {
       const { mock, metricas: m } = servico();
       const saida = await criarGetProductMargin(m, dbCom([])).executar(contexto, { produto: "Xyz" });
       expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+      // O mesmo texto da métrica: um só lugar para o aviso (issue #149).
+      expect(saida).toMatchObject({ motivo: produtoNaoEncontrado().motivo });
       expect(mock.margemDoProduto).not.toHaveBeenCalled();
     });
 
@@ -628,6 +675,39 @@ describe("ferramentas de leitura do plano A", () => {
       ]);
       await criarGetProductMargin(m, banco).executar(contexto, { produto: "refrigerante cola 2 l" });
       expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
+    });
+
+    it("candidatos de mesmo nome trazem código de barras, sku e data de cadastro, e a descrição de nota que casou", async () => {
+      const banco = dbCom([
+        {
+          produto_id: randomUUID(),
+          nome: "Arroz 5kg",
+          sim: 0.9,
+          codigo_barras: "7891000100103",
+          sku: "ARZ-A",
+          cadastrado_em: "2026-09-01",
+          descricao_de_nota: null,
+        },
+        {
+          produto_id: randomUUID(),
+          nome: "Arroz 5kg",
+          sim: 0.9,
+          codigo_barras: null,
+          sku: "ARZ-B",
+          cadastrado_em: "2026-10-02",
+          descricao_de_nota: "ARROZ TP1 5KG",
+        },
+      ]);
+      const saida = (await criarGetProductMargin(servico().metricas, banco).executar(contexto, {
+        produto: "Arroz 5kg",
+      })) as ProdutoAmbiguo;
+      expect(saida.ambiguo).toBe(true);
+      expect(
+        saida.candidatos.map((c) => [c.sku, c.codigo_barras, c.cadastrado_em, c.descricao_de_nota]),
+      ).toEqual([
+        ["ARZ-A", "7891000100103", "2026-09-01", null],
+        ["ARZ-B", null, "2026-10-02", "ARROZ TP1 5KG"],
+      ]);
     });
 
     it("produto claro vai para a métrica com o id achado", async () => {

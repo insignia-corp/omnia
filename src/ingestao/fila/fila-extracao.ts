@@ -2,6 +2,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  Optional,
   type LoggerService,
   type OnApplicationBootstrap,
   type OnModuleDestroy,
@@ -22,6 +23,10 @@ export interface JobExtracao {
   /** Id da requisição que enfileirou o job: liga os logs da API aos do worker (#10). */
   idCorrelacao?: string;
 }
+
+export const APOS_EXTRACAO = Symbol("APOS_EXTRACAO");
+/** Chamado ao final de uma extração que gravou a compra (`extraido` ou `revisao`). */
+export type AposExtracao = (nota: JobExtracao & { compraId: string }) => Promise<void>;
 
 const TENTATIVAS = 3;
 const ESPERA_INICIAL_MS = 5_000;
@@ -84,6 +89,7 @@ export class FilaExtracao implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(PROCESSADOR_EXTRACAO) private readonly processador: ProcessadorExtracao,
     private readonly pino: PinoLogger,
+    @Optional() @Inject(APOS_EXTRACAO) private readonly aposExtracao?: AposExtracao,
   ) {
     this.fila = new Queue<JobExtracao>(FILA_EXTRACAO, { connection: this.redis });
   }
@@ -93,22 +99,43 @@ export class FilaExtracao implements OnApplicationBootstrap, OnModuleDestroy {
     this.avisoFalha = aviso;
   }
 
-  // Depois de todos os `onModuleInit`: o canal já registrou o aviso antes de o worker pegar o primeiro job.
   onApplicationBootstrap(): void {
     this.worker = new Worker<JobExtracao>(
       FILA_EXTRACAO,
       (job: Job<JobExtracao>) =>
         comCorrelacao(this.pino, job.data.idCorrelacao, { fila: FILA_EXTRACAO, jobId: job.id }, () =>
-          tratarJobExtracao(job, {
-            processador: this.processador,
-            avisoFalha: this.avisoFalha,
-            logger: this.logger,
-          }),
+          this.tratar(job),
         ),
       { connection: this.redis, concurrency: 2 },
     );
     // Sem este ouvinte um erro de conexão derruba o processo.
     this.worker.on("error", () => undefined);
+  }
+
+  private async tratar(job: Job<JobExtracao>): Promise<ResultadoProcessamento> {
+    const r = await tratarJobExtracao(job, {
+      processador: this.processador,
+      avisoFalha: this.avisoFalha,
+      logger: this.logger,
+    });
+    if (
+      this.aposExtracao &&
+      r.compraId &&
+      (r.status === "extraido" || r.status === "revisao")
+    ) {
+      try {
+        await this.aposExtracao({
+          documentoId: job.data.documentoId,
+          comercianteId: job.data.comercianteId,
+          compraId: r.compraId,
+        });
+      } catch (e) {
+        this.logger.error(
+          `Gancho pós-extração falhou para o documento ${job.data.documentoId}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+    return r;
   }
 
   async enfileirar(job: JobExtracao): Promise<void> {

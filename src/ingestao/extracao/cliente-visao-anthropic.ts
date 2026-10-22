@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { esquemaSaidaJson } from "./esquema-saida-json";
 import { ErroClienteVisao, type ClienteVisao, type PedidoVisao, type RespostaVisao } from "./cliente-visao";
 
 export interface OpcoesClienteVisaoAnthropic {
@@ -63,7 +63,7 @@ export class ClienteVisaoAnthropic implements ClienteVisao {
               ]
             : []),
         ],
-        output_config: { effort: "low", format: zodOutputFormat(pedido.esquemaSaida) },
+        output_config: { effort: "low", format: esquemaSaidaJson(pedido.esquemaSaida) },
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
       });

@@ -62,7 +62,7 @@ interface Saida {
   ausente?: true;
   ambiguo?: true;
   codigo?: string;
-  candidatos?: Array<{ nome: string }>;
+  candidatos?: Array<{ produto_id: string; nome: string; codigo_barras: string | null }>;
   motivo?: string;
   confianca_da_busca?: number;
 }
@@ -261,14 +261,16 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
         "MG-2": "MARG QUALY CREMOSA",
         "MG-3": "MARGARINA CREMOSA 500G",
       };
-      for (const [sku, apelido] of Object.entries(apelidos)) {
-        await db.insert(schema.vinculoDescricaoProduto).values({
+      // Em um insert só: os apelidos iguais são gravados juntos (mesmo criado_em), então empatam em vez de um
+      // substituir o outro como numa correção do dono.
+      await db.insert(schema.vinculoDescricaoProduto).values(
+        Object.entries(apelidos).map(([sku, apelido]) => ({
           ...vinculo,
           produtoId: produtos.find((p) => p.sku === sku)!.id,
           descricaoNormalizada: apelido,
           confirmadoPeloDono: true,
-        });
-      }
+        })),
+      );
     });
 
     // Sem limpeza: o histórico de vínculos é só de acréscimo (regra 10), e cada execução usa um comerciante novo.
@@ -302,8 +304,9 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       expect(doNome).toHaveLength(2);
       expect(doNome.every((c) => c.descricao_de_nota === null)).toBe(true);
 
-      // Nome e apelido no mesmo produto: o nome vence (apelido pior) ou empata (apelido igual ao nome).
-      const comApelido = await chamar(loja, "get_product_margin", { produto: "Margarina Cremosa 500g" });
+      // Nome e apelido no mesmo produto: o nome vence (apelido pior) ou empata (apelido igual ao nome). A busca
+      // não repete o apelido de MG-3 por inteiro, que ligaria sozinha ao produto do vínculo.
+      const comApelido = await chamar(loja, "get_product_margin", { produto: "Margarina Cremosa 500" });
       const margarinas = (comApelido.candidatos ?? []) as unknown as Array<{
         sku: string;
         descricao_de_nota: string | null;
@@ -339,7 +342,10 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       expect(candidatos.find((c) => c.sku === "FP-1")?.codigo_barras).toBe("7891000100103");
       expect(candidatos[0]?.cadastrado_em).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
-      const escolhido = await chamar(loja, "get_product_margin", { produto_id: produtoB });
+      const escolhido = await chamar(loja, "get_product_margin", {
+        produto: "Feijão Preto 1kg",
+        produto_id: produtoB,
+      });
       expect(escolhido.ambiguo).toBeUndefined();
       expect(nomeAchado(escolhido)).toBe("Feijão Preto 1kg");
       // Sem custo no produto novo, o resultado é a ausência com o id escolhido: prova que foi o B.
@@ -353,12 +359,17 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     });
 
     it("isolamento: id e descrição de outro comerciante não valem", async () => {
-      const deOutro = await chamar(vilaNova, "get_product_margin", { produto_id: produtoB });
+      const deOutro = await chamar(vilaNova, "get_product_margin", {
+        produto: "Feijão Preto 1kg",
+        produto_id: produtoB,
+      });
       expect(deOutro).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
       // Nem o id nem o nome do produto de outro lojista aparecem na resposta.
       expect(JSON.stringify(deOutro)).not.toContain(produtoB);
       expect(JSON.stringify(deOutro)).not.toContain("Feijão");
-      expect(await chamar(vilaNova, "get_product_margin", { produto_id: sabonete })).toMatchObject({
+      expect(
+        await chamar(vilaNova, "get_product_margin", { produto: "Sabonete", produto_id: sabonete }),
+      ).toMatchObject({
         ausente: true,
       });
       const alias = await chamar(vilaNova, "get_product_margin", { produto: "sab liq ype coco" });
@@ -473,5 +484,181 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     for (const id of ids) {
       if (proprios.has(id)) expect(doEsquina.has(id)).toBe(true);
     }
+  });
+
+  describe("escolha entre produtos de mesmo nome (#156)", () => {
+    const NOME = "Arroz tipo 1 5kg";
+    const CODIGOS = ["7891000100103", "7891000100110"];
+    let dono: ContextoSessao;
+    let produtoIds: string[];
+
+    beforeAll(async () => {
+      const [c] = await db.insert(schema.comerciante).values({ nome: "E2E Nomes Iguais" }).returning();
+      dono = { comercianteId: c!.id, nomeComercio: "E2E Nomes Iguais", dataReferencia: REF };
+      const linhas = await db
+        .insert(schema.produto)
+        .values(
+          CODIGOS.map((codigoBarras) => ({
+            comercianteId: c!.id,
+            nome: NOME,
+            codigoBarras,
+            origem: "planilha" as const,
+          })),
+        )
+        .returning({ id: schema.produto.id, codigoBarras: schema.produto.codigoBarras });
+      produtoIds = CODIGOS.map((codigo) => linhas.find((l) => l.codigoBarras === codigo)!.id);
+    });
+
+    afterAll(async () => {
+      await db.delete(schema.comerciante).where(eq(schema.comerciante.id, dono.comercianteId));
+    });
+
+    it("o nome devolve os dois candidatos com o código de barras, e o id escolhido resolve", async () => {
+      const ambiguo = await chamar(dono, "get_product_margin", { produto: NOME });
+      expect(ambiguo.ambiguo).toBe(true);
+      expect(ambiguo.candidatos).toHaveLength(2);
+      expect((ambiguo.candidatos ?? []).map((c) => c.codigo_barras).sort()).toEqual(CODIGOS);
+
+      const escolhido = ambiguo.candidatos![0]!;
+      const saida = await chamar(dono, "get_product_margin", {
+        produto: NOME,
+        produto_id: escolhido.produto_id,
+      });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(saida).toMatchObject({ ausente: true, produto_id: escolhido.produto_id, nome: NOME });
+    });
+
+    it("id de produto de outro comerciante não vale: produto não encontrado, sem vazar o id", async () => {
+      const [deOutro] = await db
+        .select({ id: schema.produto.id })
+        .from(schema.produto)
+        .where(eq(schema.produto.comercianteId, vilaNova.comercianteId))
+        .limit(1);
+      const saida = await chamar(esquina, "get_product_margin", {
+        produto: "arroz",
+        produto_id: deOutro!.id,
+      });
+      expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+      expect(JSON.stringify(saida)).not.toContain(deOutro!.id);
+    });
+
+    it("o verificador aceita citar o código de barras e bloqueia número que a ferramenta não devolveu", async () => {
+      const ambiguo = await chamar(dono, "get_product_margin", { produto: NOME });
+      const aut = new NumerosAutorizados([ambiguo]);
+      expect(verificarNumeros("É o de código 7891000100103?", aut).aprovado).toBe(true);
+      expect(verificarNumeros("É o de código 7891000100999?", aut).aprovado).toBe(false);
+    });
+
+    it("descrição confirmada pelo dono desempata nomes iguais: liga sozinho ao produto do vínculo", async () => {
+      await db.insert(schema.vinculoDescricaoProduto).values({
+        comercianteId: dono.comercianteId,
+        descricaoNormalizada: "ARROZ TIPO 1 5KG",
+        produtoId: produtoIds[0]!,
+        metodo: "dono",
+        confianca: 1,
+        confirmadoPeloDono: true,
+      });
+      const saida = await chamar(dono, "get_product_margin", { produto: "arroz tipo 1 5kg" });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(saida).toMatchObject({ ausente: true, produto_id: produtoIds[0], nome: NOME });
+    });
+  });
+
+  describe("vínculos por fornecedor e correção do dono (revisão do Codex no PR 164)", () => {
+    let loja: ContextoSessao;
+    let integral = "";
+    let desnatado = "";
+    let fornecedores: string[] = [];
+
+    beforeAll(async () => {
+      const [c] = await db.insert(schema.comerciante).values({ nome: "E2E Vinculos" }).returning();
+      loja = { comercianteId: c!.id, nomeComercio: "E2E Vinculos", dataReferencia: REF };
+      const produtos = await db
+        .insert(schema.produto)
+        .values(
+          ["Leite integral 1L", "Leite desnatado 1L"].map((nome) => ({
+            comercianteId: c!.id,
+            nome,
+            origem: "planilha" as const,
+          })),
+        )
+        .returning({ id: schema.produto.id, nome: schema.produto.nome });
+      integral = produtos.find((p) => p.nome === "Leite integral 1L")!.id;
+      desnatado = produtos.find((p) => p.nome === "Leite desnatado 1L")!.id;
+      const fs = await db
+        .insert(schema.fornecedor)
+        .values(
+          ["Distribuidora Um", "Distribuidora Dois"].map((nome) => ({
+            comercianteId: c!.id,
+            nome,
+            origem: "dono" as const,
+          })),
+        )
+        .returning({ id: schema.fornecedor.id });
+      fornecedores = fs.map((f) => f.id);
+    });
+
+    afterAll(async () => {
+      await db.delete(schema.comerciante).where(eq(schema.comerciante.id, loja.comercianteId));
+    });
+
+    const vincular = (
+      descricaoNormalizada: string,
+      produtoId: string,
+      fornecedorId: string,
+      criadoEm: string,
+    ) =>
+      db.insert(schema.vinculoDescricaoProduto).values({
+        comercianteId: loja.comercianteId,
+        fornecedorId,
+        descricaoNormalizada,
+        produtoId,
+        metodo: "dono",
+        confianca: 1,
+        confirmadoPeloDono: true,
+        criadoEm: new Date(criadoEm),
+      });
+
+    it("a mesma descrição em fornecedores diferentes para produtos diferentes vira pergunta, não escolha", async () => {
+      await vincular("LEITE UHT CX", integral, fornecedores[0]!, "2026-10-01T10:00:00Z");
+      await vincular("LEITE UHT CX", desnatado, fornecedores[1]!, "2026-10-02T10:00:00Z");
+      const saida = await chamar(loja, "get_product_margin", { produto: "leite uht cx" });
+      expect(saida.ambiguo).toBe(true);
+      expect((saida.candidatos ?? []).map((c) => c.produto_id).sort()).toEqual([integral, desnatado].sort());
+    });
+
+    it("correção do dono vale na busca aproximada: o apelido antigo fica só no histórico", async () => {
+      await vincular("LEITE LONGA VIDA TP", integral, fornecedores[0]!, "2026-10-01T10:00:00Z");
+      await vincular("LEITE LONGA VIDA TP", desnatado, fornecedores[0]!, "2026-10-03T10:00:00Z");
+      const saida = await chamar(loja, "get_product_margin", { produto: "leite longa vida" });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(saida).toMatchObject({ produto_id: desnatado });
+      // O histórico não é apagado (regra 10): as duas linhas continuam na tabela.
+      const linhas = await db
+        .select()
+        .from(schema.vinculoDescricaoProduto)
+        .where(eq(schema.vinculoDescricaoProduto.descricaoNormalizada, "LEITE LONGA VIDA TP"));
+      expect(linhas).toHaveLength(2);
+    });
+  });
+
+  describe("descrições confirmadas da nota", () => {
+    const achado = (saida: Saida & { nome?: string }) =>
+      (saida.valor as { nome?: string } | undefined)?.nome ?? saida.nome;
+
+    it.each([
+      ["leite uht", "Leite integral 1L"],
+      ["salg milho", "Salgadinho de milho 100g"],
+    ])("%s, como vem na nota, liga a %s", async (digitado, esperado) => {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: digitado });
+      expect(saida.ambiguo).toBeUndefined();
+      expect(achado(saida)).toBe(esperado);
+    });
+
+    it("descrição confirmada igual à digitada liga com confiança 1", async () => {
+      const saida = await chamar(vilaNova, "get_product_margin", { produto: "REFRIG COLA LT 350ML" });
+      expect(saida.confianca_da_busca).toBe(1);
+      expect(achado(saida)).toBe("Refrigerante cola lata 350ml");
+    });
   });
 });

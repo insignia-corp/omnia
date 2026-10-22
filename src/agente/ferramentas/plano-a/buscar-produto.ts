@@ -1,6 +1,7 @@
-import { sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { LIMITE_SIMILARIDADE_PADRAO } from "../../../config/env";
 import type { Db } from "../../../infra/database/database.module";
+import { vinculoDescricaoProduto } from "../../../infra/database/schema";
 import {
   NOME_NORMALIZADO,
   decidirPorSimilaridade,
@@ -34,6 +35,78 @@ export type ProdutoAchado =
   | { tipo: "sugestao"; candidatos: CandidatoDaBusca[] }
   | { tipo: "sem_candidato" };
 
+/**
+ * Produtos que a descrição confirmada pelo dono identifica quando não se sabe o fornecedor. A mesma
+ * descrição pode ser produtos diferentes em fornecedores diferentes (o vínculo guarda o fornecedor), e a
+ * correção do dono entra como linha nova: vale o vínculo mais recente de cada fornecedor. Linhas gravadas
+ * juntas (mesmo `criado_em`) empatam e todas valem: dois produtos com o mesmo apelido são pergunta, não escolha.
+ */
+async function produtosDaDescricaoConfirmada(
+  db: Db,
+  comercianteId: string,
+  descricaoNormalizada: string,
+): Promise<string[]> {
+  const linhas = await db
+    .select({
+      produtoId: vinculoDescricaoProduto.produtoId,
+      fornecedorId: vinculoDescricaoProduto.fornecedorId,
+      // Texto, não Date: o driver corta os microssegundos e dois vínculos próximos pareceriam gravados juntos.
+      criadoEm: sql<string>`${vinculoDescricaoProduto.criadoEm}::text`,
+    })
+    .from(vinculoDescricaoProduto)
+    .where(
+      and(
+        eq(vinculoDescricaoProduto.comercianteId, comercianteId),
+        eq(vinculoDescricaoProduto.descricaoNormalizada, descricaoNormalizada),
+        eq(vinculoDescricaoProduto.confirmadoPeloDono, true),
+      ),
+    )
+    .orderBy(desc(vinculoDescricaoProduto.criadoEm));
+  const atualPorFornecedor = new Map<string | null, { criadoEm: string; produtos: Set<string> }>();
+  for (const l of linhas) {
+    const atual = atualPorFornecedor.get(l.fornecedorId);
+    if (!atual)
+      atualPorFornecedor.set(l.fornecedorId, { criadoEm: l.criadoEm, produtos: new Set([l.produtoId]) });
+    else if (atual.criadoEm === l.criadoEm) atual.produtos.add(l.produtoId);
+  }
+  return [...new Set([...atualPorFornecedor.values()].flatMap((g) => [...g.produtos]))];
+}
+
+/** Candidatos de uma lista de ids achados por uma descrição confirmada, com os campos que o dono vê para distinguir nomes iguais. */
+async function candidatosPorId(
+  db: Db,
+  comercianteId: string,
+  produtoIds: string[],
+  descricaoDeNota: string,
+): Promise<CandidatoDaBusca[]> {
+  const resultado = await db.execute<{
+    produto_id: string;
+    nome: string;
+    codigo_barras: string | null;
+    sku: string | null;
+    cadastrado_em: string;
+  }>(sql`
+    select p.id as produto_id, p.nome, p.codigo_barras, p.sku,
+           (p.criado_em at time zone ${FUSO})::date::text as cadastrado_em
+      from produto p
+     where p.comerciante_id = ${comercianteId}
+       and p.id in (${sql.join(
+         produtoIds.map((id) => sql`${id}`),
+         sql`, `,
+       )})
+     order by p.nome, p.id
+  `);
+  return resultado.rows.map((l) => ({
+    produtoId: l.produto_id,
+    nome: l.nome,
+    codigoBarras: l.codigo_barras,
+    sku: l.sku,
+    cadastradoEm: l.cadastrado_em,
+    descricaoDeNota,
+    similaridade: 1,
+  }));
+}
+
 type LinhaDaBusca = {
   produto_id: string;
   nome: string;
@@ -48,6 +121,9 @@ type LinhaDaBusca = {
 /**
  * Procura um produto do comerciante pelo nome aproximado (`pg_trgm`), com o mesmo critério do
  * vínculo de notas: só escolhe sozinho se for claramente o melhor, senão devolve sugestões.
+ * Compara também com as descrições que o dono já confirmou nas notas, e uma descrição confirmada
+ * igual à digitada liga sozinha, como no vínculo de notas. Se ela aponta para produtos diferentes em
+ * fornecedores diferentes, os produtos voltam como candidatos: sem o fornecedor, ninguém escolhe pelo dono.
  * A nota traz a descrição inteira; o dono digita só uma palavra ("arroz"), que a similaridade pelo
  * nome todo subestima. Quando nenhum nome chega ao limite pela similaridade do nome todo, vale a
  * `word_similarity` (a palavra dentro do nome). Se algum chega, a similaridade do nome todo decide
@@ -60,8 +136,14 @@ export async function buscarProdutoPorNome(
   nome: string,
 ): Promise<ProdutoAchado> {
   const consulta = normalizarDescricao(nome);
-  // O universo é o nome do cadastro e as descrições de nota que o dono já confirmou para o produto
-  // (o mesmo que o vínculo de notas consulta); vale o melhor dos dois para cada produto.
+  const confirmados = await produtosDaDescricaoConfirmada(db, comercianteId, consulta);
+  if (confirmados.length === 1) {
+    const produto = await buscarProdutoPorId(db, comercianteId, confirmados[0]!);
+    if (produto) return { tipo: "vinculado", produtoId: produto.produtoId, nome: produto.nome, confianca: 1 };
+  }
+  if (confirmados.length > 1) {
+    return { tipo: "sugestao", candidatos: await candidatosPorId(db, comercianteId, confirmados, consulta) };
+  }
   const resultado = await db.execute<LinhaDaBusca>(sql`
     with fonte as (
       select p.id as produto_id, null::text as descricao_de_nota,
@@ -75,9 +157,14 @@ export async function buscarProdutoPorNome(
              word_similarity(${consulta}, v.descricao_normalizada)
         from vinculo_descricao_produto v
        where v.comerciante_id = ${comercianteId} and v.confirmado_pelo_dono
+         and v.criado_em = (
+           select max(x.criado_em)
+             from vinculo_descricao_produto x
+            where x.comerciante_id = v.comerciante_id and x.confirmado_pelo_dono
+              and x.fornecedor_id is not distinct from v.fornecedor_id
+              and x.descricao_normalizada = v.descricao_normalizada
+         )
     ), melhor as (
-      -- O melhor valor de cada medida por produto (o nome e cada apelido contam); a descrição de nota só
-      -- aparece quando um apelido supera o nome, e no empate vale o nome.
       select produto_id,
              max(sim) as sim,
              max(palavra) as palavra,
@@ -90,8 +177,6 @@ export async function buscarProdutoPorNome(
            (p.criado_em at time zone ${FUSO})::date::text as cadastrado_em,
            m.descricao_de_nota, m.sim::float8 as sim, m.palavra::float8 as palavra
       from melhor m
-      -- O filtro do comerciante está aqui e em cada fonte: a chave composta do vínculo já impede
-      -- apelido de outro lojista, e repetir é defesa em profundidade, não um caminho a mais.
       join produto p on p.id = m.produto_id and p.comerciante_id = ${comercianteId}
      order by greatest(m.sim, m.palavra) desc, p.nome asc, p.id asc
      limit 20

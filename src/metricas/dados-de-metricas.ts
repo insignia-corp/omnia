@@ -68,8 +68,9 @@ export function contasExigidasNoDia(data: string, contas: readonly ContaParaMetr
 /**
  * O período em que a conta tem extrato: do primeiro dia com transação (ou, sem nenhuma, da abertura
  * da conta, ou da própria sincronização quando a abertura não é conhecida) até o maior entre o
- * último dia com transação e o dia da última importação concluída. Uma conta parada que foi
- * sincronizada hoje está em dia mesmo sem movimento recente. Nulo quando não há transação nem
+ * último dia com transação e o último dia com extrato importado por inteiro (a data de corte da
+ * sincronização). Uma conta parada que foi sincronizada está em dia até essa data mesmo sem
+ * movimento. Nulo quando não há transação nem
  * importação: sem prova de importação, não há extrato.
  */
 function intervaloDoExtratoDaConta(
@@ -88,9 +89,9 @@ function intervaloDoExtratoDaConta(
 /**
  * O período em que todas as contas exigidas no dia têm extrato: começa na data de início mais
  * recente entre elas e termina na data de fim mais antiga (ver `intervaloDoExtratoDaConta`). Nulo
- * quando não há conta exigida ou quando alguma delas não tem transação nem importação. Um intervalo único para o comerciante
- * deixaria o extrato em dia de uma conta esconder o atraso da outra e o total de gastos sairia
- * subestimado.
+ * quando não há conta exigida ou quando alguma delas não tem transação nem importação. Um
+ * intervalo único para o comerciante deixaria o extrato em dia de uma conta esconder o atraso da
+ * outra e o total de gastos sairia subestimado.
  */
 export function intervaloComumDeMovimentos(
   data: string,
@@ -144,12 +145,12 @@ export interface MovimentoDoDia extends Procedencia {
 
 export interface ContaParaMetrica {
   id: string;
-  /** Conexão ativa. Conta revogada, expirada ou com erro guarda o extrato já importado, mas não exige extrato novo. */
+  /** Conexão ativa. Conta inativa guarda o extrato já importado, mas não exige extrato novo. */
   ativa: boolean;
   saldoInicialCentavos: number | null;
   /** O saldo inicial vale antes das transações deste dia, que já entram no cálculo. */
   saldoInicialEm: string | null;
-  /** Dia da última importação de extrato concluída; nulo se nenhuma terminou. */
+  /** Último dia com extrato importado por inteiro (data de corte); nulo se nenhuma importação terminou. */
   ultimaSincronizacaoEm: string | null;
 }
 

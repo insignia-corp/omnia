@@ -68,6 +68,10 @@ Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem
 | Erro ao validar ou gravar (banco fora, restrição violada) | o BullMQ repete o job; na última tentativa o documento vira `falha` (`erro_gravacao`). A execução do modelo é registrada antes da gravação, então toda chamada cobrada fica auditada; no caminho de falha, o estado `falha` e o registro vão na mesma transação |
 | Job repetido de documento já resolvido | ignorado, sem nova chamada ao modelo |
 
+## Sincronização de extrato (#166)
+
+`registrarSincronizacaoDaConta` (`extrato/registrar-sincronizacao.ts`) é o que o importador de extrato chama ao fim de cada sincronização bem-sucedida. `data` é o último dia com extrato completo (data de corte, por exemplo ontem, não o dia da execução). Só avança, só vale para conta ativa do comerciante da sessão e não aceita data depois de `hoje`. Como a cobertura de extrato das métricas usa essa data, o contrato está em `src/metricas/README.md`. O importador real ainda não existe (#30).
+
 ## Pendente nesta etapa
 
 Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso ao dono quando a extração falha ainda não existe: o `ProcessadorExtracao` só grava `documento.statusExtracao` e `documento.erro`, e o canal (#106, #66, já na `develop`) ainda não recebe esse evento. Acompanhamento em #158.

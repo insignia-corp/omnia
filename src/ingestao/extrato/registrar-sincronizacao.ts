@@ -31,7 +31,10 @@ export async function registrarSincronizacaoDaConta(
   const atualizadas = await db
     .update(conta)
     .set({
-      ultimaSincronizacaoEm: sql`greatest(coalesce(${conta.ultimaSincronizacaoEm}, ${entrada.data}::date), ${entrada.data}::date)`,
+      ultimaSincronizacaoEm: sql`greatest(
+        coalesce(${conta.ultimaSincronizacaoEm}, ${entrada.data}::date),
+        ${entrada.data}::date
+      )`,
     })
     .where(
       and(

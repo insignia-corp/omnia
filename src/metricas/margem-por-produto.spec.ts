@@ -5,7 +5,13 @@ import { ehDadoAusente } from "./resultado-metrica";
 
 const REF = "2026-10-19";
 
-const arroz: ProdutoParaMetrica = { id: "p-arroz", nome: "Arroz 5kg", margemMetaBps: null };
+const arroz: ProdutoParaMetrica = {
+  id: "p-arroz",
+  nome: "Arroz 5kg",
+  margemMetaBps: null,
+  origem: "dono",
+  confianca: 1,
+};
 
 const venda = (data: string, quantidade: number, receitaCentavos: number): VendaDoProdutoNoDia => ({
   data,
@@ -196,6 +202,19 @@ describe("calcularMargemDoProduto", () => {
     it("a confiança da venda também entra", () => {
       const r = valorDe(entrada({ vendas: [{ ...venda("2026-10-18", 10, 35_000), menorConfianca: 0.7 }] }));
       expect(r.menor_confianca).toBe(0.7);
+    });
+
+    it("a confiança e a origem do cadastro do produto entram, sem virar registro", () => {
+      const r = valorDe(
+        entrada({
+          produto: { ...arroz, origem: "foto_nota", confianca: 0.6 },
+          vendas: [venda("2026-10-18", 10, 35_000)],
+          custos: [custo("2026-10-10", 2790)],
+        }),
+      );
+      expect(r.menor_confianca).toBe(0.6);
+      expect(r.origens).toEqual(["foto_nota", "planilha"]);
+      expect(r.n_registros).toBe(2); // 1 venda e 1 custo: o cadastro não conta
     });
 
     it("não conta venda fora da janela", () => {

@@ -9,9 +9,9 @@ import {
 const REF = "2026-10-19";
 
 const produtos: ProdutoParaMetrica[] = [
-  { id: "p-arroz", nome: "Arroz 5kg", margemMetaBps: null },
-  { id: "p-oleo", nome: "Óleo 900ml", margemMetaBps: null },
-  { id: "p-cafe", nome: "Café 500g", margemMetaBps: null },
+  { id: "p-arroz", nome: "Arroz 5kg", margemMetaBps: null, origem: "dono", confianca: 1 },
+  { id: "p-oleo", nome: "Óleo 900ml", margemMetaBps: null, origem: "dono", confianca: 1 },
+  { id: "p-cafe", nome: "Café 500g", margemMetaBps: null, origem: "dono", confianca: 1 },
 ];
 
 const custo = (
@@ -47,6 +47,7 @@ describe("calcularVariacoesDeCusto", () => {
         custo_atual_centavos: 2790,
         compra_anterior_data: "2026-09-14",
         compra_atual_data: "2026-10-16",
+        compra_atual_id: "compra-2026-10-16",
         variacao_bps: 1205,
         variacao_percentual: 12.05,
         acima_do_limite: true,
@@ -176,6 +177,24 @@ describe("calcularVariacoesDeCusto", () => {
     });
   });
 
+  describe("duas compras do mesmo produto e fornecedor no mesmo dia", () => {
+    it("a variação traz o id da compra atual, a mais recente do dia", () => {
+      const r = calcular([
+        custo("p-arroz", "2026-09-14", 2490),
+        custo("p-arroz", "2026-10-16", 2790, {
+          compraId: "nota-a",
+          criadoEm: new Date("2026-10-16T09:00:00Z"),
+        }),
+        custo("p-arroz", "2026-10-16", 3000, {
+          compraId: "nota-b",
+          criadoEm: new Date("2026-10-16T15:00:00Z"),
+        }),
+      ]);
+      expect(r.valor).toHaveLength(1);
+      expect(r.valor[0]).toMatchObject({ compra_atual_id: "nota-b", custo_anterior_centavos: 2790 });
+    });
+  });
+
   describe("mesma nota com o produto em duas linhas", () => {
     it("a compra anterior é de outra nota", () => {
       const r = calcular([
@@ -231,6 +250,28 @@ describe("calcularVariacoesDeCusto", () => {
       ]);
     });
 
+    it("a confiança do cadastro do produto entra na variação e no resultado", () => {
+      const r = calcular(
+        [
+          custo("p-arroz", "2026-09-14", 2490),
+          custo("p-arroz", "2026-10-16", 2790),
+          custo("p-oleo", "2026-09-14", 520),
+          custo("p-oleo", "2026-10-13", 560),
+        ],
+        {
+          produtos: [
+            { id: "p-arroz", nome: "Arroz 5kg", margemMetaBps: null, origem: "foto_nota", confianca: 0.5 },
+            { id: "p-oleo", nome: "Óleo 900ml", margemMetaBps: null, origem: "dono", confianca: 1 },
+          ],
+        },
+      );
+      expect(r.valor.map((v) => [v.produto_id, v.menor_confianca])).toEqual([
+        ["p-arroz", 0.5],
+        ["p-oleo", 1],
+      ]);
+      expect(r.menor_confianca).toBe(0.5);
+    });
+
     it("conta as duas leituras de cada variação, herda a menor confiança e junta as origens", () => {
       const r = calcular([
         custo("p-arroz", "2026-09-14", 2490, { confianca: 0.6 }),
@@ -240,7 +281,7 @@ describe("calcularVariacoesDeCusto", () => {
       ]);
       expect(r.n_registros).toBe(4);
       expect(r.menor_confianca).toBe(0.6);
-      expect(r.origens).toEqual(["foto_nota", "nfe"]);
+      expect(r.origens).toEqual(["dono", "foto_nota", "nfe"]);
       expect(r.periodo).toEqual({ inicio: "2026-09-14", fim: REF });
     });
 

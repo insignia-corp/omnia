@@ -8,7 +8,13 @@ import {
 
 const REF = "2026-10-19";
 
-const produto = (id: string, nome = id): ProdutoParaMetrica => ({ id, nome, margemMetaBps: null });
+const produto = (id: string, nome = id): ProdutoParaMetrica => ({
+  id,
+  nome,
+  margemMetaBps: null,
+  origem: "dono",
+  confianca: 1,
+});
 
 const ultimaVenda = (
   produtoId: string,
@@ -201,6 +207,21 @@ describe("calcularEstoqueParado", () => {
       expect(calcular({}).periodo).toEqual({ inicio: REF, fim: REF });
     });
 
+    it("a confiança e a origem do cadastro do produto listado entram; a de produto fora da lista não", () => {
+      const r = calcular({
+        produtos: [
+          { ...produto("a"), origem: "foto_nota", confianca: 0.4 },
+          { ...produto("b"), origem: "nfe", confianca: 0.2 },
+        ],
+        custos: [compra("a")],
+        ultimasVendas: [ultimaVenda("a", 41), ultimaVenda("b", 5)],
+      });
+      // "b" não tem compra, então não aparece no resultado nem pesa nele.
+      expect(r.valor.map((p) => p.produto_id)).toEqual(["a"]);
+      expect(r.menor_confianca).toBe(0.4);
+      expect(r.origens).toEqual(["foto_nota", "planilha"]);
+    });
+
     it("conta as linhas das últimas vendas e as compras, herda a menor confiança e junta as origens", () => {
       const r = calcular({
         produtos: [produto("a"), produto("b")],
@@ -212,7 +233,7 @@ describe("calcularEstoqueParado", () => {
       });
       expect(r.n_registros).toBe(9 + 1 + 4 + 1);
       expect(r.menor_confianca).toBe(0.5);
-      expect(r.origens).toEqual(["foto_nota", "nfe", "planilha"]);
+      expect(r.origens).toEqual(["dono", "foto_nota", "nfe", "planilha"]);
     });
   });
 });

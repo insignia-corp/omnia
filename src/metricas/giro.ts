@@ -7,6 +7,7 @@ import { somarDias } from "../lib/datas/datas";
 import {
   compararNomes,
   compararTexto,
+  procedenciaDoProduto,
   type IntervaloDeDados,
   type ProdutoParaMetrica,
   type VendaDoProdutoNoDia,
@@ -151,6 +152,6 @@ export function calcularGiro(
       giro_alto: giroAlto,
     },
     { inicio: anterior.inicio, fim: ref },
-    usadas,
+    [...usadas, ...entrada.produtos.map(procedenciaDoProduto)],
   );
 }

@@ -2,35 +2,43 @@ import { z } from "zod";
 import type { MetricasService } from "../../../metricas/metricas.service";
 import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
 import type { GiroDoProduto } from "../../../metricas/giro";
+import type { ReceitaDoProduto } from "../../../metricas/receita-por-produto";
 import { definirFerramenta } from "../ferramenta";
 
-export interface RankingDeProdutos {
-  criterio: "volume" | "alta";
-  produtos: GiroDoProduto[];
-}
+export type RankingDeProdutos =
+  | { criterio: "volume" | "alta"; produtos: GiroDoProduto[] }
+  | { criterio: "receita"; produtos: ReceitaDoProduto[] };
 
 /**
- * Ranking de produtos pelo giro (issue #50). Os rankings são os da métrica de giro (últimos 7 dias
- * contra a média semanal dos 28 anteriores); a ferramenta só escolhe qual devolver. O ranking por
- * receita não existe como métrica: quando existir, entra aqui como novo critério.
+ * Ranking de produtos (issues #50 e #148). Os rankings são os das métricas: o giro (últimos 7 dias
+ * contra a média semanal dos 28 anteriores) para `volume` e `alta`, e a receita dos últimos 7 dias
+ * para `receita`; a ferramenta só escolhe qual devolver, com a procedência da métrica.
  */
 export function criarGetTopProducts(metricas: MetricasService) {
   return definirFerramenta({
     nome: "get_top_products",
     descricao:
-      "Ranking dos produtos que mais giram: últimos 7 dias contra a média semanal dos 28 dias anteriores. " +
-      "criterio 'volume' lista os mais vendidos em unidades nos últimos 7 dias; 'alta' lista os de maior " +
-      "alta sobre a média anterior (só produtos com volume mínimo). Cada produto traz unidades, média " +
-      "semanal e alta percentual. Pode vir como dado ausente (ausente: true) quando não há vendas " +
-      "suficientes para as duas janelas. Não há ranking por receita.",
+      "Ranking dos produtos que mais vendem nos últimos 7 dias. criterio 'volume' lista os mais vendidos " +
+      "em unidades; 'alta' lista os de maior alta sobre a média semanal dos 28 dias anteriores (só " +
+      "produtos com volume mínimo); 'receita' lista os de maior faturamento em centavos. Volume e alta " +
+      "trazem unidades, média semanal e alta percentual; receita traz receita_centavos. Pode vir como " +
+      "dado ausente (ausente: true) quando as vendas importadas não cobrem o período: diga isso ao dono.",
     entrada: z.strictObject({
       criterio: z
-        .enum(["volume", "alta"])
+        .enum(["volume", "alta", "receita"])
         .default("volume")
-        .describe("volume: mais unidades vendidas. alta: maior crescimento do giro."),
+        .describe(
+          "volume: mais unidades vendidas. alta: maior crescimento do giro. receita: maior faturamento.",
+        ),
     }),
     efeito: "nenhum",
     async executar(contexto, { criterio }): Promise<ResultadoMetrica<RankingDeProdutos> | DadoAusente> {
+      if (criterio === "receita") {
+        const receita = await metricas.receitaPorProduto(contexto);
+        if (ehDadoAusente(receita)) return receita;
+        const { valor, ...procedencia } = receita;
+        return { ...procedencia, valor: { criterio, produtos: valor.maior_receita } };
+      }
       const giro = await metricas.giro(contexto);
       if (ehDadoAusente(giro)) return giro;
       const { valor, ...procedencia } = giro;

@@ -8,7 +8,7 @@ import {
   UnprocessableEntityException,
   UnsupportedMediaTypeException,
 } from "@nestjs/common";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { ARMAZENAMENTO, ErroArmazenamento, type Armazenamento } from "../infra/armazenamento/armazenamento";
 import { detectarTipo } from "../infra/armazenamento/tipo-arquivo";
@@ -47,6 +47,15 @@ export const corpoConfirmacaoSchema = z.object({
     .strict(),
 });
 
+/** Como o dono fechou a revisão das linhas rejeitadas: fica no relatório, junto das linhas, sem apagá-las. */
+export interface ResolucaoImportacao {
+  decisao: "descartar";
+  origem: "dono";
+  em: string;
+}
+
+export const corpoResolucaoSchema = z.strictObject({ decisao: z.literal("descartar") });
+
 export interface RelatorioImportacao {
   linhas_lidas: number;
   vendas_importadas: number;
@@ -54,6 +63,7 @@ export interface RelatorioImportacao {
   itens_importados: number;
   total_rejeitadas: number;
   linhas_rejeitadas: LinhaRejeitada[];
+  resolucao?: ResolucaoImportacao;
 }
 
 interface PendenteDeMapeamento {
@@ -185,6 +195,45 @@ export class PlanilhasService {
         set: { mapeamento, confirmadoPeloDono: true },
       });
     return this.importar(comercianteId, doc.id, doc.arquivoHash, planilha, mapeamento, false);
+  }
+
+  /**
+   * O dono fecha a revisão de uma planilha com linhas rejeitadas: segue sem elas. O documento vai para
+   * `extraido` e as vendas voltam à confiança que tinham (o teto de 0,5 só vale fora de `extraido`).
+   * Nada é apagado (regra 10): o relatório com as linhas rejeitadas continua no documento, agora com a
+   * resolução (decisão, origem e data). A troca é condicional ao status `revisao` (e o relatório é
+   * mesclado no próprio UPDATE), então duas chamadas ao mesmo tempo resolvem uma vez só.
+   */
+  async resolver(comercianteId: string, documentoId: string, corpo: unknown): Promise<EstadoPlanilha> {
+    const parsed = corpoResolucaoSchema.safeParse(corpo);
+    if (!parsed.success) {
+      throw new BadRequestException(
+        parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+      );
+    }
+    const dono = and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId));
+    const [doc] = await this.db.select().from(documento).where(dono).limit(1);
+    if (!doc || doc.tipo !== "planilha") throw new NotFoundException("Planilha não encontrada");
+    if (doc.statusExtracao !== "revisao") {
+      throw new ConflictException("Só uma planilha em revisão pode ser resolvida");
+    }
+    const resolucao: ResolucaoImportacao = {
+      decisao: parsed.data.decisao,
+      origem: "dono",
+      em: new Date().toISOString(),
+    };
+    // A resolução entra no relatório que está no banco na hora da troca (não num que foi lido antes), então
+    // as linhas rejeitadas e os contadores nunca são substituídos por uma cópia velha.
+    const [atualizado] = await this.db
+      .update(documento)
+      .set({
+        statusExtracao: "extraido",
+        extracaoJson: sql`coalesce(${documento.extracaoJson}, '{}'::jsonb) || ${JSON.stringify({ resolucao })}::jsonb`,
+      })
+      .where(and(dono, eq(documento.statusExtracao, "revisao")))
+      .returning();
+    if (!atualizado) throw new ConflictException("Só uma planilha em revisão pode ser resolvida");
+    return estadoDe(atualizado, false);
   }
 
   private async ler(conteudo: Buffer, tipo: "csv" | "xlsx"): Promise<PlanilhaLida> {

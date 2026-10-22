@@ -81,29 +81,15 @@ export interface RepositorioAlertas {
 export const REPOSITORIO_ALERTAS = Symbol("REPOSITORIO_ALERTAS");
 
 /**
- * Quantas execuções do motor seguram a trava ao mesmo tempo neste processo. Cada uma ocupa uma
- * conexão da transação e o corpo precisa de outras: sem teto, muitas execuções juntas esgotariam o
- * pool (10) com todas esperando conexão. Só limita a vazão; o estado do negócio continua no banco.
+ * Quantas execuções do motor seguram a trava ao mesmo tempo, somando todos os processos. Cada uma ocupa
+ * uma conexão da transação e o corpo precisa de outras: sem teto, muitas execuções juntas esgotariam o
+ * pool (10) com todas esperando conexão. O teto é do banco (vagas por `pg_try_advisory_xact_lock`), sem
+ * estado em memória do processo (regra inviolável 11).
  */
-export class LimiteDeConcorrencia {
-  private ativas = 0;
-  private readonly fila: Array<() => void> = [];
+const VAGAS_DE_EXECUCAO = 4;
+const ESPERA_POR_VAGA_MS = 25;
 
-  constructor(private readonly maximo: number) {}
-
-  async executar<T>(corpo: () => Promise<T>): Promise<T> {
-    if (this.ativas >= this.maximo) await new Promise<void>((liberar) => this.fila.push(liberar));
-    this.ativas++;
-    try {
-      return await corpo();
-    } finally {
-      this.ativas--;
-      this.fila.shift()?.();
-    }
-  }
-}
-
-const LIMITE_DE_EXECUCOES = new LimiteDeConcorrencia(4);
+const esperar = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export class RepositorioAlertasPostgres implements RepositorioAlertas {
   constructor(private readonly db: Executor) {}
@@ -159,9 +145,17 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
     novos: NovoAlerta[],
   ): Promise<number> {
     if (novos.length === 0) return 0;
+    // O `DO UPDATE` falha se a mesma chave vier duas vezes no mesmo comando: vale a primeira da lista.
+    const vistas = new Set<string>();
+    const unicos = novos.filter((n) => {
+      const id = `${n.tipo}|${n.chave}`;
+      if (vistas.has(id)) return false;
+      vistas.add(id);
+      return true;
+    });
     const gravados = await this.db
       .insert(alerta)
-      .values(novos.map((n) => ({ ...n, comercianteId, dataReferencia, status: "candidato" as const })))
+      .values(unicos.map((n) => ({ ...n, comercianteId, dataReferencia, status: "candidato" as const })))
       .onConflictDoUpdate({
         target: [alerta.comercianteId, alerta.tipo, alerta.chave, alerta.dataReferencia],
         set: {
@@ -183,15 +177,30 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
   }
 
   async comExclusao<T>(comercianteId: string, dataReferencia: string, corpo: () => Promise<T>): Promise<T> {
-    // Dentro de uma Tx a trava vale até o commit de quem chamou (a transação aninhada é um savepoint).
-    return LIMITE_DE_EXECUCOES.executar(() =>
-      this.db.transaction(async (tx) => {
+    // Sem vaga livre a transação termina sem segurar nada e tenta de novo depois: quem espera não ocupa
+    // conexão. Dentro de uma Tx de quem chamou a trava vale até o commit dele (a transação aninhada é um
+    // savepoint).
+    for (;;) {
+      const executado = await this.db.transaction(async (tx) => {
+        if (!(await this.pegarVaga(tx))) return null;
         await tx.execute(
           sql`select pg_advisory_xact_lock(hashtext(${`alerta:${comercianteId}:${dataReferencia}`}))`,
         );
-        return corpo();
-      }),
-    );
+        return { valor: await corpo() };
+      });
+      if (executado) return executado.valor;
+      await esperar(ESPERA_POR_VAGA_MS);
+    }
+  }
+
+  private async pegarVaga(tx: Executor): Promise<boolean> {
+    for (let vaga = 0; vaga < VAGAS_DE_EXECUCAO; vaga++) {
+      const { rows } = await tx.execute<{ pegou: boolean }>(
+        sql`select pg_try_advisory_xact_lock(hashtext(${`alerta-vaga:${vaga}`})) as pegou`,
+      );
+      if (rows[0]?.pegou) return true;
+    }
+    return false;
   }
 
   async marcarObsoletos(

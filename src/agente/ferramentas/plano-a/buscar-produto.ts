@@ -38,7 +38,8 @@ export type ProdutoAchado =
 /**
  * Produtos que a descrição confirmada pelo dono identifica quando não se sabe o fornecedor. A mesma
  * descrição pode ser produtos diferentes em fornecedores diferentes (o vínculo guarda o fornecedor), e a
- * correção do dono entra como linha nova: vale o vínculo mais recente de cada fornecedor.
+ * correção do dono entra como linha nova: vale o vínculo mais recente de cada fornecedor. Linhas gravadas
+ * juntas (mesmo `criado_em`) empatam e todas valem: dois produtos com o mesmo apelido são pergunta, não escolha.
  */
 async function produtosDaDescricaoConfirmada(
   db: Db,
@@ -49,6 +50,8 @@ async function produtosDaDescricaoConfirmada(
     .select({
       produtoId: vinculoDescricaoProduto.produtoId,
       fornecedorId: vinculoDescricaoProduto.fornecedorId,
+      // Texto, não Date: o driver corta os microssegundos e dois vínculos próximos pareceriam gravados juntos.
+      criadoEm: sql<string>`${vinculoDescricaoProduto.criadoEm}::text`,
     })
     .from(vinculoDescricaoProduto)
     .where(
@@ -59,18 +62,22 @@ async function produtosDaDescricaoConfirmada(
       ),
     )
     .orderBy(desc(vinculoDescricaoProduto.criadoEm));
-  const atualPorFornecedor = new Map<string | null, string>();
+  const atualPorFornecedor = new Map<string | null, { criadoEm: string; produtos: Set<string> }>();
   for (const l of linhas) {
-    if (!atualPorFornecedor.has(l.fornecedorId)) atualPorFornecedor.set(l.fornecedorId, l.produtoId);
+    const atual = atualPorFornecedor.get(l.fornecedorId);
+    if (!atual)
+      atualPorFornecedor.set(l.fornecedorId, { criadoEm: l.criadoEm, produtos: new Set([l.produtoId]) });
+    else if (atual.criadoEm === l.criadoEm) atual.produtos.add(l.produtoId);
   }
-  return [...new Set(atualPorFornecedor.values())];
+  return [...new Set([...atualPorFornecedor.values()].flatMap((g) => [...g.produtos]))];
 }
 
-/** Candidatos de uma lista de ids, com os campos que o dono vê para distinguir nomes iguais. */
+/** Candidatos de uma lista de ids achados por uma descrição confirmada, com os campos que o dono vê para distinguir nomes iguais. */
 async function candidatosPorId(
   db: Db,
   comercianteId: string,
   produtoIds: string[],
+  descricaoDeNota: string,
 ): Promise<CandidatoDaBusca[]> {
   const resultado = await db.execute<{
     produto_id: string;
@@ -95,7 +102,7 @@ async function candidatosPorId(
     codigoBarras: l.codigo_barras,
     sku: l.sku,
     cadastradoEm: l.cadastrado_em,
-    descricaoDeNota: null,
+    descricaoDeNota,
     similaridade: 1,
   }));
 }
@@ -135,7 +142,7 @@ export async function buscarProdutoPorNome(
     if (produto) return { tipo: "vinculado", produtoId: produto.produtoId, nome: produto.nome, confianca: 1 };
   }
   if (confirmados.length > 1) {
-    return { tipo: "sugestao", candidatos: await candidatosPorId(db, comercianteId, confirmados) };
+    return { tipo: "sugestao", candidatos: await candidatosPorId(db, comercianteId, confirmados, consulta) };
   }
   const resultado = await db.execute<LinhaDaBusca>(sql`
     with fonte as (
@@ -150,6 +157,13 @@ export async function buscarProdutoPorNome(
              word_similarity(${consulta}, v.descricao_normalizada)
         from vinculo_descricao_produto v
        where v.comerciante_id = ${comercianteId} and v.confirmado_pelo_dono
+         and v.criado_em = (
+           select max(x.criado_em)
+             from vinculo_descricao_produto x
+            where x.comerciante_id = v.comerciante_id and x.confirmado_pelo_dono
+              and x.fornecedor_id is not distinct from v.fornecedor_id
+              and x.descricao_normalizada = v.descricao_normalizada
+         )
     ), melhor as (
       select produto_id,
              max(sim) as sim,

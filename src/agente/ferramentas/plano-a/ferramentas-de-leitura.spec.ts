@@ -80,7 +80,7 @@ const dbCom = (
     cadastrado_em?: string;
     descricao_de_nota?: string | null;
   }>,
-  confirmado?: string | Array<{ produtoId: string; fornecedorId: string | null }>,
+  confirmado?: string | Array<{ produtoId: string; fornecedorId: string | null; criadoEm?: string }>,
 ) =>
   ({
     // Os vínculos confirmados da descrição, do mais recente ao mais antigo: select().from().where().orderBy().
@@ -89,8 +89,9 @@ const dbCom = (
         where: () => ({
           orderBy: async () =>
             typeof confirmado === "string"
-              ? [{ produtoId: confirmado, fornecedorId: null }]
-              : (confirmado ?? []),
+              ? [{ produtoId: confirmado, fornecedorId: null, criadoEm: "1" }]
+              : // Sem data informada, cada vínculo tem a sua: só o empate explícito vale como gravado junto.
+                (confirmado ?? []).map((c, i) => ({ criadoEm: String(i), ...c })),
         }),
       }),
     }),
@@ -556,6 +557,24 @@ describe("ferramentas de leitura do plano A", () => {
       const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "leite cx" });
       expect(saida).not.toHaveProperty("ambiguo");
       expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, corrigido);
+    });
+
+    it("apelido gravado junto para dois produtos no mesmo fornecedor empata e vira pergunta", async () => {
+      const { mock, metricas: m } = servico();
+      const [x, y, fornecedor] = [randomUUID(), randomUUID(), randomUUID()];
+      const banco = dbCom(
+        [
+          { produto_id: x, nome: "Suco de uva 1L", sim: 1 },
+          { produto_id: y, nome: "Suco de uva 300ml", sim: 1 },
+        ],
+        [
+          { produtoId: x, fornecedorId: fornecedor, criadoEm: "2026-10-01 10:00:00+00" },
+          { produtoId: y, fornecedorId: fornecedor, criadoEm: "2026-10-01 10:00:00+00" },
+        ],
+      );
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "suco cx" });
+      expect(saida).toMatchObject({ ambiguo: true });
+      expect(mock.margemDoProduto).not.toHaveBeenCalled();
     });
 
     it("descrição que o dono já confirmou na nota liga sozinha, com confiança 1", async () => {

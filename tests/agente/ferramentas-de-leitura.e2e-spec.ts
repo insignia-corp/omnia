@@ -261,14 +261,16 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
         "MG-2": "MARG QUALY CREMOSA",
         "MG-3": "MARGARINA CREMOSA 500G",
       };
-      for (const [sku, apelido] of Object.entries(apelidos)) {
-        await db.insert(schema.vinculoDescricaoProduto).values({
+      // Em um insert só: os apelidos iguais são gravados juntos (mesmo criado_em), então empatam em vez de um
+      // substituir o outro como numa correção do dono.
+      await db.insert(schema.vinculoDescricaoProduto).values(
+        Object.entries(apelidos).map(([sku, apelido]) => ({
           ...vinculo,
           produtoId: produtos.find((p) => p.sku === sku)!.id,
           descricaoNormalizada: apelido,
           confirmadoPeloDono: true,
-        });
-      }
+        })),
+      );
     });
 
     // Sem limpeza: o histórico de vínculos é só de acréscimo (regra 10), e cada execução usa um comerciante novo.
@@ -302,8 +304,9 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       expect(doNome).toHaveLength(2);
       expect(doNome.every((c) => c.descricao_de_nota === null)).toBe(true);
 
-      // Nome e apelido no mesmo produto: o nome vence (apelido pior) ou empata (apelido igual ao nome).
-      const comApelido = await chamar(loja, "get_product_margin", { produto: "Margarina Cremosa 500g" });
+      // Nome e apelido no mesmo produto: o nome vence (apelido pior) ou empata (apelido igual ao nome). A busca
+      // não repete o apelido de MG-3 por inteiro, que ligaria sozinha ao produto do vínculo.
+      const comApelido = await chamar(loja, "get_product_margin", { produto: "Margarina Cremosa 500" });
       const margarinas = (comApelido.candidatos ?? []) as unknown as Array<{
         sku: string;
         descricao_de_nota: string | null;

@@ -1,5 +1,5 @@
 {
-  "id": "fd1467ea-d50e-46f6-9163-3900cdf428f7",
+  "id": "931a36bd-9fbe-4366-aecd-babc3f1375be",
   "prevId": "8df8675b-3e44-424c-9b6c-f5dba790284e",
   "version": "7",
   "dialect": "postgresql",
@@ -1908,6 +1908,117 @@
       },
       "isRLSEnabled": false
     },
+    "public.limite_alerta": {
+      "name": "limite_alerta",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "comerciante_id": {
+          "name": "comerciante_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "limite": {
+          "name": "limite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor": {
+          "name": "valor",
+          "type": "numeric(14, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "origem_dado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'dono'"
+        },
+        "confianca": {
+          "name": "confianca",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "limite_alerta_busca_idx": {
+          "name": "limite_alerta_busca_idx",
+          "columns": [
+            {
+              "expression": "comerciante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "limite",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "limite_alerta_comerciante_id_comerciante_id_fk": {
+          "name": "limite_alerta_comerciante_id_comerciante_id_fk",
+          "tableFrom": "limite_alerta",
+          "tableTo": "comerciante",
+          "columnsFrom": [
+            "comerciante_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "limite_alerta_valor_nulo": {
+          "name": "limite_alerta_valor_nulo",
+          "value": "\"limite_alerta\".\"valor\" is not null or \"limite_alerta\".\"limite\" like 'janelaSupressaoDias.%'"
+        },
+        "limite_alerta_confianca_faixa": {
+          "name": "limite_alerta_confianca_faixa",
+          "value": "\"limite_alerta\".\"confianca\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.mapeamento_planilha": {
       "name": "mapeamento_planilha",
       "schema": "",
@@ -2027,33 +2138,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "tipo": {
-          "name": "tipo",
-          "type": "tipo_mensagem",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'text'"
-        },
-        "conteudo": {
-          "name": "conteudo",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contexto_id": {
-          "name": "contexto_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "status_mensagem",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
         },
         "custo_estimado_microdolares": {
           "name": "custo_estimado_microdolares",
@@ -3098,16 +3182,6 @@
         "falha"
       ]
     },
-    "public.status_mensagem": {
-      "name": "status_mensagem",
-      "schema": "public",
-      "values": [
-        "sent",
-        "delivered",
-        "read",
-        "failed"
-      ]
-    },
     "public.status_pergunta": {
       "name": "status_pergunta",
       "schema": "public",
@@ -3146,18 +3220,6 @@
         "foto_nota",
         "nfe",
         "planilha"
-      ]
-    },
-    "public.tipo_mensagem": {
-      "name": "tipo_mensagem",
-      "schema": "public",
-      "values": [
-        "text",
-        "image",
-        "document",
-        "interactive",
-        "template",
-        "button"
       ]
     },
     "public.tipo_pergunta": {

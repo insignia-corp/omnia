@@ -24,7 +24,7 @@ export interface LimitesDeAlerta {
   reajusteMesmoMovimentoDias: number;
   /** Giro em alta: alta sobre a média semanal acima deste valor, em pontos-base. */
   giroAltaMinimaBps: number;
-  /** Estoque parado: mais dias sem venda que isto. Só vale para subir o limite da métrica (30 dias). */
+  /** Estoque parado: mais dias sem venda que isto. Só vale a partir de 30 dias, o corte da métrica. */
   estoqueParadoLimiteDias: number;
   /** Ticket médio: queda de pelo menos isto contra a média dos 28 dias, em pontos-base. */
   ticketQuedaLimiteBps: number;

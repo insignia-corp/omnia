@@ -8,7 +8,8 @@ import { CicloDoAlerta } from "./ciclo-do-alerta";
 import { criarHoje } from "./jobs/hoje";
 import { FilaReajuste } from "./jobs/fila-reajuste";
 import { VerificadorDeReajuste } from "./jobs/verificar-reajuste";
-import { FONTE_DE_LIMITES, fonteDeLimitesPadrao, type FonteDeLimites } from "./limites";
+import { FONTE_DE_LIMITES, type FonteDeLimites } from "./limites";
+import { FonteDeLimitesPostgres } from "./limites-do-comerciante";
 import { MotorDeAlertas } from "./motor-de-alertas";
 import {
   REPOSITORIO_ALERTAS,
@@ -19,7 +20,11 @@ import {
 @Module({
   imports: [MetricasModule],
   providers: [
-    { provide: FONTE_DE_LIMITES, useValue: fonteDeLimitesPadrao },
+    {
+      provide: FONTE_DE_LIMITES,
+      inject: [DB],
+      useFactory: (db: Db): FonteDeLimites => new FonteDeLimitesPostgres(db),
+    },
     {
       provide: REPOSITORIO_ALERTAS,
       inject: [DB],

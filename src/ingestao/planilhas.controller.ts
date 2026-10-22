@@ -44,4 +44,18 @@ export class PlanilhasController {
   ) {
     return this.planilhas.confirmar(comercianteId, id, corpo);
   }
+
+  /**
+   * `{ "decisao": "descartar" }`: o dono revisou as linhas rejeitadas e segue sem elas. A planilha em
+   * `revisao` passa a `extraido` e a confiança das vendas deixa de ser limitada.
+   */
+  @Post(":id/resolver")
+  @HttpCode(200)
+  resolver(
+    @ComercianteDaSessao() comercianteId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() corpo: unknown,
+  ) {
+    return this.planilhas.resolver(comercianteId, id, corpo);
+  }
 }

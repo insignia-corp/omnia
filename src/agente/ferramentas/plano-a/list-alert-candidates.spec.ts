@@ -110,6 +110,19 @@ describe("list_alert_candidates", () => {
     ).toBeNull();
   });
 
+  it("confiança nula ou fora do formato é desconhecida: não vira zero nem anula a menor dos outros, como em select_alerts", async () => {
+    const conhecida = alerta({ metricasApoio: { menor_confianca: 0.8 } });
+    const nula = alerta({ metricasApoio: { menor_confianca: null } });
+    const texto = alerta({ metricasApoio: { menor_confianca: "0,5" } });
+    const executar = async (candidatos: AlertaGravado[]) =>
+      (await criarListAlertCandidates(motorCom({ candidatos }).motor).executar(contexto, {})).menor_confianca;
+    expect(await executar([nula, conhecida, texto])).toBe(0.8);
+    // Todos desconhecidos: o resultado também é desconhecido (nulo), nunca 0.
+    expect(await executar([nula, texto])).toBeNull();
+    // Um zero informado de verdade é confiança zero e continua valendo.
+    expect(await executar([conhecida, alerta({ metricasApoio: { menor_confianca: 0 } })])).toBe(0);
+  });
+
   it("zero candidatos é um resultado explícito (n_registros 0), e os motivos ausentes passam sem virar zero", async () => {
     const ausentes = [
       { tipo: "giro_em_alta" as const, codigo: "historico_insuficiente", motivo: "Sem 5 semanas de vendas." },

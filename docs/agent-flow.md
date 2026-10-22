@@ -1,6 +1,6 @@
 # Fluxo do agente
 
-Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado em 2026-10-21: o loop do Analista, o verificador, o registro de execuções, o histórico da conversa e `select_alerts` estão na `develop` (PRs #130, #131 e #133); as ferramentas de leitura de métricas e `list_alert_candidates` também (PRs #145, #168, #169 e #174), `ask_owner` e `save_owner_answer` (PR #132) e a ação com confirmação do dono (`propose_target_price`, #104; PR #141), também na `develop`. A tabela de ferramentas abaixo marca o que já roda. A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
+Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto com o código. Estado em 2026-10-21: o verificador (base da Etapa 0, #112), o registro de execuções (PR #131), o loop do Analista, o histórico da conversa e `select_alerts` (PR #133) estão na `develop`; as ferramentas de leitura de métricas e `list_alert_candidates` também (PRs #145, #168, #169 e #174), `ask_owner` e `save_owner_answer` (PR #132) e a ação com confirmação do dono (`propose_target_price`, #104; PR #141), também na `develop`. A tabela de ferramentas abaixo marca o que já roda. A arquitetura (dois agentes mais um orquestrador em código) está na [decisão 0003](decisoes/0003-arquitetura-do-agente.md) e na [especificação dos agentes](especificacao-agentes.md).
 
 ## Dois agentes e um orquestrador em código
 

@@ -40,6 +40,12 @@ describe("modeloResumoDiario", () => {
     expect(t.components.filter((c) => c.type === "button")).toHaveLength(MODELOS.resumo_diario.botoes.length);
   });
 
+  it("igual à média não diz acima nem abaixo", () => {
+    expect(corpoDoModelo(modeloResumoDiario(resumo(0), "X", 1)!)).toContain(
+      "em 78 vendas, igual ao valor da média dos 7 dias anteriores.",
+    );
+  });
+
   it("acima da média diz acima", () => {
     expect(corpoDoModelo(modeloResumoDiario(resumo(1250), "X", 1)!)).toContain("12,50% acima da média");
   });

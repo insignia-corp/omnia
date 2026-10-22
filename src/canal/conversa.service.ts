@@ -12,6 +12,7 @@ import {
   perguntaDono,
 } from "../infra/database/schema";
 import { FilaExtracao } from "../ingestao/fila/fila-extracao";
+import { ErroPergunta, responderPergunta } from "../ingestao/revisao/responder-pergunta";
 import { MetricasService } from "../metricas/metricas.service";
 import { CaixaMensagens, type MensagemGravada } from "./caixa-mensagens";
 import { MESSAGE_CHANNEL, type MessageChannel } from "./message-channel";
@@ -20,6 +21,18 @@ import { dataLocal, RELOGIO, type Relogio } from "./relogio";
 import { lerEntrada, type EntradaLida, type EntradaWhatsapp } from "./whatsapp/entrada";
 import type { SaidaWhatsapp } from "./whatsapp/formato";
 import { MAX_PERGUNTAS_NA_CONVERSA, textoNotaLida, type NotaParaMensagem } from "./whatsapp/nota-lida";
+import {
+  lerAcaoDaPergunta,
+  perguntaParaSaida,
+  TEXTO_NOTA_CONFERIDA,
+  TEXTO_PERGUNTA_FALHOU,
+  TEXTO_PERGUNTA_JA_RESPONDIDA,
+  TEXTO_PERGUNTA_RESOLVIDA,
+  TEXTO_REENVIAR_NOTA,
+  TEXTO_SEM_PRODUTO,
+  type PerguntaDaNota,
+  type RespostaDaNota,
+} from "./whatsapp/perguntas-da-nota";
 import {
   BOTOES_CONFIRMACAO,
   BOTOES_NOTA,
@@ -45,14 +58,17 @@ export const TEXTO_FALHA_NOTA =
 const INTERVALO_ESPERA_MS = 250;
 /** Folga sobre o tempo limite do modelo para a primeira chamada gravar a resposta. */
 const ESPERA_FOLGA_MS = 5_000;
-/** Uma resposta do WhatsApp tem no máximo algumas mensagens (texto longo em pedaços e os botões). */
-const MAX_MENSAGENS_POR_RESPOSTA = 6;
+/**
+ * Quantas chaves a reentrega consulta. Uma resposta vira várias mensagens (texto longo em pedaços de
+ * até 4096 caracteres e os botões); com o teto de tokens do modelo, nem perto de 64 pedaços.
+ */
+const MAX_MENSAGENS_POR_RESPOSTA = 64;
 /** Por quanto tempo uma nota em leitura mostra "digitando" (a extração tem 3 tentativas com espera). */
 const MINUTOS_DIGITANDO_NOTA = 5;
 
 /** Chaves de idempotência das mensagens de uma resposta: a primeira é a do chat web antigo. */
-const chavesDaResposta = (idExterno: string): string[] =>
-  Array.from({ length: MAX_MENSAGENS_POR_RESPOSTA }, (_, i) =>
+const chavesDaResposta = (idExterno: string, quantas = MAX_MENSAGENS_POR_RESPOSTA): string[] =>
+  Array.from({ length: quantas }, (_, i) =>
     i === 0 ? `resposta_${idExterno}` : `resposta_${idExterno}_${i + 1}`,
   );
 
@@ -148,7 +164,8 @@ export class ConversaService implements OnModuleInit {
 
     await this.caixa.marcarStatus(comercianteId, recebida.id, "read");
     const { saidas, execucaoId } = await this.responder(comercianteId, dono.nome, lida);
-    await this.enviarSaidas(comercianteId, saidas.slice(0, chaves.length), chaves, execucaoId);
+    // Uma chave por mensagem: nenhum pedaço da resposta fica de fora.
+    await this.enviarSaidas(comercianteId, saidas, chavesDaResposta(m.id, saidas.length), execucaoId);
     return [await doDono(), ...(await this.caixa.buscarPorChaves(comercianteId, chaves))];
   }
 
@@ -185,8 +202,10 @@ export class ConversaService implements OnModuleInit {
     nomeComercio: string,
     lida: EntradaLida,
   ): Promise<{ saidas: SaidaWhatsapp[]; execucaoId: string | null }> {
-    const acao = ehAcao(lida.acao) ? lida.acao : null;
     const fixa = (saida: SaidaWhatsapp) => ({ saidas: [saida], execucaoId: null });
+    const daNota = lerAcaoDaPergunta(lida.acao);
+    if (daNota) return fixa(texto(await this.responderPerguntaDaNota(comercianteId, daNota)));
+    const acao = ehAcao(lida.acao) ? lida.acao : null;
     if (acao === "menu" || (lida.acao === null && ehSaudacao(lida.texto))) return fixa(menu(nomeComercio));
     if (acao === "como_nota") return fixa(texto(TEXTO_COMO_NOTA));
     if (acao === "painel") return fixa(painel(`/painel/?comerciante=${comercianteId}`));
@@ -211,13 +230,52 @@ export class ConversaService implements OnModuleInit {
     return { saidas: comBotoes(resposta.mensagem, botoes), execucaoId: resposta.execucaoId };
   }
 
+  /**
+   * Resposta tocada numa pergunta da nota: vai ao mesmo resolvedor de `POST /perguntas/:id/resposta`,
+   * com o corpo montado em código. "Sim" no item confirma o valor que a leitura gravou; "não" não grava
+   * nada e diz como seguir. Devolve o texto fixo da confirmação, sem número.
+   */
+  private async responderPerguntaDaNota(comercianteId: string, r: RespostaDaNota): Promise<string> {
+    const [p] = await this.db
+      .select({ tipo: perguntaDono.tipo, status: perguntaDono.status, itemId: perguntaDono.itemDeCompraId })
+      .from(perguntaDono)
+      .where(and(eq(perguntaDono.id, r.perguntaId), eq(perguntaDono.comercianteId, comercianteId)))
+      .limit(1);
+    if (!p) return TEXTO_PERGUNTA_FALHOU;
+    if (p.status !== "pendente") return TEXTO_PERGUNTA_JA_RESPONDIDA;
+    if (r.tipo === "nao") return p.tipo === "confirmar_vinculo" ? TEXTO_SEM_PRODUTO : TEXTO_REENVIAR_NOTA;
+
+    let corpo: unknown;
+    if (r.tipo === "produto") corpo = { produto_id: r.produtoId };
+    else if (p.tipo === "confirmar_documento") corpo = { confirmado: true };
+    else if (p.tipo === "confirmar_item" && p.itemId) {
+      const [item] = await this.db
+        .select({ valor: itemDeCompra.valorUnitarioCentavos })
+        .from(itemDeCompra)
+        .where(and(eq(itemDeCompra.id, p.itemId), eq(itemDeCompra.comercianteId, comercianteId)))
+        .limit(1);
+      if (!item) return TEXTO_PERGUNTA_FALHOU;
+      corpo = { valor_unitario_centavos: Number(item.valor) };
+    } else return TEXTO_PERGUNTA_FALHOU;
+
+    try {
+      const feito = await responderPergunta(this.db, comercianteId, r.perguntaId, corpo, {
+        limiteConfiancaItem: this.env.LIMITE_CONFIANCA_ITEM,
+      });
+      return feito.statusDocumento === "extraido" ? TEXTO_NOTA_CONFERIDA : TEXTO_PERGUNTA_RESOLVIDA;
+    } catch (e) {
+      if (!(e instanceof ErroPergunta)) throw e;
+      return e.codigo === "ja_respondida" ? TEXTO_PERGUNTA_JA_RESPONDIDA : TEXTO_PERGUNTA_FALHOU;
+    }
+  }
+
   /** O produto de menor margem entre os abaixo da meta, pela mesma métrica do agente; nulo se nenhum. */
   private async maisAbaixoDaMeta(comercianteId: string): Promise<string | null> {
     const abaixo = await this.metricas.margensAbaixoDaMeta({
       comercianteId,
       dataReferencia: dataLocal(this.relogio.agora(), this.env.FUSO_HORARIO),
     });
-    return abaixo[0]?.nome ?? null;
+    return abaixo[0]?.valor.nome ?? null;
   }
 
   private async enviarSaidas(
@@ -369,14 +427,14 @@ export class ConversaService implements OnModuleInit {
     );
     const chaves = saidas.map((_, i) => (i === 0 ? chave : `${chave}_${i + 1}`));
     await this.enviarSaidas(comercianteId, saidas, chaves, null);
-    for (const p of perguntas.slice(0, MAX_PERGUNTAS_NA_CONVERSA)) {
-      await this.caixa.enviarResposta({
-        comercianteId,
-        texto: p.pergunta,
-        execucaoId: null,
-        chave: `pergunta_${p.id}`,
-      });
-    }
+    // Cada pergunta sai com botões ou lista que levam o id dela: a resposta vai ao resolvedor, sem modelo.
+    const primeiras = perguntas.slice(0, MAX_PERGUNTAS_NA_CONVERSA);
+    await this.enviarSaidas(
+      comercianteId,
+      primeiras.map(perguntaParaSaida),
+      primeiras.map((p) => `pergunta_${p.id}`),
+      null,
+    );
     return this.caixa.buscarPorChave(comercianteId, chave);
   }
 
@@ -387,7 +445,7 @@ export class ConversaService implements OnModuleInit {
   ): Promise<
     | {
         dados: Omit<NotaParaMensagem, "perguntasPendentes" | "repetida">;
-        perguntas: { id: string; pergunta: string }[];
+        perguntas: PerguntaDaNota[];
       }
     | undefined
   > {
@@ -420,7 +478,12 @@ export class ConversaService implements OnModuleInit {
       .orderBy(asc(itemDeCompra.ordem));
     const idsItens = itens.map((i) => i.id);
     const perguntas = await this.db
-      .select({ id: perguntaDono.id, pergunta: perguntaDono.pergunta })
+      .select({
+        id: perguntaDono.id,
+        tipo: perguntaDono.tipo,
+        pergunta: perguntaDono.pergunta,
+        contexto: perguntaDono.contexto,
+      })
       .from(perguntaDono)
       .where(
         and(

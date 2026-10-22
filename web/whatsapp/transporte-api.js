@@ -85,10 +85,13 @@ export async function criarTransporteApi(config) {
 
   /**
    * Passa as mensagens do backend pela tela: as novas viram bolha (com a conferência das regras da
-   * Meta, como no modo demonstração) e as já mostradas só avançam o status.
+   * Meta, como no modo demonstração) e as já mostradas só avançam o status. Numa página cheia do
+   * histórico, a mensagem do dono que abriu a janela pode ter ficado antes do recorte: sem ela, a
+   * janela é desconhecida e a bolha não é marcada como recusada.
+   * @param {boolean} [paginaCortada] a lista é a página mais recente e pode não ter o começo
    * @returns {Promise<import("./tipos.js").Mensagem[]>} as novas, na ordem
    */
-  async function absorver(lista, emitirNovas) {
+  async function absorver(lista, emitirNovas, paginaCortada = false) {
     const novas = [];
     let ultimaDoDono = null;
     for (const m of [...lista].sort((a, b) => a.timestamp - b.timestamp)) {
@@ -103,7 +106,7 @@ export async function criarTransporteApi(config) {
       }
       conhecidas.set(m.id, m.status ?? null);
       if (m.type === "image" && m.image?.id && !m.image.link) m.image.link = await foto(m.image.id);
-      if (m.direcao === "saida") {
+      if (m.direcao === "saida" && !(paginaCortada && ultimaDoDono === null && m.type !== "template")) {
         const recusa = conferirSaida(m, ultimaDoDono, m.timestamp);
         if (recusa.length) {
           m.recusada = recusa;
@@ -118,7 +121,7 @@ export async function criarTransporteApi(config) {
 
   async function consultar() {
     const dados = await api(`/chat/mensagens?formato=whatsapp&limite=${LIMITE_HISTORICO}`);
-    await absorver(dados.mensagens, true);
+    await absorver(dados.mensagens, true, dados.mensagens.length >= LIMITE_HISTORICO);
     // "Digitando" vale enquanto o banco disser: a tela o desliga a cada bolha nova, então reenvia.
     if (dados.digitando || digitandoAgora) emitir({ tipo: "digitando", ativo: dados.digitando });
     digitandoAgora = dados.digitando;
@@ -137,7 +140,7 @@ export async function criarTransporteApi(config) {
     comercio: sessao.nome,
     async historico() {
       const dados = await api(`/chat/mensagens?formato=whatsapp&limite=${LIMITE_HISTORICO}`);
-      const mensagens = await absorver(dados.mensagens, false);
+      const mensagens = await absorver(dados.mensagens, false, dados.mensagens.length >= LIMITE_HISTORICO);
       setInterval(() => void atualizar(), INTERVALO_MS);
       return mensagens;
     },

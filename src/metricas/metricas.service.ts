@@ -86,12 +86,10 @@ export class MetricasService {
   }
 
   /** Produtos com margem abaixo da meta, da menor margem para a maior (painel e "Sugerir preço", #182). */
-  async margensAbaixoDaMeta(contexto: ContextoMetricas): Promise<MargemDoProduto[]> {
+  async margensAbaixoDaMeta(contexto: ContextoMetricas): Promise<ResultadoMetrica<MargemDoProduto>[]> {
     return (await this.margensDosProdutos(contexto))
-      .flatMap((m) =>
-        ehDadoAusente(m.resultado) || !m.resultado.valor.abaixo_da_meta ? [] : [m.resultado.valor],
-      )
-      .sort((a, b) => a.margem_bps - b.margem_bps);
+      .flatMap((m) => (ehDadoAusente(m.resultado) || !m.resultado.valor.abaixo_da_meta ? [] : [m.resultado]))
+      .sort((a, b) => a.valor.margem_bps - b.valor.margem_bps);
   }
 
   /** Margem de todos os produtos do comerciante, para o motor de alertas e os rankings. */

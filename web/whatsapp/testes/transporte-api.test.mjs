@@ -86,6 +86,17 @@ describe("transporte do backend", () => {
     assert.equal(historico[1].recusada.length, 1);
   });
 
+  it("página cheia sem a mensagem do dono anterior: janela desconhecida, nada marcado como recusado", async () => {
+    const agora = Date.now();
+    rotas["sessao"] = sessao;
+    const pagina = Array.from({ length: 100 }, (_, i) => saida(`s${i}`, agora - 100 + i));
+    rotas["/chat/mensagens"] = () => json({ mensagens: pagina, digitando: false, janela_aberta: true });
+    const t = await criarTransporteApi({});
+    const historico = await t.historico();
+    assert.equal(historico.length, 100);
+    assert.ok(historico.every((m) => m.recusada === undefined));
+  });
+
   it("envio de texto vai no formato do webhook; o status da mensagem do dono só avança por evento", async () => {
     const agora = Date.now();
     rotas["sessao"] = sessao;

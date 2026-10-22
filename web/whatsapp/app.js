@@ -142,15 +142,35 @@ function limparTela() {
   atualizarDescer();
 }
 
-// Transporte: o backend quando a página vem do Nest, a demonstração com `?modo=demo` ou sem backend.
+/**
+ * Com `?modo=api` explícito e o backend fora, a tela fica parada e mostra o erro: cair na
+ * demonstração mostraria números do gabarito como se fossem os do comerciante escolhido.
+ */
+function transporteIndisponivel(motivo) {
+  return {
+    nome: "indisponível",
+    historico: async () => [],
+    enviar: async () => {
+      throw new Error(`Backend indisponível: ${motivo}`);
+    },
+    aoEvento() {},
+  };
+}
+
+// Transporte: o backend quando a página vem do Nest, a demonstração com `?modo=demo` ou, só no modo
+// automático, quando não há backend (servidor estático).
 async function criarTransporte() {
   if (CONFIG.modo === "demo") return criarTransporteDemo(CONFIG);
   try {
     return await criarTransporteApi(CONFIG);
   } catch (erro) {
     const motivo = erro instanceof Error ? erro.message : String(erro);
-    avisar(`Sem o backend (${motivo}); usando a demonstração.`);
     console.warn("[omnia] modo api indisponível:", erro);
+    if (CONFIG.modo === "api") {
+      avisar(`Backend indisponível: ${motivo}`);
+      return transporteIndisponivel(motivo);
+    }
+    avisar(`Sem o backend (${motivo}); usando a demonstração.`);
     return criarTransporteDemo(CONFIG);
   }
 }

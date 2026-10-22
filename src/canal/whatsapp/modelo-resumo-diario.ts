@@ -41,7 +41,11 @@ export function modeloResumoDiario(
   const r = resumo.valor;
   const media = r.comparacao_faturamento.media_7_dias_anteriores;
   if (ehDadoAusente(media) || media.variacao_bps === null) return null;
-  const sentido = media.variacao_bps < 0 ? "abaixo" : "acima";
+  // O texto do modelo segue com "da média dos 7 dias anteriores": zero lê "igual ao valor da média".
+  const comparacao =
+    media.variacao_bps === 0
+      ? "igual ao valor"
+      : `${formatarBps(Math.abs(media.variacao_bps))} ${media.variacao_bps < 0 ? "abaixo" : "acima"}`;
   return montarTemplate(
     "resumo_diario",
     [
@@ -49,7 +53,7 @@ export function modeloResumoDiario(
       nomeComercio,
       formatarBRL(centavos(r.faturamento_centavos)),
       String(r.cupons),
-      `${formatarBps(Math.abs(media.variacao_bps))} ${sentido}`,
+      comparacao,
       String(Math.min(avisos, MAX_AVISOS)),
     ],
     ["avisos", "resumo_dia", "cancelar"],

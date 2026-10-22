@@ -26,7 +26,8 @@ export const LIMITES = {
 };
 
 export const TIPOS_IMAGEM = ["image/jpeg", "image/png"];
-export const TIPOS_DOCUMENTO = ["application/xml", "text/xml", "application/pdf"];
+/** Só o XML da NF-e: o backend lê foto (JPEG, PNG) e XML; PDF seria recusado com 415. */
+export const TIPOS_DOCUMENTO = ["application/xml", "text/xml"];
 
 const tamanho = (rotulo, texto, max) =>
   typeof texto === "string" && texto.length > max ? [`${rotulo} passa de ${max} caracteres`] : [];
@@ -136,7 +137,8 @@ export function conferirAnexo(arquivo, tipo) {
     return null;
   }
   const xml = /\.xml$/i.test(arquivo.name);
-  if (!xml && !TIPOS_DOCUMENTO.includes(arquivo.type)) return "Envie o XML da NF-e ou um PDF.";
+  if (!xml && !TIPOS_DOCUMENTO.includes(arquivo.type))
+    return "Envie o XML da NF-e. Nota em papel vai como foto.";
   if (arquivo.size > LIMITES.documentoBytes) return "O documento passa de 100 MB.";
   return null;
 }

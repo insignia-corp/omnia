@@ -60,9 +60,11 @@ function reais(c) { const s = String(Math.abs(c)).padStart(3, "0"); return (c < 
 function porcento(b) { const s = String(Math.abs(b)).padStart(3, "0"); const c = s.slice(-2); return (b < 0 ? "-" : "") + s.slice(0, -2) + (c === "00" ? "" : "," + c) + "%"; }
 const inteiro = (n) => String(n).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ".");
 const dm = (d) => d.slice(8, 10) + "/" + d.slice(5, 7);
+const ORIGEM = { foto_nota: "foto de nota", nfe: "NF-e", planilha: "planilha", banco: "banco", dono: "dono" };
 
 function comparacao(c, referencia) {
   if (ausente(c) || !c || c.variacao_bps === null) return el("p", "comparacao suave", "Sem base para comparar " + referencia);
+  if (c.variacao_bps === 0) return el("p", "comparacao suave", "= igual ao valor " + referencia + " (" + reais(c.base_centavos) + ")");
   const cai = c.variacao_bps < 0;
   return el("p", "comparacao " + (cai ? "queda" : "alta"), (cai ? "▼ " : "▲ ") + porcento(Math.abs(c.variacao_bps)) + (cai ? " abaixo " : " acima ") + referencia + " (" + reais(c.base_centavos) + ")");
 }
@@ -99,11 +101,12 @@ function desenhar(d) {
   else {
     const t = el("table");
     const cab = el("tr");
-    for (const h of ["Produto", "Margem", "Meta", "Preço médio", "Custo"]) cab.append(el("th", "", h));
+    for (const h of ["Produto", "Margem", "Meta", "Preço médio", "Custo", "Dados"]) cab.append(el("th", "", h));
     t.append(cab);
     for (const p of d.margens_abaixo_da_meta) {
       const tr = el("tr");
-      tr.append(el("td", "", p.produto), el("td", "queda", porcento(p.margem_bps)), el("td", "", porcento(p.meta_bps)), el("td", "", reais(p.preco_medio_venda_centavos)), el("td", "", reais(p.custo_compra_mais_recente_centavos)));
+      const incerto = p.menor_confianca !== null && p.menor_confianca < d.limite_confianca;
+      tr.append(el("td", "", p.produto), el("td", "queda", porcento(p.margem_bps)), el("td", "", porcento(p.meta_bps)), el("td", "", reais(p.preco_medio_venda_centavos)), el("td", "", reais(p.custo_compra_mais_recente_centavos)), el("td", incerto ? "queda" : "suave", (incerto ? "incerto: " : "") + p.origens.map((o) => ORIGEM[o] ?? o).join(", ")));
       t.append(tr);
     }
     m.replaceChildren(t);

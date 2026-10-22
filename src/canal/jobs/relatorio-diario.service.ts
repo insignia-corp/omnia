@@ -14,7 +14,7 @@ import { dataLocal, minutosDoDia, RELOGIO, type Relogio } from "../relogio";
 import { FONTE_RELATORIO, type FonteRelatorio } from "./fonte-relatorio";
 import { emSilencio } from "./horario-silencio";
 import { modeloResumoDiario } from "../whatsapp/modelo-resumo-diario";
-import { BOTOES_RELATORIO, comBotoes, garantirRegras, texto } from "../whatsapp/respostas";
+import { BOTOES_RELATORIO, comBotoes, garantirRegras } from "../whatsapp/respostas";
 
 export type ResultadoRelatorio =
   "enviada" | "duplicada" | "silencio" | "ja_enviada_hoje" | "sem_comerciante" | "sem_dados";
@@ -92,17 +92,32 @@ export class RelatorioDiarioService {
     });
     // A chamada ao modelo pode atravessar o início do silêncio: reconfere logo antes de entregar.
     if (this.emSilencioAgora()) return "silencio";
-    // Dentro da janela de 24 h vale texto livre: o texto verificado ganha os botões dos próximos passos
-    // quando cabe numa mensagem só (é no máximo uma proativa por dia).
-    const [comBotao, ...resto] = comBotoes(resposta.mensagem, BOTOES_RELATORIO);
-    const saida = garantirRegras(resto.length === 0 && comBotao ? comBotao : texto(resposta.mensagem)).saida;
+    // E o fim da janela de 24 h: texto livre fora dela a Meta recusa, então sai o modelo aprovado.
+    if (!(await this.caixa.janelaAberta(job.comercianteId))) return this.enviarModelo(job, contexto);
+    // Dentro da janela vale texto livre: o texto verificado ganha os botões dos próximos passos. Um
+    // relatório acima dos limites da Meta sai em pedaços; só o primeiro é a proativa do dia (regra 9),
+    // os outros continuam a mesma mensagem e só saem se ela saiu.
+    const [primeira, ...continuacao] = comBotoes(resposta.mensagem, BOTOES_RELATORIO).map(
+      (s) => garantirRegras(s).saida,
+    );
+    const chave = chaveRelatorio(job);
     const resultado = await this.caixa.enviarProativa({
       comercianteId: job.comercianteId,
-      saida,
+      saida: primeira!,
       execucaoId: resposta.execucaoId,
       dataEnvio: this.hoje(),
-      chave: chaveRelatorio(job),
+      chave,
     });
+    if (resultado === "enviada") {
+      for (const [i, saida] of continuacao.entries()) {
+        await this.caixa.enviarResposta({
+          comercianteId: job.comercianteId,
+          saida,
+          execucaoId: resposta.execucaoId,
+          chave: `${chave}_${i + 2}`,
+        });
+      }
+    }
     if (resultado === "enviada" && resposta.execucaoId) {
       await this.marcarAlertasEnviados(job.comercianteId, resposta.execucaoId);
     }

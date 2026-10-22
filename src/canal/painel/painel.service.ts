@@ -55,12 +55,16 @@ export class PainelService {
       this.motor.executar({ comercianteId, dataReferencia: hoje }),
     ]);
 
-    const abaixoDaMeta = margens.map((m) => ({
+    // Cada margem leva a menor confiança e a origem dos dados (regra 4): custo lido de foto duvidosa
+    // aparece marcado na página, não como número definitivo.
+    const abaixoDaMeta = margens.map(({ valor: m, menor_confianca, origens }) => ({
       produto: m.nome,
       margem_bps: m.margem_bps,
       meta_bps: m.meta_bps,
       preco_medio_venda_centavos: m.preco_medio_venda_centavos,
       custo_compra_mais_recente_centavos: m.custo_compra_mais_recente_centavos,
+      menor_confianca,
+      origens,
     }));
 
     const idsProdutos = [...new Set(alertas.candidatos.flatMap((c) => (c.produtoId ? [c.produtoId] : [])))];
@@ -78,6 +82,8 @@ export class PainelService {
     return {
       comercio: dono.nome,
       data_referencia: hoje,
+      /** Abaixo disto a página marca o dado como incerto (o mesmo limite de item de nota). */
+      limite_confianca: this.env.LIMITE_CONFIANCA_ITEM,
       ate: ontem,
       dia,
       semana,

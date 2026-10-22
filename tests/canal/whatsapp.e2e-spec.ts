@@ -21,6 +21,7 @@ import {
 } from "../../src/agente/llm/modelo-linguagem";
 import { RELOGIO, type Relogio } from "../../src/canal/relogio";
 import { COMERCIANTE_DEMO } from "../../src/canal/web/whatsapp.controller";
+import { TEXTO_PERGUNTA_JA_RESPONDIDA, TEXTO_SEM_PRODUTO } from "../../src/canal/whatsapp/perguntas-da-nota";
 import { TEXTO_CANCELAR, TEXTO_SEM_PROPOSTA } from "../../src/canal/whatsapp/respostas";
 import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
@@ -346,6 +347,62 @@ describe("WhatsApp simulado integrado (e2e, issue #182)", () => {
   });
 
   describe("nota pela conversa", () => {
+    it("perguntas da nota saem com o id delas e a resposta tocada vai ao resolvedor, sem modelo", async () => {
+      // Catálogo vazio: nenhum item da nota 18 liga sozinho, e cada um vira pergunta de vínculo.
+      const c = await novoComerciante("E2E WhatsApp perguntas");
+      const r = await request(servidor())
+        .post("/chat/notas")
+        .set(como(c))
+        .attach("arquivo", readFileSync("fixtures/notas/nota-18.xml"), {
+          filename: "nota-18.xml",
+          contentType: "application/xml",
+        })
+        .field("id", "wamid.donoperguntas")
+        .expect(202);
+      const listas = (r.body as { mensagens: MensagemWa[] }).mensagens.filter(
+        (m) => m.interactive?.type === "list",
+      );
+      expect(listas.length).toBeGreaterThanOrEqual(2);
+      const linhas = listas[0]!.interactive!.action.sections![0]!.rows.map((l) => l.id);
+      const perguntaId = /^pergunta:([0-9a-f-]{36}):nao$/.exec(linhas.at(-1)!)![1]!;
+      const [pergunta] = await db
+        .select()
+        .from(schema.perguntaDono)
+        .where(eq(schema.perguntaDono.id, perguntaId));
+      expect(pergunta).toMatchObject({ comercianteId: c, tipo: "confirmar_vinculo", status: "pendente" });
+
+      const [p] = await db
+        .insert(schema.produto)
+        .values({ comercianteId: c, nome: "Pão de forma 500g", origem: "dono" })
+        .returning({ id: schema.produto.id });
+      const antes = modelo.pedidos.length;
+      const escolha = (id: string) => tocar(id, "Pão de forma 500g", listas[0]!.id, "list_reply");
+      const ligou = await enviar(c, escolha(`pergunta:${perguntaId}:produto:${p!.id}`));
+      expect(ligou.mensagens[1]!.text!.body).toMatch(/^Anotado/);
+      const [item] = await db
+        .select()
+        .from(schema.itemDeCompra)
+        .where(eq(schema.itemDeCompra.id, pergunta!.itemDeCompraId!));
+      expect(item!.produtoId).toBe(p!.id);
+      const [respondida] = await db
+        .select()
+        .from(schema.perguntaDono)
+        .where(eq(schema.perguntaDono.id, perguntaId));
+      expect(respondida!.status).toBe("respondida");
+
+      const deNovo = await enviar(c, escolha(`pergunta:${perguntaId}:produto:${p!.id}`));
+      expect(deNovo.mensagens[1]!.text!.body).toBe(TEXTO_PERGUNTA_JA_RESPONDIDA);
+      const outra = /^pergunta:([0-9a-f-]{36}):nao$/.exec(
+        listas[1]!.interactive!.action.sections![0]!.rows.at(-1)!.id,
+      )![1]!;
+      const nenhum = await enviar(
+        c,
+        tocar(`pergunta:${outra}:nao`, "Nenhum desses", listas[1]!.id, "list_reply"),
+      );
+      expect(nenhum.mensagens[1]!.text!.body).toBe(TEXTO_SEM_PRODUTO);
+      expect(modelo.pedidos.length).toBe(antes);
+    });
+
     it("XML da NF-e: a mensagem do dono é o documento e a leitura chega na hora", async () => {
       const c = await novoComerciante("E2E WhatsApp XML");
       const xml = readFileSync("fixtures/notas/nota-18.xml");
@@ -506,6 +563,7 @@ describe("WhatsApp simulado integrado (e2e, issue #182)", () => {
       expect(d.dia.valor.gastos_centavos).toMatchObject({ ausente: true });
       expect(d.semana).toMatchObject({ ausente: true, codigo: "periodo_sem_dados" });
       expect(Array.isArray(d.avisos)).toBe(true);
+      expect((d as unknown as { limite_confianca: number }).limite_confianca).toBeGreaterThan(0);
     });
   });
 });

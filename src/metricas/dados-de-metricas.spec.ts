@@ -207,7 +207,7 @@ describe("cobertura do extrato por conta", () => {
       });
     });
 
-    it("conta parada sincronizada no dia está em dia: a data da importação vale mais que a da última transação", () => {
+    it("conta parada sincronizada no dia está em dia: a data de corte da sincronização vale mais que a da última transação", () => {
       const contas = [conta("a"), conta("b", { ultimaSincronizacaoEm: DIA })];
       const intervalos = [intervalo("a", "2026-09-01", DIA), intervalo("b", "2026-09-01", "2026-10-05")];
       expect(intervaloComumDeMovimentos(DIA, contas, intervalos)).toEqual({

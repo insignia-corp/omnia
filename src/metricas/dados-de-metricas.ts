@@ -70,8 +70,7 @@ export function contasExigidasNoDia(data: string, contas: readonly ContaParaMetr
  * da conta, ou da própria sincronização quando a abertura não é conhecida) até o maior entre o
  * último dia com transação e o último dia com extrato importado por inteiro (a data de corte da
  * sincronização). Uma conta parada que foi sincronizada está em dia até essa data mesmo sem
- * movimento. Nulo quando não há transação nem
- * importação: sem prova de importação, não há extrato.
+ * movimento. Nulo quando não há transação nem importação: sem prova de importação, não há extrato.
  */
 function intervaloDoExtratoDaConta(
   conta: ContaParaMetrica,

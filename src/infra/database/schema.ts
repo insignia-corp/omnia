@@ -31,8 +31,9 @@ import {
  * - tabela filha aponta para a mãe por chave composta (id, comerciante_id), então o banco
  *   recusa um vínculo entre dados de lojistas diferentes (isolamento, regra inviolável 3);
  * - todo dado extraído ou informado carrega `origem` e `confianca` (regra inviolável 4);
- * - histórico de custo e vínculos nota-produto são append-only (regra inviolável 10, ver a
- *   migração `historico_append_only`); só a exclusão do lojista (LGPD) apaga, em cascata.
+ * - histórico de custo, preço-meta, limites de alerta e vínculos nota-produto são append-only
+ *   (regra inviolável 10, ver a migração `historico_append_only`); só a exclusão do lojista (LGPD)
+ *   apaga, em cascata.
  */
 
 const criadoEm = () => timestamp("criado_em", { withTimezone: true }).notNull().defaultNow();

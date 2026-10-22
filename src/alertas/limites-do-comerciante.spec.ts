@@ -23,6 +23,18 @@ describe("validarLimite", () => {
     expect(() => validarLimite("prioridade1MinCentavos", Infinity)).toThrow(LimiteInvalidoError);
   });
 
+  it("recusa valor com mais de 4 casas decimais e centavos que estouram a coluna", () => {
+    expect(() => validarLimite("gastoLimiteDesvio", 3.12345)).toThrow(LimiteInvalidoError);
+    expect(validarLimite("gastoLimiteDesvio", 3.1234)).toBe(3.1234);
+    expect(() => validarLimite("prioridade1MinCentavos", 10_000_000_000)).toThrow(LimiteInvalidoError);
+  });
+
+  it("estoque parado só aceita limite de 30 dias ou mais, porque a métrica já corta nesse valor", () => {
+    expect(() => validarLimite("estoqueParadoLimiteDias", 14)).toThrow(LimiteInvalidoError);
+    expect(validarLimite("estoqueParadoLimiteDias", 30)).toBe(30);
+    expect(validarLimite("estoqueParadoLimiteDias", 60)).toBe(60);
+  });
+
   it("aceita nulo só na janela de supressão, onde quer dizer sem limite de idade", () => {
     expect(validarLimite("janelaSupressaoDias.estoque_parado", null)).toBeNull();
     expect(validarLimite("janelaSupressaoDias.estoque_parado", 0)).toBe(0);

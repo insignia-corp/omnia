@@ -17,16 +17,20 @@ interface Faixa {
   inteiro: boolean;
 }
 
+/** Maior valor inteiro que cabe em `numeric(14, 4)`. */
+const LIMITE_CENTAVOS = 9_999_999_999;
+
 /** Faixa aceita de cada limite: o valor fora dela é erro de quem pediu, nunca vira limite do dono. */
 const FAIXAS: Readonly<Record<LimiteNumerico, Faixa>> = {
   reajusteLimiteBps: { min: 1, max: 100_000, inteiro: true },
   reajusteJanelaDias: { min: 1, max: 365, inteiro: true },
   giroAltaMinimaBps: { min: 0, max: 100_000, inteiro: true },
-  estoqueParadoLimiteDias: { min: 1, max: 3650, inteiro: true },
+  // A métrica já corta a lista em 30 dias: abaixo disso o limite não mudaria nada.
+  estoqueParadoLimiteDias: { min: 30, max: 3650, inteiro: true },
   ticketQuedaLimiteBps: { min: 1, max: 10_000, inteiro: true },
   gastoLimiteDesvio: { min: 0.1, max: 100, inteiro: false },
-  prioridade1MinCentavos: { min: 1, max: Number.MAX_SAFE_INTEGER, inteiro: true },
-  prioridade2MinCentavos: { min: 1, max: Number.MAX_SAFE_INTEGER, inteiro: true },
+  prioridade1MinCentavos: { min: 1, max: LIMITE_CENTAVOS, inteiro: true },
+  prioridade2MinCentavos: { min: 1, max: LIMITE_CENTAVOS, inteiro: true },
   confiancaMinima: { min: 0, max: 1, inteiro: false },
 };
 
@@ -58,7 +62,15 @@ export function validarLimite(nome: string, valor: number | null): number | null
     return null;
   }
   const { min, max, inteiro } = regra.faixa;
-  if (!Number.isFinite(valor) || valor < min || valor > max || (inteiro && !Number.isInteger(valor))) {
+  // A coluna guarda 4 casas: mais que isso seria arredondado em silêncio.
+  const cabeNaColuna = Math.abs(valor * 10_000 - Math.round(valor * 10_000)) < 1e-6;
+  if (
+    !Number.isFinite(valor) ||
+    valor < min ||
+    valor > max ||
+    (inteiro && !Number.isInteger(valor)) ||
+    !cabeNaColuna
+  ) {
     throw new LimiteInvalidoError(
       `Valor inválido para ${nome}: ${valor} (de ${min} a ${max}${inteiro ? ", inteiro" : ""})`,
     );

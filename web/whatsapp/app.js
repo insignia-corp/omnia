@@ -7,6 +7,7 @@ import { CONFIG, guardar } from "./config.js";
 import { icone } from "./icones.js";
 import { conferirAnexo } from "./regras-meta.js";
 import { avisosIniciais, linhaMensagem, meta, separadorDia } from "./render.js";
+import { criarTransporteApi } from "./transporte-api.js";
 import { criarTransporteDemo } from "./transporte-demo.js";
 
 const $ = (id) => document.getElementById(id);
@@ -141,13 +142,40 @@ function limparTela() {
   atualizarDescer();
 }
 
-// Transporte.
-function criarTransporte() {
-  if (CONFIG.modo !== "demo") avisar(`Modo "${CONFIG.modo}" ainda não integrado; usando a demonstração.`);
-  return criarTransporteDemo(CONFIG);
+/**
+ * Com `?modo=api` explícito e o backend fora, a tela fica parada e mostra o erro: cair na
+ * demonstração mostraria números do gabarito como se fossem os do comerciante escolhido.
+ */
+function transporteIndisponivel(motivo) {
+  return {
+    nome: "indisponível",
+    historico: async () => [],
+    enviar: async () => {
+      throw new Error(`Backend indisponível: ${motivo}`);
+    },
+    aoEvento() {},
+  };
 }
 
-const transporte = criarTransporte();
+// Transporte: o backend quando a página vem do Nest, a demonstração com `?modo=demo` ou, só no modo
+// automático, quando não há backend (servidor estático).
+async function criarTransporte() {
+  if (CONFIG.modo === "demo") return criarTransporteDemo(CONFIG);
+  try {
+    return await criarTransporteApi(CONFIG);
+  } catch (erro) {
+    const motivo = erro instanceof Error ? erro.message : String(erro);
+    console.warn("[omnia] modo api indisponível:", erro);
+    if (CONFIG.modo === "api") {
+      avisar(`Backend indisponível: ${motivo}`);
+      return transporteIndisponivel(motivo);
+    }
+    avisar(`Sem o backend (${motivo}); usando a demonstração.`);
+    return criarTransporteDemo(CONFIG);
+  }
+}
+
+const transporte = await criarTransporte();
 transporte.aoEvento((e) => {
   if (e.tipo === "mensagem") {
     digitando(false);

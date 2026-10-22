@@ -68,7 +68,7 @@ Toda tabela, exceto `comerciante`, também aponta para `comerciante` (omitido no
 | `mapeamento_planilha` | Mapeamento de colunas de uma planilha de vendas (data, produto, quantidade, preço), identificado pela assinatura dos cabeçalhos e confirmado pelo dono uma vez | Único por `(comerciante, assinatura)` |
 | `venda` e `item_de_venda` | Cupom e seus itens, vindos da planilha ou do PDV | `(comerciante, data, numero_cupom)` único: reimportar não duplica |
 | `alerta` | Candidato a alerta com tipo, prioridade (1 a 3), números de apoio em JSON, status (`candidato`, `enviado`, `descartado` ou `obsoleto`) e justificativa do agente | `(comerciante, tipo, chave, data)` único: o motor é idempotente |
-| `mensagem` | Mensagem enviada ou recebida, categoria do template, custo estimado e canal | No máximo uma proativa por dia por comerciante; chave de idempotência do job única |
+| `mensagem` | Mensagem enviada ou recebida, categoria do template, custo estimado e canal; tipo e objeto no formato da Cloud API, mensagem citada e status de entrega (#182) | No máximo uma proativa por dia por comerciante; chave de idempotência do job única |
 | `pergunta_dono` | Pergunta do agente ao dono e a resposta, com status | Substitui qualquer estado de conversa em memória. O tipo `confirmar_acao` guarda a escrita à espera do "sim" (ferramenta, entrada, resumo e `expira_em` no `contexto`); só uma fica pendente por comerciante |
 | `execucao_agente` e `chamada_ferramenta` | Observabilidade: gatilho, tokens, custo, latência, resultado do verificador e cada chamada de ferramenta | Já existiam desde a Etapa 0 |
 

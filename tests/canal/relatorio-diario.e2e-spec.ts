@@ -31,9 +31,17 @@ describe("relatório diário (e2e, regra 9)", () => {
   let fila: FilaRelatorioDiario;
   const ids: string[] = [];
 
+  /** Com a janela de 24 h aberta (o dono escreveu agora): o relatório é o texto do agente (#182). */
   const novoComerciante = async (nome: string) => {
     const [c] = await db.insert(schema.comerciante).values({ nome }).returning({ id: schema.comerciante.id });
     ids.push(c!.id);
+    await db.insert(schema.mensagem).values({
+      comercianteId: c!.id,
+      direcao: "recebida",
+      texto: "oi",
+      dataEnvio: "2026-10-20",
+      idExterno: `e2e-${c!.id}`,
+    });
     return c!.id;
   };
   const proativas = (comercianteId: string, data?: string) =>

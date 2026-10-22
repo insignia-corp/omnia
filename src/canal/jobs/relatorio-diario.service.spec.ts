@@ -1,7 +1,10 @@
 import { Logger } from "@nestjs/common";
 import type { CicloDoAlerta } from "../../alertas/ciclo-do-alerta";
+import type { MotorDeAlertas } from "../../alertas/motor-de-alertas";
 import type { Env } from "../../config/env";
 import type { Db } from "../../infra/database/database.module";
+import type { MetricasService } from "../../metricas/metricas.service";
+import { dadoAusente } from "../../metricas/resultado-metrica";
 import type { CaixaMensagens } from "../caixa-mensagens";
 import type { PortaAgente } from "../porta-agente";
 import type { Relogio } from "../relogio";
@@ -25,27 +28,53 @@ function criar(opcoes: {
   execucaoId?: string | null;
   jaEnviadaHoje?: boolean;
   reconciliar?: () => Promise<number>;
+  janelaAberta?: boolean;
+  /** Respostas de `janelaAberta` em ordem (a última se repete): a janela pode fechar durante o modelo. */
+  janelas?: boolean[];
+  mensagem?: string;
+  resumo?: unknown;
+  candidatos?: number;
 }) {
   const marcarEnviados = jest.fn(opcoes.marcar ?? (() => Promise.resolve(1)));
   const reconciliar = jest.fn(opcoes.reconciliar ?? (() => Promise.resolve(0)));
   const enviarProativa = jest.fn(() =>
     opcoes.envio instanceof Error ? Promise.reject(opcoes.envio) : Promise.resolve(opcoes.envio ?? "enviada"),
   );
+  const enviarResposta = jest.fn(() => Promise.resolve({ id: "m", nova: true }));
   const agente = {
     executar: jest.fn().mockResolvedValue({
-      mensagem: "Bom dia",
+      mensagem: opcoes.mensagem ?? "Bom dia",
       execucaoId: opcoes.execucaoId === undefined ? "exec-1" : opcoes.execucaoId,
     }),
   } as unknown as PortaAgente;
   const caixa = {
     jaTemProativa: () => Promise.resolve(opcoes.jaEnviadaHoje ?? false),
+    janelaAberta: () => {
+      const fila = opcoes.janelas ?? [opcoes.janelaAberta ?? true];
+      return Promise.resolve(fila.length > 1 ? fila.shift()! : fila[0]!);
+    },
     enviarProativa,
+    enviarResposta,
   } as unknown as CaixaMensagens;
-  const servico = new RelatorioDiarioService(db, env, relogio, agente, fonte, caixa, {
-    marcarEnviados,
-    reconciliar,
-  } as unknown as CicloDoAlerta);
-  return { servico, marcarEnviados, enviarProativa, reconciliar };
+  const resumoDiario = jest.fn(() =>
+    Promise.resolve(opcoes.resumo ?? dadoAusente("dia_sem_dados", "sem vendas")),
+  );
+  const metricas = { resumoDiario } as unknown as MetricasService;
+  const motor = {
+    executar: () => Promise.resolve({ candidatos: Array.from({ length: opcoes.candidatos ?? 0 }) }),
+  } as unknown as MotorDeAlertas;
+  const servico = new RelatorioDiarioService(
+    db,
+    env,
+    relogio,
+    agente,
+    fonte,
+    caixa,
+    { marcarEnviados, reconciliar } as unknown as CicloDoAlerta,
+    metricas,
+    motor,
+  );
+  return { servico, marcarEnviados, enviarProativa, enviarResposta, reconciliar, agente, resumoDiario };
 }
 
 describe("RelatorioDiarioService: alertas enviados (#155)", () => {
@@ -101,5 +130,111 @@ describe("RelatorioDiarioService: alertas enviados (#155)", () => {
     await expect(servico.processar(JOB)).resolves.toBe("ja_enviada_hoje");
     expect(erro).toHaveBeenCalledWith(expect.stringContaining("banco fora"));
     erro.mockRestore();
+  });
+});
+
+describe("RelatorioDiarioService: janela de 24 h (#182)", () => {
+  const resumo = {
+    valor: {
+      data: "2026-10-19",
+      faturamento_centavos: 122151,
+      cupons: 78,
+      comparacao_faturamento: {
+        media_7_dias_anteriores: {
+          data: null,
+          base_centavos: 175072,
+          variacao_bps: -3023,
+          variacao_percentual: -30.23,
+        },
+      },
+    },
+    periodo: { inicio: "2026-10-12", fim: "2026-10-19" },
+    n_registros: 1,
+    menor_confianca: 1,
+    origens: ["planilha"],
+  };
+
+  it("dentro da janela, o texto verificado do agente sai com os botões dos próximos passos", async () => {
+    const { servico, enviarProativa } = criar({});
+    await servico.processar(JOB);
+    const [envio] = enviarProativa.mock.calls[0] as unknown as [
+      { saida: { type: string; interactive?: { body: { text: string } } } },
+    ];
+    expect(envio.saida.type).toBe("interactive");
+    expect(envio.saida.interactive?.body.text).toBe("Bom dia");
+  });
+
+  it("fora da janela, sai o modelo resumo_diario do dia anterior, sem chamar o agente", async () => {
+    const { servico, enviarProativa, agente, resumoDiario } = criar({
+      janelaAberta: false,
+      resumo,
+      candidatos: 5,
+    });
+    await expect(servico.processar(JOB)).resolves.toBe("enviada");
+    expect(agente.executar).not.toHaveBeenCalled();
+    expect(resumoDiario).toHaveBeenCalledWith(
+      expect.objectContaining({ comercianteId: "c-1" }),
+      "2026-10-19",
+    );
+    const [envio] = enviarProativa.mock.calls[0] as unknown as [
+      {
+        chave: string;
+        saida: {
+          type: string;
+          template: { name: string; components: { parameters: { text?: string }[] }[] };
+        };
+      },
+    ];
+    expect(envio.chave).toBe("relatorio_c-1_2026-10-20");
+    expect(envio.saida.template.name).toBe("resumo_diario");
+    expect(envio.saida.template.components[0]!.parameters.map((p) => p.text)).toEqual([
+      "segunda, 19/10",
+      "Mercadinho",
+      "R$ 1.221,51",
+      "78",
+      "30,23% abaixo",
+      "3",
+    ]);
+  });
+
+  it("fora da janela e sem dado para o modelo, nada sai", async () => {
+    const aviso = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const { servico, enviarProativa } = criar({ janelaAberta: false });
+    await expect(servico.processar(JOB)).resolves.toBe("sem_dados");
+    expect(enviarProativa).not.toHaveBeenCalled();
+    aviso.mockRestore();
+  });
+
+  it("se a janela fecha enquanto o modelo escreve, sai o modelo aprovado e não o texto livre", async () => {
+    const { servico, enviarProativa, agente } = criar({ janelas: [true, false], resumo, candidatos: 1 });
+    await expect(servico.processar(JOB)).resolves.toBe("enviada");
+    expect(agente.executar).toHaveBeenCalledTimes(1);
+    const [envio] = enviarProativa.mock.calls[0] as unknown as [{ saida: { type: string } }];
+    expect(envio.saida.type).toBe("template");
+  });
+
+  it("relatório acima dos limites da Meta sai em pedaços: só o primeiro é a proativa do dia", async () => {
+    const longo = "Linha do relatório com valores conferidos.\n".repeat(200);
+    const { servico, enviarProativa, enviarResposta } = criar({ mensagem: longo });
+    await expect(servico.processar(JOB)).resolves.toBe("enviada");
+    const [primeira] = enviarProativa.mock.calls[0] as unknown as [
+      { saida: { type: string; text?: { body: string } } },
+    ];
+    expect(primeira.saida.type).toBe("text");
+    expect(primeira.saida.text!.body.length).toBeLessThanOrEqual(4096);
+    const continuacao = enviarResposta.mock.calls.map(
+      (c) => (c as unknown as [{ chave: string; saida: { type: string } }])[0],
+    );
+    expect(continuacao.map((c) => c.chave)).toEqual(
+      continuacao.map((_, i) => `relatorio_c-1_2026-10-20_${i + 2}`),
+    );
+    expect(continuacao.at(-1)!.saida.type).toBe("interactive");
+  });
+
+  it("pedaços seguintes não saem se a proativa do dia já tinha saído", async () => {
+    const longo = "Linha do relatório com valores conferidos.\n".repeat(200);
+    const { servico, enviarResposta } = criar({ mensagem: longo, envio: "duplicada" });
+    await expect(servico.processar(JOB)).resolves.toBe("duplicada");
+    expect(enviarResposta).not.toHaveBeenCalled();
   });
 });

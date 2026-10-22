@@ -1,17 +1,23 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { eq } from "drizzle-orm";
 import { CicloDoAlerta } from "../../alertas/ciclo-do-alerta";
+import { MotorDeAlertas } from "../../alertas/motor-de-alertas";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env";
 import { DB, type Db } from "../../infra/database/database.module";
 import { comerciante } from "../../infra/database/schema";
+import { somarDias } from "../../lib/datas/datas";
+import { MetricasService } from "../../metricas/metricas.service";
 import { CaixaMensagens } from "../caixa-mensagens";
 import { PORTA_AGENTE, type PortaAgente } from "../porta-agente";
 import { dataLocal, minutosDoDia, RELOGIO, type Relogio } from "../relogio";
 import { FONTE_RELATORIO, type FonteRelatorio } from "./fonte-relatorio";
 import { emSilencio } from "./horario-silencio";
+import { modeloResumoDiario } from "../whatsapp/modelo-resumo-diario";
+import { BOTOES_RELATORIO, comBotoes, garantirRegras } from "../whatsapp/respostas";
 
-export type ResultadoRelatorio = "enviada" | "duplicada" | "silencio" | "ja_enviada_hoje" | "sem_comerciante";
+export type ResultadoRelatorio =
+  "enviada" | "duplicada" | "silencio" | "ja_enviada_hoje" | "sem_comerciante" | "sem_dados";
 
 export interface JobRelatorioDiario {
   comercianteId: string;
@@ -38,6 +44,8 @@ export class RelatorioDiarioService {
     @Inject(FONTE_RELATORIO) private readonly fonte: FonteRelatorio,
     private readonly caixa: CaixaMensagens,
     private readonly ciclo: CicloDoAlerta,
+    private readonly metricas: MetricasService,
+    private readonly motor: MotorDeAlertas,
   ) {}
 
   emSilencioAgora(): boolean {
@@ -75,6 +83,8 @@ export class RelatorioDiarioService {
       nomeComercio: dono.nome,
       dataReferencia: job.data,
     };
+    if (!(await this.caixa.janelaAberta(job.comercianteId))) return this.enviarModelo(job, contexto);
+
     const resposta = await this.agente.executar({
       contexto,
       gatilho: "relatorio_diario",
@@ -82,17 +92,66 @@ export class RelatorioDiarioService {
     });
     // A chamada ao modelo pode atravessar o início do silêncio: reconfere logo antes de entregar.
     if (this.emSilencioAgora()) return "silencio";
+    // E o fim da janela de 24 h: texto livre fora dela a Meta recusa, então sai o modelo aprovado.
+    if (!(await this.caixa.janelaAberta(job.comercianteId))) return this.enviarModelo(job, contexto);
+    // Dentro da janela vale texto livre: o texto verificado ganha os botões dos próximos passos. Um
+    // relatório acima dos limites da Meta sai em pedaços; só o primeiro é a proativa do dia (regra 9),
+    // os outros continuam a mesma mensagem e só saem se ela saiu.
+    const [primeira, ...continuacao] = comBotoes(resposta.mensagem, BOTOES_RELATORIO).map(
+      (s) => garantirRegras(s).saida,
+    );
+    const chave = chaveRelatorio(job);
     const resultado = await this.caixa.enviarProativa({
       comercianteId: job.comercianteId,
-      texto: resposta.mensagem,
+      saida: primeira!,
       execucaoId: resposta.execucaoId,
       dataEnvio: this.hoje(),
-      chave: chaveRelatorio(job),
+      chave,
     });
+    if (resultado === "enviada") {
+      for (const [i, saida] of continuacao.entries()) {
+        await this.caixa.enviarResposta({
+          comercianteId: job.comercianteId,
+          saida,
+          execucaoId: resposta.execucaoId,
+          chave: `${chave}_${i + 2}`,
+        });
+      }
+    }
     if (resultado === "enviada" && resposta.execucaoId) {
       await this.marcarAlertasEnviados(job.comercianteId, resposta.execucaoId);
     }
     return resultado;
+  }
+
+  /**
+   * Fora da janela de 24 h (o dono não escreveu desde ontem) a Meta só aceita modelo: sai o
+   * `resumo_diario` com os números do dia anterior e a quantidade de avisos, sem o modelo de linguagem.
+   * Sem dado para algum parâmetro, nada sai (`sem_dados`): modelo com número inventado, nunca.
+   */
+  private async enviarModelo(
+    job: JobRelatorioDiario,
+    contexto: { comercianteId: string; nomeComercio: string; dataReferencia: string },
+  ): Promise<ResultadoRelatorio> {
+    const [resumo, alertas] = await Promise.all([
+      this.metricas.resumoDiario(contexto, somarDias(job.data, -1)),
+      this.motor.executar({ comercianteId: job.comercianteId, dataReferencia: job.data }),
+    ]);
+    const template = modeloResumoDiario(resumo, contexto.nomeComercio, alertas.candidatos.length);
+    if (!template) {
+      this.log.warn(
+        `Relatório de ${job.data} sem dado para o modelo resumo_diario (comerciante ${job.comercianteId})`,
+      );
+      return "sem_dados";
+    }
+    if (this.emSilencioAgora()) return "silencio";
+    return this.caixa.enviarProativa({
+      comercianteId: job.comercianteId,
+      saida: { type: "template", template },
+      execucaoId: null,
+      dataEnvio: this.hoje(),
+      chave: chaveRelatorio(job),
+    });
   }
 
   private async reconciliarAlertas(comercianteId: string): Promise<void> {

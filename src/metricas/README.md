@@ -1,12 +1,12 @@
 # metricas
 
-Margem por produto, variação de custo, maior giro, receita por produto, resumo diário, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço em funções puras, e o contrato de resultado que as ferramentas do agente devolvem. Issues: #32 a #41. Fórmulas, limites iniciais e as regras que o código aplica estão em [docs/guia-desenvolvimento.md](../../docs/guia-desenvolvimento.md) (seção "Métricas determinísticas"); estado e pendências em [docs/ESTADO.md](../../docs/ESTADO.md).
+Margem por produto, variação de custo, maior giro, receita por produto, resumo diário, resumo da semana e do mês, ticket médio, gasto fora do padrão, estoque parado e espaço para subir preço em funções puras, e o contrato de resultado que as ferramentas do agente devolvem. Issues: #32 a #41. Fórmulas, limites iniciais e as regras que o código aplica estão em [docs/guia-desenvolvimento.md](../../docs/guia-desenvolvimento.md) (seção "Métricas determinísticas"); estado e pendências em [docs/ESTADO.md](../../docs/ESTADO.md).
 
 ## Camadas
 
 | Camada | Arquivos | Regra |
 | --- | --- | --- |
-| Funções puras | `margem-por-produto.ts`, `variacao-de-custo.ts`, `giro.ts`, `receita-por-produto.ts`, `resumo-diario.ts`, `ticket-medio.ts`, `gasto-fora-do-padrao.ts`, `estoque-parado.ts`, `espaco-para-subir-preco.ts` | Recebem registros já lidos e a data de referência. Não leem banco nem relógio. Janelas, limites e desempates ficam aqui, com teste unitário ao lado. Os valores iniciais estão nas constantes `PARAMETROS_*` de cada arquivo. |
+| Funções puras | `margem-por-produto.ts`, `variacao-de-custo.ts`, `giro.ts`, `receita-por-produto.ts`, `resumo-diario.ts`, `resumo-de-periodo.ts`, `ticket-medio.ts`, `gasto-fora-do-padrao.ts`, `estoque-parado.ts`, `espaco-para-subir-preco.ts` | Recebem registros já lidos e a data de referência. Não leem banco nem relógio. Janelas, limites e desempates ficam aqui, com teste unitário ao lado. Os valores iniciais estão nas constantes `PARAMETROS_*` de cada arquivo. |
 | Dados | `repositorio-metricas.ts` | Lê o PostgreSQL, sempre filtrando por `comerciante_id`, e devolve registros somados por dia (`dados-de-metricas.ts`). |
 | Serviço | `metricas.service.ts` | Junta as duas camadas. É o que as ferramentas do agente (#50 a #52) chamam, com o `comerciante_id` da sessão, nunca do modelo. |
 
@@ -24,10 +24,11 @@ Toda métrica devolve um `ResultadoMetrica<T>` ou um `DadoAusente`.
 
 | Métrica | Função | Observações |
 | --- | --- | --- |
-| Margem por produto (#33) | `calcularMargemDoProduto` | Preço médio de venda na janela de preço contra o custo da compra mais recente, de qualquer fornecedor. Meta do produto, ou a do comerciante. |
+| Margem por produto (#33) | `calcularMargemDoProduto` | Preço médio de venda na janela de preço contra o custo da compra mais recente, de qualquer fornecedor. Meta do produto, ou a do comerciante. Devolve também o preço que leva a margem à meta, custo / (1 - meta) arredondado para cima em centavos (`precoParaMeta`, #182). |
 | Variação de custo (#35) | `calcularVariacoesDeCusto` | Duas últimas compras do mesmo produto e do mesmo fornecedor, de notas diferentes. Devolve `acima_do_limite` e `recente`; quem decide o alerta é o motor (#43). |
 | Maior giro (#34) | `calcularGiro` | Últimos dias contra a média semanal dos dias anteriores. A alta só vale para produto de média semanal mínima; rankings de alta e de volume. |
 | Resumo diário (#40) | `calcularResumoDiario` | Faturamento, gastos, saldo do dia e da conta, ticket médio. Compara com o dia anterior, o mesmo dia da semana anterior e a média da semana anterior. |
+| Resumo da semana e do mês (#182) | `calcularResumoDePeriodo` | Semana: os 7 dias até a data contra os 7 anteriores. Mês: do dia 1 até a data contra os mesmos dias do mês anterior (fim limitado ao último dia dele). Período com algum dia fora das vendas importadas é dado ausente; gastos e saldo só quando o extrato cobre o período inteiro. Conferido contra `serie_diaria` do gabarito. |
 | Receita por produto (#148) | `calcularReceitaPorProduto` | Soma em centavos do valor vendido nos últimos 7 dias, ranking dos de maior receita. Dado ausente enquanto as vendas importadas não cobrirem os 7 dias. |
 | Espaço para subir preço (#36) | `calcularEspacoParaSubirPreco` | Derivada: junta o giro e a margem já calculados. Produto de giro alto com margem abaixo da meta; sem margem calculável fica de fora. |
 | Ticket médio (#38) | `calcularTicketMedio` | Faturamento do dia por cupom contra a média ponderada do histórico (faturamento total / cupons totais). Exige o histórico completo importado. |

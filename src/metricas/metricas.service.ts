@@ -18,6 +18,12 @@ import { produtoNaoEncontrado } from "./produto-nao-encontrado";
 import { calcularReceitaPorProduto, DIAS_DA_RECEITA, type ReceitaPorProduto } from "./receita-por-produto";
 import type { FonteDeDadosMetricas } from "./repositorio-metricas";
 import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "./resultado-metrica";
+import {
+  calcularResumoDePeriodo,
+  periodosDoResumo,
+  type ResumoDePeriodo,
+  type TipoPeriodo,
+} from "./resumo-de-periodo";
 import { DIAS_DE_COMPARACAO_DO_RESUMO, calcularResumoDiario, type ResumoDiario } from "./resumo-diario";
 import { DIAS_DE_HISTORICO_DO_TICKET, calcularTicketMedio, type TicketMedio } from "./ticket-medio";
 import { calcularVariacoesDeCusto, type VariacaoDeCusto } from "./variacao-de-custo";
@@ -77,6 +83,13 @@ export class MetricasService {
       custos,
       dataReferencia,
     });
+  }
+
+  /** Produtos com margem abaixo da meta, da menor margem para a maior (painel e "Sugerir preço", #182). */
+  async margensAbaixoDaMeta(contexto: ContextoMetricas): Promise<ResultadoMetrica<MargemDoProduto>[]> {
+    return (await this.margensDosProdutos(contexto))
+      .flatMap((m) => (ehDadoAusente(m.resultado) || !m.resultado.valor.abaixo_da_meta ? [] : [m.resultado]))
+      .sort((a, b) => a.valor.margem_bps - b.valor.margem_bps);
   }
 
   /** Margem de todos os produtos do comerciante, para o motor de alertas e os rankings. */
@@ -162,6 +175,31 @@ export class MetricasService {
       movimentos,
       intervaloDeMovimentos: intervaloComumDeMovimentos(data, contas, intervalosPorConta),
       contas,
+    });
+  }
+
+  /** Resumo da semana ou do mês que termina na data (a data de referência, se não for indicada outra). */
+  async resumoDePeriodo(
+    contexto: ContextoMetricas,
+    tipo: TipoPeriodo,
+    ate: string = contexto.dataReferencia,
+  ): Promise<ResultadoMetrica<ResumoDePeriodo> | DadoAusente> {
+    const { comercianteId } = contexto;
+    const { atual, anterior } = periodosDoResumo(tipo, ate);
+    const [vendas, intervaloDeVendas, movimentos, intervalosPorConta, contas] = await Promise.all([
+      this.dados.vendasPorDia(comercianteId, anterior.inicio, ate),
+      this.dados.intervaloDeVendas(comercianteId),
+      this.dados.movimentosPorDia(comercianteId, ate, atual.inicio),
+      this.dados.intervalosDeMovimentosPorConta(comercianteId),
+      this.dados.contas(comercianteId),
+    ]);
+    return calcularResumoDePeriodo({
+      tipo,
+      ate,
+      vendas,
+      intervaloDeVendas,
+      movimentos,
+      intervaloDeMovimentos: intervaloComumDeMovimentos(ate, contas, intervalosPorConta),
     });
   }
 

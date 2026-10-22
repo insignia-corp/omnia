@@ -7,6 +7,7 @@ import { MetricasService } from "../../metricas/metricas.service";
 import { RepositorioMetricasPostgres } from "../../metricas/repositorio-metricas";
 import { criarGetCostChanges } from "./plano-a/get-cost-changes";
 import { criarGetDailySummary } from "./plano-a/get-daily-summary";
+import { criarGetPeriodSummary } from "./plano-a/get-period-summary";
 import { criarGetProductMargin } from "./plano-a/get-product-margin";
 import { criarGetTopProducts } from "./plano-a/get-top-products";
 import { criarListAlertCandidates } from "./plano-a/list-alert-candidates";
@@ -21,6 +22,7 @@ export function ferramentasPlanoA({ db }: DependenciasFerramentas): Ferramenta[]
   const metricas = new MetricasService(new RepositorioMetricasPostgres(db));
   return [
     criarGetDailySummary(metricas),
+    criarGetPeriodSummary(metricas),
     criarGetTopProducts(metricas),
     criarGetProductMargin(metricas, db),
     criarGetCostChanges(metricas, db),

@@ -57,6 +57,7 @@ const margem = (
       meta_bps: metaBps,
       meta_percentual: metaBps / 100,
       abaixo_da_meta: margemBps < metaBps,
+      preco_para_meta_centavos: null,
     },
     periodo: { inicio: "2026-09-20", fim: "2026-10-19" },
     n_registros: 30,

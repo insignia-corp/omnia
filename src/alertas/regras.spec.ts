@@ -97,6 +97,7 @@ const margem = (extra: Partial<MargemDoProduto> = {}): MargemDoProduto => ({
   meta_bps: 2500,
   meta_percentual: 25,
   abaixo_da_meta: true,
+  preco_para_meta_centavos: 3720,
   ...extra,
 });
 

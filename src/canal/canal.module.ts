@@ -7,6 +7,7 @@ import { SessaoGuard } from "../comerciante/sessao";
 import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
 import { IngestaoModule } from "../ingestao/ingestao.module";
+import { MetricasModule } from "../metricas/metricas.module";
 import { BastidoresService } from "./bastidores/bastidores.service";
 import { FONTE_DECISOES_ALERTA, FonteDecisoesAlertaDoBanco } from "./bastidores/fonte-decisoes-alerta";
 import { CaixaMensagens } from "./caixa-mensagens";
@@ -22,19 +23,30 @@ import { BastidoresController } from "./web/bastidores.controller";
 import { PaginaBastidoresController } from "./web/pagina-bastidores.controller";
 import { ChatWebController } from "./web/chat-web.controller";
 import { PaginaChatController } from "./web/pagina-chat.controller";
+import { WhatsappController } from "./web/whatsapp.controller";
+import { PainelController } from "./painel/painel.controller";
+import { PainelService } from "./painel/painel.service";
 
 @Module({
   imports: [
     AgenteModule,
     AlertasModule,
     IngestaoModule,
+    MetricasModule,
     MulterModule.registerAsync({
       inject: [ENV],
       // Mesmo teto de upload da ingestão: a foto vai direto ao armazenamento.
       useFactory: (env: Env) => ({ limits: { fileSize: env.UPLOAD_MAX_BYTES, files: 1 } }),
     }),
   ],
-  controllers: [ChatWebController, PaginaChatController, BastidoresController, PaginaBastidoresController],
+  controllers: [
+    ChatWebController,
+    PaginaChatController,
+    WhatsappController,
+    PainelController,
+    BastidoresController,
+    PaginaBastidoresController,
+  ],
   providers: [
     SessaoGuard,
     { provide: MESSAGE_CHANNEL, inject: [ENV], useFactory: (env: Env) => criarCanal(env) },
@@ -52,6 +64,7 @@ import { PaginaChatController } from "./web/pagina-chat.controller";
     { provide: FONTE_RELATORIO, useValue: fonteRelatorioPadrao },
     { provide: FONTE_DECISOES_ALERTA, useClass: FonteDecisoesAlertaDoBanco },
     BastidoresService,
+    PainelService,
     CaixaMensagens,
     ConversaService,
     RelatorioDiarioService,

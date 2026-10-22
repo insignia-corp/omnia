@@ -112,8 +112,9 @@ Decisões do orquestrador:
 | Ferramenta | Efeito | Prioridade | Observação |
 | --- | --- | --- | --- |
 | `get_daily_summary` | nenhum | P0 | Faturamento, gastos, saldo e comparação com os 7 dias anteriores (#50) |
+| `get_period_summary` | nenhum | P0 | Resumo da semana (7 dias) ou do mês até a data, comparado com o período anterior (#182) |
 | `get_top_products` | nenhum | P0 | Ranking por volume, alta do giro ou receita (#50, #148) |
-| `get_product_margin` | nenhum | P0 | Margem, custo, preço e confiança; dado ausente explícito (#51) |
+| `get_product_margin` | nenhum | P0 | Margem, custo, preço, preço que leva à meta (#182) e confiança; dado ausente explícito (#51) |
 | `get_cost_changes` | nenhum | P0 | Reajustes por produto e fornecedor (#51) |
 | `list_alert_candidates` | nenhum | P0 | Candidatos com prioridade e impacto em centavos (#52) |
 | `select_alerts` | nenhum | P0 | **Novo.** Recebe até 3 `alerta_id` com justificativa curta. Valida os ids contra a tabela `alerta` do comerciante e da data. Existe para que a decisão fique registrada em `chamada_ferramenta`, na ordem, e apareça na tela de bastidores |

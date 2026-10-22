@@ -1,6 +1,11 @@
 import { NumerosAutorizados, verificarNumeros } from "../lib/verificador-numeros/verificador-numeros";
 import type { CustoDeCompra, ProdutoParaMetrica, VendaDoProdutoNoDia } from "./dados-de-metricas";
-import { calcularMargemDoProduto, PARAMETROS_MARGEM, type EntradaMargem } from "./margem-por-produto";
+import {
+  calcularMargemDoProduto,
+  PARAMETROS_MARGEM,
+  precoParaMeta,
+  type EntradaMargem,
+} from "./margem-por-produto";
 import { ehDadoAusente } from "./resultado-metrica";
 
 const REF = "2026-10-19";
@@ -51,6 +56,19 @@ function valorDe(entradaMargem: EntradaMargem) {
   return r;
 }
 
+describe("precoParaMeta", () => {
+  it("arredonda para cima, para a margem nunca ficar abaixo da meta", () => {
+    expect(precoParaMeta(2790, 2500)).toBe(3720);
+    expect(precoParaMeta(560, 2500)).toBe(747); // 746,67 vira 747
+    expect(precoParaMeta(1000, 0)).toBe(1000);
+  });
+
+  it("não existe preço para meta de 100% ou mais", () => {
+    expect(precoParaMeta(1000, 10_000)).toBeNull();
+    expect(precoParaMeta(1000, 12_000)).toBeNull();
+  });
+});
+
 describe("calcularMargemDoProduto", () => {
   it("calcula a margem pelo preço médio de venda e pelo custo da compra mais recente", () => {
     // 10 unidades por R$ 350,00 dão preço médio de R$ 35,00; custo R$ 27,90.
@@ -74,6 +92,8 @@ describe("calcularMargemDoProduto", () => {
     expect(r.valor.preco_medio_venda_centavos).toBe(3499);
     expect(r.valor.margem_bps).toBe(2026);
     expect(r.valor.margem_percentual).toBe(20.26);
+    // Custo 27,90 com meta de 25%: 27,90 / 0,75 = 37,20, o preço do roteiro do pitch.
+    expect(r.valor.preco_para_meta_centavos).toBe(3720);
   });
 
   it("arredonda o preço médio em centavos, meio para cima", () => {

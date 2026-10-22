@@ -44,7 +44,7 @@ Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado 
 
 ## Candidato obsoleto (#157)
 
-Os status de `alerta` são `candidato`, `enviado`, `descartado` e `obsoleto` (migração `0009_alerta_obsoleto`). Quando o dono corrige um dado (por exemplo o custo de um item) e o motor roda de novo no mesmo dia:
+Os status de `alerta` são `candidato`, `enviado`, `descartado` e `obsoleto` (migração `0010_alerta_obsoleto`). Quando o dono corrige um dado (por exemplo o custo de um item) e o motor roda de novo no mesmo dia:
 
 - O candidato do dia que a regra **deixou de disparar** vira `obsoleto` e sai dos candidatos, do `select_alerts` e da supressão (que só olha `enviado` e `descartado`). A linha continua gravada (nada é apagado, regra 10).
 - Só entram as regras que avaliaram com dado: uma regra sem dado (`ausentes`) não marca nada, porque sem dado não dá para dizer que o alerta deixou de valer. A regra de margem, que avalia produto a produto, só poupa os produtos sem custo ou sem venda.

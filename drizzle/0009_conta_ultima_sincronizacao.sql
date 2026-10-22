@@ -1,0 +1,1 @@
+ALTER TABLE "conta" ADD COLUMN "ultima_sincronizacao_em" date;

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import type { Db } from "../../../infra/database/database.module";
 import type { MetricasService } from "../../../metricas/metricas.service";
 import { produtoNaoEncontrado } from "../../../metricas/produto-nao-encontrado";
@@ -76,12 +78,37 @@ const dbCom = (
     codigo_barras?: string | null;
     sku?: string | null;
     cadastrado_em?: string;
-    descricao_de_nota?: string | null;
+    descricao_por_sim?: string | null;
+    descricao_por_palavra?: string | null;
   }>,
+  confirmado?: string | Array<{ produtoId: string; fornecedorId: string | null; criadoEm?: string }>,
 ) =>
   ({
-    execute: jest.fn(async () => ({ rows: linhas.map((l) => ({ ...l, palavra: l.palavra ?? l.sim })) })),
+    // Os vínculos confirmados da descrição, do mais recente ao mais antigo: select().from().where().orderBy().
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          orderBy: async () =>
+            typeof confirmado === "string"
+              ? [{ produtoId: confirmado, fornecedorId: null, criadoEm: "1" }]
+              : // Sem data informada, cada vínculo tem a sua: só o empate explícito vale como gravado junto.
+                (confirmado ?? []).map((c, i) => ({ criadoEm: String(i), ...c })),
+        }),
+      }),
+    }),
+    execute: jest.fn(async () => ({
+      rows: linhas.map((l) => ({
+        codigo_barras: null,
+        descricao_por_sim: null,
+        descricao_por_palavra: null,
+        ...l,
+        palavra: l.palavra ?? l.sim,
+      })),
+    })),
   }) as unknown as Db & { execute: jest.Mock };
+
+/** Os parâmetros que o SQL leva ao banco, com os trechos aninhados já expandidos. */
+const parametrosDe = (consulta: unknown) => new PgDialect().sqlToQuery(consulta as SQL).params;
 
 /** db falso para a consulta de nomes de fornecedor: select().from().where() devolve as linhas dadas. */
 const dbDeFornecedores = (linhas: Array<{ id: string; nome: string }> = []) =>
@@ -117,18 +144,25 @@ describe("ferramentas de leitura do plano A", () => {
     { ferramenta: criarGetDailySummary(metricas), entrada: {} },
     { ferramenta: criarGetTopProducts(metricas), entrada: {} },
     { ferramenta: criarGetProductMargin(metricas, db), entrada: { produto: "Refrigerante" } },
+    {
+      ferramenta: criarGetProductMargin(metricas, db),
+      entrada: { produto: "Arroz", produto_id: randomUUID() },
+    },
     { ferramenta: criarGetCostChanges(metricas, dbDeFornecedores()), entrada: {} },
   ];
 
   it("têm os nomes do catálogo, efeito nenhum e entram no registro (sem comerciante_id no esquema)", () => {
-    expect(todas.map((t) => t.ferramenta.nome)).toEqual([
+    expect([...new Set(todas.map((t) => t.ferramenta.nome))]).toEqual([
       "get_daily_summary",
       "get_top_products",
       "get_product_margin",
       "get_cost_changes",
     ]);
     expect(todas.every((t) => t.ferramenta.efeito === "nenhum")).toBe(true);
-    expect(() => new RegistroFerramentas(todas.map((t) => t.ferramenta))).not.toThrow();
+    expect(
+      () =>
+        new RegistroFerramentas([...new Map(todas.map((t) => [t.ferramenta.nome, t.ferramenta])).values()]),
+    ).not.toThrow();
   });
 
   describe.each(todas)("$ferramenta.nome", ({ ferramenta, entrada }) => {
@@ -173,8 +207,7 @@ describe("ferramentas de leitura do plano A", () => {
       expect(chamadas[0]?.[0]).toBe(contexto);
     }
     // A busca por nome também é do comerciante da sessão (o SQL leva o id da sessão como parâmetro).
-    const consulta = banco.execute.mock.calls[0]?.[0] as { queryChunks: unknown[] };
-    expect(consulta.queryChunks).toContain(contexto.comercianteId);
+    expect(parametrosDe(banco.execute.mock.calls[0]?.[0])).toContain(contexto.comercianteId);
   });
 
   describe("regra 8: os números da saída autorizam a mensagem", () => {
@@ -250,6 +283,19 @@ describe("ferramentas de leitura do plano A", () => {
       ).executar(contexto, { produto: "Refrigerante 2L" });
       expect(JSON.stringify(ausente)).toContain(ID_COM_99);
       expect(verificarNumeros(afirma99, new NumerosAutorizados([ausente])).aprovado).toBe(false);
+    });
+
+    it("get_product_margin: o código de barras dos candidatos autoriza a citação, o id não autoriza o 99", async () => {
+      const ambiguo = await criarGetProductMargin(
+        servico().metricas,
+        dbCom([
+          { produto_id: ID_COM_99, nome: "Arroz tipo 1 5kg", sim: 1, codigo_barras: "7891000100103" },
+          { produto_id: randomUUID(), nome: "Arroz tipo 1 5kg", sim: 1, codigo_barras: "7891000100110" },
+        ]),
+      ).executar(contexto, { produto: "Arroz tipo 1 5kg" });
+      const aut = new NumerosAutorizados([ambiguo]);
+      expect(verificarNumeros("É o de código 7891000100103?", aut).aprovado).toBe(true);
+      expect(verificarNumeros(afirma99, aut).aprovado).toBe(false);
     });
 
     it("get_cost_changes: produto_id e fornecedor_id com 99 não autorizam 99", async () => {
@@ -441,6 +487,138 @@ describe("ferramentas de leitura do plano A", () => {
       expect(f.entrada.safeParse({ produto: " a " }).success).toBe(false);
     });
 
+    it("a entrada exige o nome; o produto_id do candidato escolhido é opcional", () => {
+      const f = criarGetProductMargin(servico().metricas, dbCom([]));
+      expect(f.entrada.safeParse({ produto: "arroz" }).success).toBe(true);
+      expect(f.entrada.safeParse({ produto: "arroz", produto_id: randomUUID() }).success).toBe(true);
+      expect(f.entrada.safeParse({}).success).toBe(false);
+      expect(f.entrada.safeParse({ produto_id: randomUUID() }).success).toBe(false);
+      expect(f.entrada.safeParse({ produto: "arroz", produto_id: "abc" }).success).toBe(false);
+      expect(
+        f.entrada.safeParse({ produto: "arroz", produto_id: randomUUID(), comerciante_id: randomUUID() })
+          .success,
+      ).toBe(false);
+    });
+
+    it("o esquema que o modelo recebe exige o nome, como a validação: não há regra que só o Zod conheça", () => {
+      const f = criarGetProductMargin(servico().metricas, dbCom([]));
+      const [definicao] = new RegistroFerramentas([f]).definicoesParaModelo();
+      expect(definicao!.input_schema).toMatchObject({ required: ["produto"], additionalProperties: false });
+      expect(definicao!.input_schema).not.toHaveProperty("anyOf");
+      expect(definicao!.input_schema).not.toHaveProperty("oneOf");
+    });
+
+    it("o candidato escolhido vai para a métrica depois de validado no comerciante da sessão", async () => {
+      const { mock, metricas: m } = servico();
+      const id = randomUUID();
+      const banco = dbCom([{ produto_id: id, nome: "Arroz tipo 1 5kg", sim: 0 }]);
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, {
+        produto: "arroz",
+        produto_id: id,
+      });
+      expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
+      expect(saida).toMatchObject({ confianca_da_busca: 1 });
+      const parametros = parametrosDe(banco.execute.mock.calls[0]?.[0]);
+      expect(parametros).toEqual(expect.arrayContaining([id, contexto.comercianteId]));
+    });
+
+    it("produto_id de outro comerciante não acha nada: produto não encontrado, sem chamar a métrica", async () => {
+      const { mock, metricas: m } = servico();
+      const saida = await criarGetProductMargin(m, dbCom([])).executar(contexto, {
+        produto: "arroz",
+        produto_id: randomUUID(),
+      });
+      expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
+      expect(mock.margemDoProduto).not.toHaveBeenCalled();
+    });
+
+    it("descrição confirmada para produtos diferentes em fornecedores diferentes volta como candidatos", async () => {
+      const { mock, metricas: m } = servico();
+      const [x, y] = [randomUUID(), randomUUID()];
+      const banco = dbCom(
+        [
+          { produto_id: x, nome: "Cerveja pilsen lata", sim: 1, codigo_barras: "7891000100103" },
+          { produto_id: y, nome: "Cerveja puro malte lata", sim: 1, codigo_barras: "7891000100110" },
+        ],
+        [
+          { produtoId: y, fornecedorId: randomUUID() },
+          { produtoId: x, fornecedorId: randomUUID() },
+        ],
+      );
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "cerv lt" });
+      expect(saida).toMatchObject({ ambiguo: true });
+      expect((saida as ProdutoAmbiguo).candidatos.map((c) => c.produto_id).sort()).toEqual([x, y].sort());
+      expect(mock.margemDoProduto).not.toHaveBeenCalled();
+    });
+
+    it("correção do dono no mesmo fornecedor: vale o vínculo mais recente, sem perguntar de novo", async () => {
+      const { mock, metricas: m } = servico();
+      const [antigo, corrigido, fornecedor] = [randomUUID(), randomUUID(), randomUUID()];
+      const banco = dbCom(
+        [{ produto_id: corrigido, nome: "Leite desnatado 1L", sim: 1 }],
+        [
+          { produtoId: corrigido, fornecedorId: fornecedor },
+          { produtoId: antigo, fornecedorId: fornecedor },
+        ],
+      );
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "leite cx" });
+      expect(saida).not.toHaveProperty("ambiguo");
+      expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, corrigido);
+    });
+
+    it("apelido gravado junto para dois produtos no mesmo fornecedor empata e vira pergunta", async () => {
+      const { mock, metricas: m } = servico();
+      const [x, y, fornecedor] = [randomUUID(), randomUUID(), randomUUID()];
+      const banco = dbCom(
+        [
+          { produto_id: x, nome: "Suco de uva 1L", sim: 1 },
+          { produto_id: y, nome: "Suco de uva 300ml", sim: 1 },
+        ],
+        [
+          { produtoId: x, fornecedorId: fornecedor, criadoEm: "2026-10-01 10:00:00+00" },
+          { produtoId: y, fornecedorId: fornecedor, criadoEm: "2026-10-01 10:00:00+00" },
+        ],
+      );
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "suco cx" });
+      expect(saida).toMatchObject({ ambiguo: true });
+      expect(mock.margemDoProduto).not.toHaveBeenCalled();
+    });
+
+    it("descrição que o dono já confirmou na nota liga sozinha, com confiança 1", async () => {
+      const { mock, metricas: m } = servico();
+      const id = randomUUID();
+      const banco = dbCom(
+        [
+          { produto_id: id, nome: "Leite integral 1L", sim: 1 },
+          { produto_id: randomUUID(), nome: "Leite integral 1L", sim: 1 },
+        ],
+        id,
+      );
+      const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto: "leite uht" });
+      expect(saida).not.toHaveProperty("ambiguo");
+      expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
+      expect(saida).toMatchObject({ confianca_da_busca: 1 });
+      expect(parametrosDe(banco.execute.mock.calls[0]?.[0])).toEqual(
+        expect.arrayContaining([id, contexto.comercianteId]),
+      );
+    });
+
+    it("nomes iguais voltam como candidatos distintos pelo código de barras", async () => {
+      const banco = dbCom([
+        { produto_id: randomUUID(), nome: "Arroz tipo 1 5kg", sim: 1, codigo_barras: "7891000100103" },
+        { produto_id: randomUUID(), nome: "Arroz tipo 1 5kg", sim: 1, codigo_barras: "7891000100110" },
+        { produto_id: randomUUID(), nome: "Arroz tipo 1 5kg", sim: 1 },
+      ]);
+      const saida = await criarGetProductMargin(servico().metricas, banco).executar(contexto, {
+        produto: "Arroz tipo 1 5kg",
+      });
+      expect((saida as { candidatos: unknown[] }).candidatos).toMatchObject([
+        { codigo_barras: "7891000100103" },
+        { codigo_barras: "7891000100110" },
+        { codigo_barras: null },
+      ]);
+    });
+
     it("sem produto parecido devolve dado ausente, sem chamar a métrica", async () => {
       const { mock, metricas: m } = servico();
       const saida = await criarGetProductMargin(m, dbCom([])).executar(contexto, { produto: "Xyz" });
@@ -525,6 +703,40 @@ describe("ferramentas de leitura do plano A", () => {
       expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
     });
 
+    it("a descrição de nota mostrada segue o critério da decisão: nome inteiro se algum candidato chega ao limite, palavra se nenhum", async () => {
+      const pelaPalavra = (sim: number) => [
+        {
+          produto_id: randomUUID(),
+          nome: "Suco A",
+          sim,
+          palavra: 1,
+          descricao_por_sim: "POR SIM",
+          descricao_por_palavra: "POR PALAVRA",
+        },
+        {
+          produto_id: randomUUID(),
+          nome: "Suco B",
+          sim,
+          palavra: 1,
+          descricao_por_sim: "POR SIM B",
+          descricao_por_palavra: "POR PALAVRA B",
+        },
+      ];
+      const descricoes = async (sim: number) => {
+        const saida = (await criarGetProductMargin(servico().metricas, dbCom(pelaPalavra(sim))).executar(
+          contexto,
+          {
+            produto: "suco",
+          },
+        )) as ProdutoAmbiguo;
+        return saida.candidatos.map((c) => c.descricao_de_nota);
+      };
+      // Nenhum nome chega ao limite (0,45): vale a palavra, como na similaridade mostrada.
+      expect(await descricoes(0.3)).toEqual(["POR PALAVRA", "POR PALAVRA B"]);
+      // Algum chega: vale o nome inteiro, mesmo que a palavra dê outra descrição.
+      expect(await descricoes(0.6)).toEqual(["POR SIM", "POR SIM B"]);
+    });
+
     it("candidatos de mesmo nome trazem código de barras, sku e data de cadastro, e a descrição de nota que casou", async () => {
       const banco = dbCom([
         {
@@ -534,7 +746,6 @@ describe("ferramentas de leitura do plano A", () => {
           codigo_barras: "7891000100103",
           sku: "ARZ-A",
           cadastrado_em: "2026-09-01",
-          descricao_de_nota: null,
         },
         {
           produto_id: randomUUID(),
@@ -543,7 +754,7 @@ describe("ferramentas de leitura do plano A", () => {
           codigo_barras: null,
           sku: "ARZ-B",
           cadastrado_em: "2026-10-02",
-          descricao_de_nota: "ARROZ TP1 5KG",
+          descricao_por_sim: "ARROZ TP1 5KG",
         },
       ]);
       const saida = (await criarGetProductMargin(servico().metricas, banco).executar(contexto, {
@@ -556,41 +767,6 @@ describe("ferramentas de leitura do plano A", () => {
         ["ARZ-A", "7891000100103", "2026-09-01", null],
         ["ARZ-B", null, "2026-10-02", "ARROZ TP1 5KG"],
       ]);
-    });
-
-    describe("produto_id escolhido pelo dono", () => {
-      const comProduto = (linhas: Array<{ produto_id: string; nome: string }>) =>
-        ({ execute: jest.fn(async () => ({ rows: linhas })) }) as unknown as Db & { execute: jest.Mock };
-
-      it("vale quando é de um produto do comerciante da sessão, com confiança total", async () => {
-        const { mock, metricas: m } = servico();
-        const id = randomUUID();
-        const banco = comProduto([{ produto_id: id, nome: "Arroz 5kg" }]);
-        const saida = await criarGetProductMargin(m, banco).executar(contexto, { produto_id: id });
-        expect(mock.margemDoProduto).toHaveBeenCalledWith(contexto, id);
-        expect(saida).toMatchObject({ confianca_da_busca: 1, menor_confianca: 0.92 });
-        const consulta = banco.execute.mock.calls[0]?.[0] as { queryChunks: unknown[] };
-        expect(consulta.queryChunks).toEqual(expect.arrayContaining([contexto.comercianteId, id]));
-      });
-
-      it("id que não é do comerciante da sessão vira produto não encontrado, sem chamar a métrica", async () => {
-        const { mock, metricas: m } = servico();
-        const saida = await criarGetProductMargin(m, comProduto([])).executar(contexto, {
-          produto_id: randomUUID(),
-        });
-        expect(saida).toMatchObject({ ausente: true, codigo: "produto_nao_encontrado" });
-        expect(mock.margemDoProduto).not.toHaveBeenCalled();
-      });
-
-      it("a entrada exige produto ou produto_id, um dos dois, e continua estrita", () => {
-        const f = criarGetProductMargin(servico().metricas, dbCom([]));
-        const id = randomUUID();
-        expect(f.entrada.safeParse({ produto_id: id }).success).toBe(true);
-        expect(f.entrada.safeParse({}).success).toBe(false);
-        expect(f.entrada.safeParse({ produto: "Arroz", produto_id: id }).success).toBe(false);
-        expect(f.entrada.safeParse({ produto_id: "arroz" }).success).toBe(false);
-        expect(f.entrada.safeParse({ produto_id: id, comerciante_id: id }).success).toBe(false);
-      });
     });
 
     it("produto claro vai para a métrica com o id achado", async () => {

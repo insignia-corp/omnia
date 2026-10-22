@@ -7,13 +7,13 @@ import type { VariacaoDeCusto } from "../../../metricas/variacao-de-custo";
 import { dadoAusente, type DadoAusente, type ResultadoMetrica } from "../../../metricas/resultado-metrica";
 import { definirFerramenta } from "../ferramenta";
 
+/** A variação da métrica, com o nome do fornecedor do cadastro do comerciante da sessão. */
+export type VariacaoDeCustoComFornecedor = VariacaoDeCusto & { fornecedor_nome: string | null };
+
 /**
  * Reajustes de custo por produto e fornecedor (issue #51). A métrica já ordena da maior alta para
  * a maior queda; a ferramenta só filtra pelas marcas que a métrica calcula.
  */
-/** A variação da métrica, com o nome do fornecedor do cadastro do comerciante da sessão. */
-export type VariacaoDeCustoComFornecedor = VariacaoDeCusto & { fornecedor_nome: string | null };
-
 export function criarGetCostChanges(metricas: MetricasService, db: Db) {
   return definirFerramenta({
     nome: "get_cost_changes",

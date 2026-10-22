@@ -1,5 +1,5 @@
 {
-  "id": "67b883c8-958b-49da-9b2b-319d3a5d57f7",
+  "id": "2196e2bb-30c4-47c4-bb52-e1e6e9307e31",
   "prevId": "99f22bc3-993a-4bce-a93b-ab64a1251dc0",
   "version": "7",
   "dialect": "postgresql",
@@ -737,6 +737,12 @@
         },
         "saldo_inicial_em": {
           "name": "saldo_inicial_em",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ultima_sincronizacao_em": {
+          "name": "ultima_sincronizacao_em",
           "type": "date",
           "primaryKey": false,
           "notNull": false
@@ -3040,8 +3046,7 @@
       "values": [
         "candidato",
         "enviado",
-        "descartado",
-        "obsoleto"
+        "descartado"
       ]
     },
     "public.status_conta": {

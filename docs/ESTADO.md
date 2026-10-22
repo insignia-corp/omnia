@@ -45,7 +45,6 @@ Gerados em 2026-10-21 sobre a `develop` em `d62d2a7`, com Node 24 (via `npx`), P
 - Extração de nota que falha não avisa o dono: `ProcessadorExtracao.falhar` só grava `documento.statusExtracao` e `erro` e registra a execução, e o `ConversaService` envia só o aviso inicial de leitura. Fica pendente até o worker enviar a mensagem fixa de falha (#158, em PR 163; detalhe em `src/ingestao/README.md`).
 - O relatório diário com modelo real ainda não fecha na `develop`: o `AgenteService` exige um `select_alerts` bem-sucedido ou um `list_alert_candidates` sem candidato, o catálogo real não tem `list_alert_candidates` (#52) e nada chama o motor de alertas, que já está na `develop`, até #45 e #52, então um relatório real termina no fallback de erro. Só os testes usam dublês.
 - Alertas: o candidato do dia pode ficar velho quando o dado muda (#157). Higiene de documentação (`send_message`, status de PRs, label do Pluggy) em #159.
-- A CLI do eval e a rodada usam por padrão o prompt `sistema-v2`, e o `AgenteModule` carrega o `v3`: alinhar antes da primeira rodada com `--modelo real`.
 - O alerta ainda não grava os status `enviado` e `descartado`, então a supressão por status não funciona de ponta a ponta (#155).
 - `get_product_margin`: a descrição de nota deve seguir o mesmo critério da busca por nome (#167).
 - Planilha importada com linha rejeitada fica em `revisao` e as vendas dela entram nas métricas com confiança 0,5 sem caminho para voltar (#142).

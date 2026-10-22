@@ -54,7 +54,7 @@ Toda tabela, exceto `comerciante`, também aponta para `comerciante` (omitido no
 | --- | --- | --- |
 | `comerciante` | Lojista. Nome, WhatsApp, tipo e `margem_meta_bps` (meta de margem, 2500 = 25%) | A meta é configuração do próprio lojista, a única escrita permitida ao agente, e só após confirmação |
 | `consentimento` | O que foi autorizado (`banco`, `notas`), quando e em qual versão do termo; `revogado_em` quando revogado | Uma linha por concessão |
-| `conta` | Conta bancária conectada. Guarda só o id da conexão no agregador, nunca credenciais | `saldo_inicial_centavos` e `saldo_inicial_em` permitem calcular o saldo de qualquer dia |
+| `conta` | Conta bancária conectada. Guarda só o id da conexão no agregador, nunca credenciais | `saldo_inicial_centavos` e `saldo_inicial_em` permitem calcular o saldo de qualquer dia; `ultima_sincronizacao_em` guarda o último dia com extrato importado por inteiro, a data de corte e não o dia da execução (separa "sem movimento" de "sem importação"); é data de controle da conta, não dado de negócio, então fica fora da origem e da confiança por registro da regra 4 |
 | `transacao` | Entrada ou saída da conta, com `id_externo` único por conta para importar sem duplicar | Valor sempre positivo; o sentido está em `tipo` |
 | `fornecedor` | Nome e CNPJ (só dígitos), único por comerciante | CNPJ ilegível ou com dígito errado entra nulo: cada nota vira um fornecedor próprio até o dono confirmar, em vez de juntar notas de fornecedores diferentes |
 | `produto` | Catálogo. Código de barras e SKU únicos por comerciante, índice `pg_trgm` no nome | `preco_meta_centavos` e `margem_meta_bps` são as metas do dono, opcionais |

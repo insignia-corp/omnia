@@ -13,6 +13,11 @@
  * Ferramentas devem devolver valores já arredondados para exibição. O verificador preserva
  * sinal e valor, sem arredondar. Cardinais por extenso são bloqueados para regerar em algarismos.
  *
+ * Única exceção ao sinal: percentual negativo de chave `_percentual` (-7.29) pode ser dito em módulo
+ * ("queda de 7,29%", "caiu 7,29%"), porque é assim que o dono fala. Só vale com palavra de direção
+ * coerente ao lado do número (ver `direcaoDoPercentual`); sem ela, ou com direção contrária
+ * ("alta de 7,29%"), o número é bloqueado. Dinheiro e contagem seguem exigindo o sinal.
+ *
  * Este módulo não depende do resto da aplicação.
  */
 
@@ -84,6 +89,52 @@ export function extrairNumeros(mensagem: string): NumeroEncontrado[] {
   return encontrados;
 }
 
+type Direcao = "negativa" | "positiva";
+
+// Palavras que dão sentido ao número por si sós; valem em qualquer ponto da oração antes dele.
+const DIRECAO_FORTE: Record<Direcao, RegExp> = {
+  negativa:
+    /\b(?:queda|quedas|caiu|cairam|caíram|cair|caindo|recuo|recuou|recuaram|diminuiu|diminuição|diminuicao|redução|reducao|reduziu|despencou|perda|perdeu|negativ[oa]s?|baixa\s+de|em\s+baixa)\b/giu,
+  positiva:
+    /\b(?:alta|altas|subiu|subiram|subir|subindo|aumento|aumentou|aumentaram|cresceu|cresceram|crescimento|avanço|avanco|avançou|ganho|positiv[oa]s?)\b/giu,
+};
+
+// Comparativos só dão sentido quando colados depois do número: "7,29% menor", "7,29% a menos".
+// Antes dele são comparação ("queda maior, de 7,29%") e não dizem o sentido do valor.
+const DIRECAO_COLADA: Record<Direcao, RegExp> = {
+  negativa:
+    /^\s*(?:(?:de|em|a)\s+)?(?:queda|recuo|redução|reducao|menos|menor(?:es)?|abaixo|inferior|inferiores)\b/iu,
+  positiva:
+    /^\s*(?:(?:de|em|a)\s+)?(?:alta|aumento|crescimento|mais|maior(?:es)?|acima|superior|superiores)\b/iu,
+};
+
+const FRONTEIRA_DE_ORACAO = /[.,;:!?\n]|\b(?:mas|por[eé]m|enquanto)\b/giu;
+const JANELA_ANTES = 80;
+
+/**
+ * Sentido que o texto dá ao número em `[inicio, fim)`: palavra colada logo depois (ou, antes dele, a
+ * mais próxima dentro da mesma oração). Sem palavra, devolve null.
+ */
+function direcaoDoPercentual(mensagem: string, inicio: number, fim: number): Direcao | null {
+  const colada = (["negativa", "positiva"] as const).find((d) =>
+    DIRECAO_COLADA[d].test(mensagem.slice(fim).replace(PADRAO_NUMERO, " ")),
+  );
+  if (colada) return colada;
+  const antes = mensagem
+    .slice(Math.max(0, inicio - JANELA_ANTES), inicio)
+    .replace(PADRAO_NUMERO, " ")
+    .split(FRONTEIRA_DE_ORACAO)
+    .pop() as string;
+  let melhor: { direcao: Direcao; fim: number } | null = null;
+  for (const direcao of ["negativa", "positiva"] as const) {
+    for (const m of antes.matchAll(DIRECAO_FORTE[direcao])) {
+      const f = m.index + m[0].length;
+      if (melhor === null || f > melhor.fim) melhor = { direcao, fim: f };
+    }
+  }
+  return melhor?.direcao ?? null;
+}
+
 const chave = (n: number): string => n.toString();
 
 /** Chave que guarda identificador: `id`, `produto_id`, `alertaId`, `alerta_ids`, `ids`. */
@@ -95,6 +146,8 @@ const UUID_NO_TEXTO = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 /** Conjunto de valores que a mensagem pode citar, derivado dos resultados das ferramentas. */
 export class NumerosAutorizados {
   private readonly valores = new Set<string>();
+  /** Módulo dos percentuais negativos (chave `_percentual`), que podem ser ditos com palavra de direção. */
+  private readonly quedasPercentuais = new Set<string>();
 
   constructor(fontes: unknown[] = [], extras: number[] = []) {
     for (const f of fontes) this.adicionarFonte(f);
@@ -110,6 +163,7 @@ export class NumerosAutorizados {
     if (CHAVE_DE_ID.test(nomeChave)) return;
     if (typeof fonte === "number") {
       this.adicionar(fonte);
+      if (fonte < 0 && nomeChave.endsWith("_percentual")) this.quedasPercentuais.add(chave(-fonte));
       if (nomeChave.endsWith("_centavos") && Number.isInteger(fonte)) this.adicionar(fonte / 100);
     } else if (typeof fonte === "string") {
       for (const n of extrairNumerosDeTexto(fonte.replace(UUID_NO_TEXTO, " "))) this.adicionar(n);
@@ -123,6 +177,11 @@ export class NumerosAutorizados {
   contem(n: number): boolean {
     return this.valores.has(chave(n));
   }
+
+  /** O valor, positivo, é o módulo de um percentual negativo devolvido por ferramenta. */
+  contemQuedaPercentual(modulo: number): boolean {
+    return modulo > 0 && this.quedasPercentuais.has(chave(modulo));
+  }
 }
 
 function extrairNumerosDeTexto(texto: string): number[] {
@@ -134,9 +193,22 @@ function extrairNumerosDeTexto(texto: string): number[] {
   return nums;
 }
 
+/** "queda de 7,29%" para -7.29: percentual sem sinal escrito, com palavra de direção negativa. */
+function autorizadoPorDirecao(
+  mensagem: string,
+  e: NumeroEncontrado,
+  autorizados: NumerosAutorizados,
+): boolean {
+  if (e.valor <= 0 || !e.texto.endsWith("%") || /^[+]|R\$/.test(e.texto)) return false;
+  if (!autorizados.contemQuedaPercentual(e.valor)) return false;
+  return direcaoDoPercentual(mensagem, e.posicao, e.posicao + e.texto.length) === "negativa";
+}
+
 export function verificarNumeros(mensagem: string, autorizados: NumerosAutorizados): ResultadoVerificacao {
   const encontrados = extrairNumeros(mensagem);
-  const naoAutorizados = encontrados.filter((e) => !autorizados.contem(e.valor));
+  const naoAutorizados = encontrados.filter(
+    (e) => !autorizados.contem(e.valor) && !autorizadoPorDirecao(mensagem, e, autorizados),
+  );
   const porExtenso = encontrarPorExtenso(mensagem);
   return {
     aprovado: naoAutorizados.length === 0 && porExtenso.length === 0,

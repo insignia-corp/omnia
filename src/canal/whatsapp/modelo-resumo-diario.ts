@@ -7,6 +7,7 @@ import { centavos, formatarBRL } from "../../lib/dinheiro/dinheiro";
 import { ehDadoAusente, type DadoAusente, type ResultadoMetrica } from "../../metricas/resultado-metrica";
 import type { ResumoDiario } from "../../metricas/resumo-diario";
 import { montarTemplate } from "./modelos";
+import { diaMes } from "./nota-lida";
 import type { Template } from "./formato";
 
 const DIAS_DA_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
@@ -17,7 +18,7 @@ export const MAX_AVISOS = 3;
 export function rotuloDoDia(data: string): string {
   const [ano, mes, dia] = data.split("-").map(Number) as [number, number, number];
   const semana = DIAS_DA_SEMANA[new Date(Date.UTC(ano, mes - 1, dia)).getUTCDay()]!;
-  return `${semana}, ${data.slice(8, 10)}/${data.slice(5, 7)}`;
+  return `${semana}, ${diaMes(data)}`;
 }
 
 /** Pontos-base para "30,23%" (ou "25%" sem centésimos), só com inteiros. */

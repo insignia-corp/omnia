@@ -8,7 +8,6 @@ import { DB, type Db } from "../../infra/database/database.module";
 import { comerciante, produto } from "../../infra/database/schema";
 import { somarDias } from "../../lib/datas/datas";
 import { MetricasService } from "../../metricas/metricas.service";
-import { ehDadoAusente } from "../../metricas/resultado-metrica";
 import { dataLocal, RELOGIO, type Relogio } from "../relogio";
 
 export const ROTULO_ALERTA: Record<TipoAlerta, string> = {
@@ -52,22 +51,17 @@ export class PainelService {
       this.metricas.resumoDiario(contexto, ontem),
       this.metricas.resumoDePeriodo(contexto, "semana", ontem),
       this.metricas.resumoDePeriodo(contexto, "mes", ontem),
-      this.metricas.margensDosProdutos(contexto),
+      this.metricas.margensAbaixoDaMeta(contexto),
       this.motor.executar({ comercianteId, dataReferencia: hoje }),
     ]);
 
-    const abaixoDaMeta = margens
-      .flatMap((m) =>
-        ehDadoAusente(m.resultado) || !m.resultado.valor.abaixo_da_meta ? [] : [m.resultado.valor],
-      )
-      .sort((a, b) => a.margem_bps - b.margem_bps)
-      .map((m) => ({
-        produto: m.nome,
-        margem_bps: m.margem_bps,
-        meta_bps: m.meta_bps,
-        preco_medio_venda_centavos: m.preco_medio_venda_centavos,
-        custo_compra_mais_recente_centavos: m.custo_compra_mais_recente_centavos,
-      }));
+    const abaixoDaMeta = margens.map((m) => ({
+      produto: m.nome,
+      margem_bps: m.margem_bps,
+      meta_bps: m.meta_bps,
+      preco_medio_venda_centavos: m.preco_medio_venda_centavos,
+      custo_compra_mais_recente_centavos: m.custo_compra_mais_recente_centavos,
+    }));
 
     const idsProdutos = [...new Set(alertas.candidatos.flatMap((c) => (c.produtoId ? [c.produtoId] : [])))];
     const nomes = new Map(

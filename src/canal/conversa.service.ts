@@ -13,7 +13,6 @@ import {
 } from "../infra/database/schema";
 import { FilaExtracao } from "../ingestao/fila/fila-extracao";
 import { MetricasService } from "../metricas/metricas.service";
-import { ehDadoAusente } from "../metricas/resultado-metrica";
 import { CaixaMensagens, type MensagemGravada } from "./caixa-mensagens";
 import { MESSAGE_CHANNEL, type MessageChannel } from "./message-channel";
 import { PORTA_AGENTE, type PortaAgente } from "./porta-agente";
@@ -214,15 +213,10 @@ export class ConversaService implements OnModuleInit {
 
   /** O produto de menor margem entre os abaixo da meta, pela mesma métrica do agente; nulo se nenhum. */
   private async maisAbaixoDaMeta(comercianteId: string): Promise<string | null> {
-    const margens = await this.metricas.margensDosProdutos({
+    const abaixo = await this.metricas.margensAbaixoDaMeta({
       comercianteId,
       dataReferencia: dataLocal(this.relogio.agora(), this.env.FUSO_HORARIO),
     });
-    const abaixo = margens
-      .flatMap((m) =>
-        ehDadoAusente(m.resultado) || !m.resultado.valor.abaixo_da_meta ? [] : [m.resultado.valor],
-      )
-      .sort((a, b) => a.margem_bps - b.margem_bps);
     return abaixo[0]?.nome ?? null;
   }
 

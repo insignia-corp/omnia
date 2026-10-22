@@ -31,7 +31,8 @@ export const MAX_ITENS_NA_MENSAGEM = 12;
 export const MAX_PERGUNTAS_NA_CONVERSA = 3;
 
 const reais = (c: number) => formatarBRL(centavos(c));
-const diaMes = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
+/** "2026-10-16" vira "16/10". */
+export const diaMes = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
 
 /** "16.000" vira "16"; "1.500" vira "1,5". A quantidade vem do banco como texto (`numeric`). */
 export function formatarQuantidade(q: string): string {

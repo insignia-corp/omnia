@@ -239,6 +239,9 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
           { ...base, nome: "Margarina Cremosa 500g", sku: "MG-1" },
           { ...base, nome: "Margarina Cremosa 500g", sku: "MG-2" },
           { ...base, nome: "Margarina Cremosa 500g", sku: "MG-3" },
+          // O apelido de LL-1 ganha pela palavra ("leite integral" inteiro dentro dele) e perde pelo nome inteiro.
+          { ...base, nome: "Leite Longa Vida Integral", sku: "LL-1" },
+          { ...base, nome: "Leite Longa Vida Integral", sku: "LL-2" },
           // 01:30 UTC de 02/10 ainda é 01/10 em Brasília: a data mostrada ao dono é a do fuso dele.
           { ...base, nome: "Pão Francês 50g", sku: "PF-1", criadoEm: new Date("2026-10-02T01:30:00Z") },
           { ...base, nome: "Pão Francês 50g", sku: "PF-2", criadoEm: new Date("2026-10-02T12:00:00Z") },
@@ -260,6 +263,7 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
         "MG-1": "MARG QUALY CREMOSA",
         "MG-2": "MARG QUALY CREMOSA",
         "MG-3": "MARGARINA CREMOSA 500G",
+        "LL-1": "LEITE INTEGRAL CAIXA COM 12 UNIDADES",
       };
       // Em um insert só: os apelidos iguais são gravados juntos (mesmo criado_em), então empatam em vez de um
       // substituir o outro como numa correção do dono.
@@ -313,6 +317,20 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
       }>;
       expect(margarinas.map((c) => c.sku).sort()).toEqual(["MG-1", "MG-2", "MG-3"]);
       expect(margarinas.every((c) => c.descricao_de_nota === null)).toBe(true);
+    });
+
+    it("a descrição mostrada segue o critério da decisão: apelido que ganha só pela palavra não aparece quando o nome inteiro chega ao limite", async () => {
+      // Para "leite integral", o nome de LL-1 chega ao limite pelo nome inteiro (0,60) e o apelido só pela
+      // palavra (1,00 contra 0,42 no nome inteiro). A decisão usa o nome inteiro, então o apelido não a justifica.
+      const saida = await chamar(loja, "get_product_margin", { produto: "leite integral" });
+      expect(saida.ambiguo).toBe(true);
+      const candidatos = (saida.candidatos ?? []) as unknown as Array<{
+        sku: string;
+        descricao_de_nota: string | null;
+      }>;
+      const leites = candidatos.filter((c) => c.sku.startsWith("LL-"));
+      expect(leites.map((c) => c.sku).sort()).toEqual(["LL-1", "LL-2"]);
+      expect(leites.every((c) => c.descricao_de_nota === null)).toBe(true);
     });
 
     it("a data de cadastro do candidato é a do fuso do dono, não a UTC", async () => {

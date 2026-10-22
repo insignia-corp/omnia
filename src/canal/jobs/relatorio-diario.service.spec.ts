@@ -23,8 +23,11 @@ function criar(opcoes: {
   envio?: "enviada" | "duplicada" | Error;
   marcar?: () => Promise<number>;
   execucaoId?: string | null;
+  jaEnviadaHoje?: boolean;
+  reconciliar?: () => Promise<number>;
 }) {
   const marcarEnviados = jest.fn(opcoes.marcar ?? (() => Promise.resolve(1)));
+  const reconciliar = jest.fn(opcoes.reconciliar ?? (() => Promise.resolve(0)));
   const enviarProativa = jest.fn(() =>
     opcoes.envio instanceof Error ? Promise.reject(opcoes.envio) : Promise.resolve(opcoes.envio ?? "enviada"),
   );
@@ -34,11 +37,15 @@ function criar(opcoes: {
       execucaoId: opcoes.execucaoId === undefined ? "exec-1" : opcoes.execucaoId,
     }),
   } as unknown as PortaAgente;
-  const caixa = { jaTemProativa: () => Promise.resolve(false), enviarProativa } as unknown as CaixaMensagens;
+  const caixa = {
+    jaTemProativa: () => Promise.resolve(opcoes.jaEnviadaHoje ?? false),
+    enviarProativa,
+  } as unknown as CaixaMensagens;
   const servico = new RelatorioDiarioService(db, env, relogio, agente, fonte, caixa, {
     marcarEnviados,
+    reconciliar,
   } as unknown as CicloDoAlerta);
-  return { servico, marcarEnviados, enviarProativa };
+  return { servico, marcarEnviados, enviarProativa, reconciliar };
 }
 
 describe("RelatorioDiarioService: alertas enviados (#155)", () => {
@@ -46,7 +53,7 @@ describe("RelatorioDiarioService: alertas enviados (#155)", () => {
     const { servico, marcarEnviados } = criar({});
     await expect(servico.processar(JOB)).resolves.toBe("enviada");
     expect(marcarEnviados).toHaveBeenCalledTimes(1);
-    expect(marcarEnviados).toHaveBeenCalledWith("c-1", "exec-1");
+    expect(marcarEnviados).toHaveBeenCalledWith("c-1", "exec-1", relogio.agora());
   });
 
   it("mensagem duplicada (não saiu) não marca nada", async () => {
@@ -73,6 +80,25 @@ describe("RelatorioDiarioService: alertas enviados (#155)", () => {
     await expect(servico.processar(JOB)).resolves.toBe("enviada");
     expect(enviarProativa).toHaveBeenCalledTimes(1);
     expect(erro).toHaveBeenCalledWith(expect.stringContaining("exec-1"));
+    expect(erro).toHaveBeenCalledWith(expect.stringContaining("banco fora"));
+    erro.mockRestore();
+  });
+
+  it("job reentregue com a mensagem do dia já enviada reconcilia os alertas, sem enviar de novo", async () => {
+    const { servico, reconciliar, enviarProativa, marcarEnviados } = criar({ jaEnviadaHoje: true });
+    await expect(servico.processar(JOB)).resolves.toBe("ja_enviada_hoje");
+    expect(reconciliar).toHaveBeenCalledWith("c-1", "2026-10-20", relogio.agora());
+    expect(enviarProativa).not.toHaveBeenCalled();
+    expect(marcarEnviados).not.toHaveBeenCalled();
+  });
+
+  it("falha ao reconciliar é registrada e não impede o resultado", async () => {
+    const erro = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+    const { servico } = criar({
+      jaEnviadaHoje: true,
+      reconciliar: () => Promise.reject(new Error("banco fora")),
+    });
+    await expect(servico.processar(JOB)).resolves.toBe("ja_enviada_hoje");
     expect(erro).toHaveBeenCalledWith(expect.stringContaining("banco fora"));
     erro.mockRestore();
   });

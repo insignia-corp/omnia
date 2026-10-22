@@ -47,7 +47,9 @@ Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado 
 `ciclo-do-alerta.ts` (`CicloDoAlerta`) grava o que o motor não grava:
 
 - `marcarEnviados(comerciante, execução)`: depois que a mensagem do relatório diário é entregue (`RelatorioDiarioService`, só quando o envio deu `enviada`), os alertas que o agente escolheu em `select_alerts` naquela execução passam de `candidato` para `enviado`, com `enviado_em`, `execucao_id` e a justificativa. Lê só as chamadas de `select_alerts` que deram certo e filtra comerciante nas duas tabelas. Os candidatos que o agente não escolheu (o teto é de 3 por dia) **continuam `candidato`**: ficar fora do teto não pode suprimir o alerta por 7 dias.
-- Falha ao marcar é registrada com o id da execução e nunca desfaz o envio (regra 9: a mensagem do dia continua uma só).
+- Só vale a execução cujo resultado foi `aprovada`: num fallback (o verificador barrou, erro, recusa do modelo) o texto não traz os alertas escolhidos, e marcá-los os suprimiria por 7 dias sem o dono ter visto.
+- Falha ao marcar é registrada com o id da execução e nunca desfaz o envio (regra 9: a mensagem do dia continua uma só). Se o processo cair entre entregar e marcar, o job reentregue cai em `ja_enviada_hoje` e `reconciliar` recupera a marcação pela execução da mensagem proativa do dia (idempotente).
+- Limite conhecido: o verificador de números não confere se o texto aprovado cita cada alerta escolhido; a escolha do agente é o que vale como "enviado".
 - Nada é apagado (regra 10) e só se sai de `candidato`: um alerta `enviado` ou `descartado` nunca volta atrás nem é regravado pelo motor. A tabela `alerta` não tem gatilho de histórico imutável (esses são de `historico_custo`, `vinculo_descricao_produto` e `historico_preco_meta`); a mudança de status de um candidato não é apagar histórico.
 - `descartar(comerciante, alerta, justificativa)` existe e está testado, mas **não tem quem chame**: o MVP não tem fluxo em que o dono descarta um alerta (nem ferramenta, nem tela). Quando houver, é ele que grava o `descartado`.
 

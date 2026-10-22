@@ -35,14 +35,19 @@ describe("ciclo do alerta (e2e)", () => {
   let esquina: string;
 
   /** Uma execução do relatório diário cuja chamada select_alerts escolheu estes alertas. */
-  const execucaoComEscolha = (comercianteId: string, alertaIds: string[], erro: string | null = null) =>
+  const execucaoComEscolha = (
+    comercianteId: string,
+    alertaIds: string[],
+    erro: string | null = null,
+    resultado: "aprovada" | "fallback_verificador" = "aprovada",
+  ) =>
     registro.salvar({
       comercianteId,
       gatilho: "relatorio_diario",
       entrada: "Relatório diário",
       modelo: "falso",
       versaoPrompt: "v3",
-      resultado: "aprovada",
+      resultado,
       mensagemFinal: "Bom dia",
       iteracoes: 1,
       bloqueios: [],
@@ -91,6 +96,7 @@ describe("ciclo do alerta (e2e)", () => {
 
   describe("marcarEnviados", () => {
     let candidatos: Awaited<ReturnType<MotorDeAlertas["executar"]>>["candidatos"];
+    let execucaoDoEnvio: string;
 
     beforeAll(async () => {
       candidatos = (await motor.executar({ comercianteId: vilaNova, dataReferencia: DIA })).candidatos;
@@ -100,6 +106,7 @@ describe("ciclo do alerta (e2e)", () => {
     it("só os alertas escolhidos viram enviado, com data, execução e justificativa; o resto segue candidato", async () => {
       const escolhidos = candidatos.slice(0, 3).map((c) => c.id);
       const execucaoId = await execucaoComEscolha(vilaNova, escolhidos);
+      execucaoDoEnvio = execucaoId;
       const marcados = await ciclo.marcarEnviados(vilaNova, execucaoId, new Date("2026-10-19T14:00:00Z"));
       expect(marcados).toBe(3);
       for (const id of escolhidos) {
@@ -114,12 +121,8 @@ describe("ciclo do alerta (e2e)", () => {
     });
 
     it("repetir não muda nada (idempotente)", async () => {
-      const [execucao] = await db
-        .select()
-        .from(schema.execucaoAgente)
-        .where(eq(schema.execucaoAgente.comercianteId, vilaNova));
       const antes = await linha(candidatos[0]!.id);
-      expect(await ciclo.marcarEnviados(vilaNova, execucao!.id, new Date())).toBe(0);
+      expect(await ciclo.marcarEnviados(vilaNova, execucaoDoEnvio, new Date())).toBe(0);
       expect(await linha(candidatos[0]!.id)).toEqual(antes);
     });
 
@@ -135,6 +138,33 @@ describe("ciclo do alerta (e2e)", () => {
       const execucaoId = await execucaoComEscolha(vilaNova, [alvo], "alerta inexistente");
       expect(await ciclo.marcarEnviados(vilaNova, execucaoId)).toBe(0);
       expect((await linha(alvo)).status).toBe("candidato");
+    });
+
+    it("mensagem que foi um fallback (o dono não viu os alertas) não marca nada", async () => {
+      const alvo = candidatos[7]!.id;
+      const execucaoId = await execucaoComEscolha(vilaNova, [alvo], null, "fallback_verificador");
+      expect(await ciclo.marcarEnviados(vilaNova, execucaoId)).toBe(0);
+      expect((await linha(alvo)).status).toBe("candidato");
+    });
+
+    it("reconciliar: se o processo caiu entre o envio e a marcação, a mensagem do dia recupera os alertas", async () => {
+      const alvo = candidatos[8]!.id;
+      const execucaoId = await execucaoComEscolha(vilaNova, [alvo]);
+      await db.insert(schema.mensagem).values({
+        comercianteId: vilaNova,
+        direcao: "enviada",
+        canal: "web",
+        texto: "Bom dia",
+        proativa: true,
+        dataEnvio: DIA,
+        execucaoId,
+        chaveIdempotencia: "relatorio_teste_reconciliar",
+      });
+      expect(await ciclo.reconciliar(vilaNova, DIA)).toBe(1);
+      expect((await linha(alvo)).status).toBe("enviado");
+      expect(await ciclo.reconciliar(vilaNova, DIA)).toBe(0);
+      // Outro lojista não enxerga a mensagem do dia.
+      expect(await ciclo.reconciliar(esquina, DIA)).toBe(0);
     });
 
     it("outro lojista não consegue marcar o alerta de um lojista: o comerciante da execução é o que vale", async () => {

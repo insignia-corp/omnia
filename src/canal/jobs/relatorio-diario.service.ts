@@ -57,7 +57,11 @@ export class RelatorioDiarioService {
    */
   async processar(job: JobRelatorioDiario): Promise<ResultadoRelatorio> {
     if (this.emSilencioAgora()) return "silencio";
-    if (await this.caixa.jaTemProativa(job.comercianteId, this.hoje())) return "ja_enviada_hoje";
+    if (await this.caixa.jaTemProativa(job.comercianteId, this.hoje())) {
+      // Um job reentregue depois de uma queda entre o envio e a marcação recupera os alertas do dia.
+      await this.reconciliarAlertas(job.comercianteId);
+      return "ja_enviada_hoje";
+    }
 
     const [dono] = await this.db
       .select({ nome: comerciante.nome })
@@ -91,13 +95,23 @@ export class RelatorioDiarioService {
     return resultado;
   }
 
+  private async reconciliarAlertas(comercianteId: string): Promise<void> {
+    try {
+      await this.ciclo.reconciliar(comercianteId, this.hoje(), this.relogio.agora());
+    } catch (e) {
+      this.log.error(
+        `Não reconciliou os alertas enviados de ${this.hoje()}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
   /**
    * Depois da entrega, os alertas que o agente escolheu passam a `enviado` (issue #155), o que liga
    * a supressão de 7 dias. A mensagem já saiu: falha aqui é registrada e nunca desfaz o envio.
    */
   private async marcarAlertasEnviados(comercianteId: string, execucaoId: string): Promise<void> {
     try {
-      await this.ciclo.marcarEnviados(comercianteId, execucaoId);
+      await this.ciclo.marcarEnviados(comercianteId, execucaoId, this.relogio.agora());
     } catch (e) {
       this.log.error(
         `Não marcou os alertas como enviados na execução ${execucaoId}: ${e instanceof Error ? e.message : String(e)}`,

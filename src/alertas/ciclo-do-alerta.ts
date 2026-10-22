@@ -5,10 +5,10 @@
  * justificativa. Toda consulta e toda escrita é do comerciante da sessão (regra inviolável 3), e só
  * sai de `candidato`: um alerta já enviado ou descartado nunca volta atrás.
  */
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { Executor } from "../infra/database/database.module";
-import { alerta, chamadaFerramenta } from "../infra/database/schema";
+import { alerta, chamadaFerramenta, execucaoAgente, mensagem } from "../infra/database/schema";
 
 /** O que `select_alerts` registra na entrada da chamada: os candidatos escolhidos e a justificativa. */
 const escolhaDoAgente = z.object({
@@ -28,6 +28,14 @@ export class CicloDoAlerta {
     execucaoId: string,
     enviadoEm: Date = new Date(),
   ): Promise<number> {
+    // Só vale a execução cuja mensagem o dono de fato recebeu com os alertas: num fallback (verificador
+    // barrou, erro, recusa) o texto não traz os alertas escolhidos, e marcá-los os suprimiria por 7 dias.
+    const [execucao] = await this.db
+      .select({ resultado: execucaoAgente.resultado })
+      .from(execucaoAgente)
+      .where(and(eq(execucaoAgente.id, execucaoId), eq(execucaoAgente.comercianteId, comercianteId)));
+    if (execucao?.resultado !== "aprovada") return 0;
+
     const chamadas = await this.db
       .select({ entrada: chamadaFerramenta.entrada })
       .from(chamadaFerramenta)
@@ -66,6 +74,29 @@ export class CicloDoAlerta {
   }
 
   /**
+   * Recupera a marcação quando o processo caiu entre entregar a mensagem do dia e marcar: pega a
+   * execução da mensagem proativa enviada em `dataEnvio` e marca os alertas dela. Idempotente.
+   */
+  async reconciliar(comercianteId: string, dataEnvio: string, enviadoEm: Date = new Date()): Promise<number> {
+    const mensagens = await this.db
+      .select({ execucaoId: mensagem.execucaoId })
+      .from(mensagem)
+      .where(
+        and(
+          eq(mensagem.comercianteId, comercianteId),
+          eq(mensagem.dataEnvio, dataEnvio),
+          eq(mensagem.proativa, true),
+          eq(mensagem.direcao, "enviada"),
+        ),
+      );
+    let marcados = 0;
+    for (const m of mensagens) {
+      if (m.execucaoId) marcados += await this.marcarEnviados(comercianteId, m.execucaoId, enviadoEm);
+    }
+    return marcados;
+  }
+
+  /**
    * Marca como `descartado` um candidato que o dono dispensou, com a justificativa. Ainda não há
    * quem chame: o MVP não tem fluxo de descarte pelo dono. Devolve se a linha mudou.
    */
@@ -79,23 +110,4 @@ export class CicloDoAlerta {
       .returning({ id: alerta.id });
     return linhas.length > 0;
   }
-}
-
-/** Ids dos alertas que mudaram de status numa execução: usado nos testes de auditoria. */
-export async function alertasDaExecucao(
-  db: Executor,
-  comercianteId: string,
-  execucaoId: string,
-): Promise<string[]> {
-  const linhas = await db
-    .select({ id: alerta.id })
-    .from(alerta)
-    .where(
-      and(
-        eq(alerta.comercianteId, comercianteId),
-        eq(alerta.execucaoId, execucaoId),
-        inArray(alerta.status, ["enviado", "descartado"]),
-      ),
-    );
-  return linhas.map((l) => l.id);
 }

@@ -28,6 +28,8 @@ export const chaveRelatorio = (j: JobRelatorioDiario) => `relatorio_${j.comercia
  */
 @Injectable()
 export class RelatorioDiarioService {
+  private readonly log = new Logger(RelatorioDiarioService.name);
+
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(ENV) private readonly env: Env,
@@ -37,8 +39,6 @@ export class RelatorioDiarioService {
     private readonly caixa: CaixaMensagens,
     private readonly ciclo: CicloDoAlerta,
   ) {}
-
-  private readonly log = new Logger(RelatorioDiarioService.name);
 
   emSilencioAgora(): boolean {
     const minutos = minutosDoDia(this.relogio.agora(), this.env.FUSO_HORARIO);

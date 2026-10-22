@@ -13,7 +13,7 @@ const escolha = (...ids: number[]) => ({
  */
 function dbFalso(opcoes: { resultado?: string | null; chamadas: unknown[] }) {
   const atualizacoes: Array<Record<string, unknown>> = [];
-  const db = {
+  const db: Record<string, unknown> = {
     select: () => ({
       from: (tabela: unknown) => ({
         where: () => {
@@ -29,6 +29,7 @@ function dbFalso(opcoes: { resultado?: string | null; chamadas: unknown[] }) {
         },
       }),
     }),
+    transaction: (corpo: (tx: unknown) => Promise<unknown>) => corpo(db),
     update: () => ({
       set: (valores: Record<string, unknown>) => ({
         where: () => ({
@@ -39,8 +40,8 @@ function dbFalso(opcoes: { resultado?: string | null; chamadas: unknown[] }) {
         }),
       }),
     }),
-  } as unknown as Executor;
-  return { ciclo: new CicloDoAlerta(db), atualizacoes };
+  };
+  return { ciclo: new CicloDoAlerta(db as unknown as Executor), atualizacoes };
 }
 
 const QUANDO = new Date("2026-10-19T14:00:00Z");

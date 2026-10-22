@@ -1,8 +1,8 @@
 import { Module } from "@nestjs/common";
 import { MulterModule } from "@nestjs/platform-express";
 import { AgenteModule } from "../agente/agente.module";
-import { AlertasModule } from "../alertas/alertas.module";
 import { AgenteService } from "../agente/agente.service";
+import { AlertasModule } from "../alertas/alertas.module";
 import { SessaoGuard } from "../comerciante/sessao";
 import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";

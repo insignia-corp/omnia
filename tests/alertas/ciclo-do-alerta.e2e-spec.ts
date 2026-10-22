@@ -29,7 +29,9 @@ describe("ciclo do alerta (e2e)", () => {
   const ciclo = new CicloDoAlerta(db);
   const registro = new RegistroExecucoesPostgres(db);
   const DIA = "2026-10-19";
-  const VESPERA = "2026-10-18";
+  // Datas só destes testes de supressão: nenhum outro teste grava alerta nelas, então não há o que apagar.
+  const VESPERA = "2026-10-16";
+  const SEGUINTE = "2026-10-17";
 
   let vilaNova: string;
   let esquina: string;
@@ -243,7 +245,6 @@ describe("ciclo do alerta (e2e)", () => {
 
   describe("supressão de ponta a ponta", () => {
     it("o alerta enviado na véspera não é gerado de novo no dia seguinte, dentro da janela", async () => {
-      await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, vilaNova));
       const vespera = (await motor.executar({ comercianteId: vilaNova, dataReferencia: VESPERA })).candidatos;
       const margem = vespera.filter((c) => c.tipo === "margem_abaixo_da_meta");
       expect(margem.length).toBeGreaterThan(0);
@@ -253,7 +254,7 @@ describe("ciclo do alerta (e2e)", () => {
       );
       expect(await ciclo.marcarEnviados(vilaNova, execucaoId)).toBe(margem.length);
 
-      const hoje = await motor.executar({ comercianteId: vilaNova, dataReferencia: DIA });
+      const hoje = await motor.executar({ comercianteId: vilaNova, dataReferencia: SEGUINTE });
       const chavesEnviadas = new Set(margem.map((c) => c.chave));
       expect(
         hoje.candidatos.filter((c) => c.tipo === "margem_abaixo_da_meta" && chavesEnviadas.has(c.chave)),
@@ -262,9 +263,8 @@ describe("ciclo do alerta (e2e)", () => {
     });
 
     it("sem o envio registrado, o mesmo alerta volta no dia seguinte (o motivo do #155)", async () => {
-      await db.delete(schema.alerta).where(eq(schema.alerta.comercianteId, esquina));
       const vespera = (await motor.executar({ comercianteId: esquina, dataReferencia: VESPERA })).candidatos;
-      const dia = (await motor.executar({ comercianteId: esquina, dataReferencia: DIA })).candidatos;
+      const dia = (await motor.executar({ comercianteId: esquina, dataReferencia: SEGUINTE })).candidatos;
       const chavesDaVespera = new Set(vespera.map((c) => `${c.tipo}|${c.chave}`));
       expect(dia.some((c) => chavesDaVespera.has(`${c.tipo}|${c.chave}`))).toBe(true);
     });

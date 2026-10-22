@@ -57,22 +57,26 @@ export class CicloDoAlerta {
     const escolhidos = new Map((escolhas.at(-1) ?? []).map((a) => [a.alerta_id, a.justificativa]));
     if (escolhidos.size === 0) return 0;
 
-    let marcados = 0;
-    for (const [alertaId, justificativa] of escolhidos) {
-      const linhas = await this.db
-        .update(alerta)
-        .set({ status: "enviado", enviadoEm, execucaoId, justificativa })
-        .where(
-          and(
-            eq(alerta.id, alertaId),
-            eq(alerta.comercianteId, comercianteId),
-            eq(alerta.status, "candidato"),
-          ),
-        )
-        .returning({ id: alerta.id });
-      marcados += linhas.length;
-    }
-    return marcados;
+    // Uma transação: ou todos os escolhidos viram enviado ou nenhum, sem deixar alerta já entregue
+    // como candidato se o banco cair no meio.
+    return this.db.transaction(async (tx) => {
+      let marcados = 0;
+      for (const [alertaId, justificativa] of escolhidos) {
+        const linhas = await tx
+          .update(alerta)
+          .set({ status: "enviado", enviadoEm, execucaoId, justificativa })
+          .where(
+            and(
+              eq(alerta.id, alertaId),
+              eq(alerta.comercianteId, comercianteId),
+              eq(alerta.status, "candidato"),
+            ),
+          )
+          .returning({ id: alerta.id });
+        marcados += linhas.length;
+      }
+      return marcados;
+    });
   }
 
   /**

@@ -110,7 +110,7 @@ describe("list_alert_candidates", () => {
     ).toBeNull();
   });
 
-  it("confiança nula ou fora do formato é desconhecida: não vira zero nem anula a menor dos outros, como em select_alerts", async () => {
+  it("confiança nula ou fora do formato é desconhecida: não vira zero nem anula a menor dos outros", async () => {
     const conhecida = alerta({ metricasApoio: { menor_confianca: 0.8 } });
     const nula = alerta({ metricasApoio: { menor_confianca: null } });
     const texto = alerta({ metricasApoio: { menor_confianca: "0,5" } });

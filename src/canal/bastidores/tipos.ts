@@ -5,7 +5,7 @@ export interface DecisaoAlerta {
   alerta_id: string;
   tipo: string;
   prioridade: number;
-  status: "candidato" | "enviado" | "descartado";
+  status: "candidato" | "enviado" | "descartado" | "obsoleto";
   data_referencia: string;
   chave: string;
   metricas_apoio: unknown;

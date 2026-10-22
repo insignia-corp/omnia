@@ -174,6 +174,9 @@ describe("extrato por data de sincronização (e2e)", () => {
         data: "2026-02-30",
         hoje: DIA,
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/Data inexistente/);
+    await expect(
+      registrarSincronizacaoDaConta(db, { comercianteId, contaId: contaParada, data: DIA, hoje: "ontem" }),
+    ).rejects.toThrow(/Data inválida/);
   });
 });

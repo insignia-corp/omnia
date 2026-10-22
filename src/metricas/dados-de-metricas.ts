@@ -87,8 +87,8 @@ function intervaloDoExtratoDaConta(
 
 /**
  * O período em que todas as contas exigidas no dia têm extrato: começa na data de início mais
- * recente entre elas e termina na data de fim mais antiga (ver `intervaloDoExtratoDaConta`). Nulo quando não há conta exigida ou
- * quando alguma delas não tem transação nem importação. Um intervalo único para o comerciante
+ * recente entre elas e termina na data de fim mais antiga (ver `intervaloDoExtratoDaConta`). Nulo
+ * quando não há conta exigida ou quando alguma delas não tem transação nem importação. Um intervalo único para o comerciante
  * deixaria o extrato em dia de uma conta esconder o atraso da outra e o total de gastos sairia
  * subestimado.
  */

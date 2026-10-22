@@ -103,7 +103,7 @@ Decisões do orquestrador:
 | Limites | `AGENTE_MAX_ITERACOES` (8) e `AGENTE_MAX_REGERACOES` (2) |
 
 **Como decide.**
-- No relatório: chama `list_alert_candidates`, que já devolve os candidatos ranqueados por impacto mensal em centavos (conta feita pelo código). Escolhe até 3, busca o detalhe de cada um quando precisa e registra a escolha e a justificativa em `select_alerts`. Escreve uma frase por alerta com o valor e a ação sugerida.
+- No relatório: chama `list_alert_candidates`, que já devolve os candidatos ranqueados por impacto em centavos (conta feita pelo código; a semana dos últimos 7 dias para os de volume, o dia para ticket e gasto). Escolhe até 3, busca o detalhe de cada um quando precisa e registra a escolha e a justificativa em `select_alerts`. Escreve uma frase por alerta com o valor e a ação sugerida.
 - Na pergunta livre: escolhe a ferramenta que responde. Se nenhuma serve, diz que não sabe e que dado faltaria (regra 6 do prompt). Se falta um dado do dono (por exemplo, o custo de um produto sem nota), usa `ask_owner`.
 - Em nota processada, com o dono em conversa: resume o que mudou e destaca reajustes acima do limite.
 
@@ -112,7 +112,7 @@ Decisões do orquestrador:
 | Ferramenta | Efeito | Prioridade | Observação |
 | --- | --- | --- | --- |
 | `get_daily_summary` | nenhum | P0 | Faturamento, gastos, saldo e comparação com os 7 dias anteriores (#50) |
-| `get_top_products` | nenhum | P0 | Ranking por giro ou receita (#50) |
+| `get_top_products` | nenhum | P0 | Ranking por volume, alta do giro ou receita (#50, #148) |
 | `get_product_margin` | nenhum | P0 | Margem, custo, preço e confiança; dado ausente explícito (#51) |
 | `get_cost_changes` | nenhum | P0 | Reajustes por produto e fornecedor (#51) |
 | `list_alert_candidates` | nenhum | P0 | Candidatos com prioridade e impacto em centavos (#52) |
@@ -188,7 +188,7 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 | Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
 | Ferramentas P0 (`select_alerts` feito em `select-alerts.ts`; leitura são do plano A) | `src/agente/ferramentas/` | #50 a #53 |
 | `propose_target_price`, `historico_preco_meta` (migração `0008_historico_preco_meta`) e resolução do "sim" em código (feito) | `src/agente/confirmacao/`, `src/agente/ferramentas/`, `src/infra/database/schema.ts` | #104 |
-| Motor de alertas com impacto mensal em centavos e prioridade | `src/alertas/` | #43, #44 |
+| Motor de alertas com impacto em centavos (semana ou dia) e prioridade | `src/alertas/` | #43, #44 |
 | Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
 | Prompts `sistema-v2.md` e `sistema-v3.md` (feitos) | `src/agente/prompts/` | #54, #55, #104 |
 | Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |

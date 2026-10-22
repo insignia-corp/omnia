@@ -62,7 +62,7 @@ Pastas: `src/agente` (menos `ferramentas-plano-a.ts` e `ferramentas-plano-c.ts`)
 
 | Fase | Issues | Pronto quando |
 | --- | --- | --- |
-| Desenvolver | Fase 0; #48 cliente LLM com custo, #57 registro de execução, #53 ask_owner, save_owner_answer e send_message, #55 loop diário e modo conversa, #105 erros | agente roda ponta a ponta com ferramentas e canal falsos, verificador bloqueia número inventado |
+| Desenvolver | Fase 0; #48 cliente LLM com custo, #57 registro de execução, #53 ask_owner e save_owner_answer (o envio não é ferramenta: o `AgenteService` devolve o texto verificado e o `MessageChannel` entrega, ver `docs/agent-flow.md`), #55 loop diário e modo conversa, #105 erros | agente roda ponta a ponta com ferramentas e canal falsos, verificador bloqueia número inventado |
 | Refinar | #104 ação com confirmação do dono, ajuste do prompt, #110 `docs/agent-flow.md`; troca do modelo padrão se o eval permitir | regra 7 e regra 8 provadas por teste |
 | Testar | #68 harness `npm run eval`, depois #69, #70, #71, #72, #73, #74 | relatório do eval em `evidencias/`; números vão para o PR |
 | Primeiro uso com chave real | enviar 3 fotos de `fixtures/notas/` e conferir `execucao_agente` (pendência do `ESTADO.md`) | extração real validada |

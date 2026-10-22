@@ -6,7 +6,12 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { Executor } from "../infra/database/database.module";
 import { limiteAlerta, tipoAlerta } from "../infra/database/schema";
-import type { FonteDeLimites, LimitesDeAlerta, SobreposicaoDeLimites } from "./limites";
+import {
+  LIMITES_PADRAO,
+  type FonteDeLimites,
+  type LimitesDeAlerta,
+  type SobreposicaoDeLimites,
+} from "./limites";
 import type { TipoAlerta } from "./tipos";
 
 type LimiteNumerico = Exclude<keyof LimitesDeAlerta, "janelaSupressaoDias">;
@@ -48,7 +53,13 @@ function tipoDaSupressao(nome: string): TipoAlerta | undefined {
 
 function faixaDe(nome: string): { faixa: Faixa; aceitaNulo: boolean } | undefined {
   if (Object.hasOwn(FAIXAS, nome)) return { faixa: FAIXAS[nome as LimiteNumerico], aceitaNulo: false };
-  if (tipoDaSupressao(nome)) return { faixa: FAIXA_SUPRESSAO, aceitaNulo: true };
+  const tipo = tipoDaSupressao(nome);
+  if (tipo) {
+    // Zero desligaria a supressão do tipo; onde o padrão é sem limite de idade (reajuste), isso reenviaria
+    // todo dia o mesmo alerta já tratado.
+    const semLimiteDeIdade = LIMITES_PADRAO.janelaSupressaoDias[tipo] === null;
+    return { faixa: semLimiteDeIdade ? { ...FAIXA_SUPRESSAO, min: 1 } : FAIXA_SUPRESSAO, aceitaNulo: true };
+  }
   return undefined;
 }
 

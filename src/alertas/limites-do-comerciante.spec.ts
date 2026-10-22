@@ -23,6 +23,13 @@ describe("validarLimite", () => {
     expect(() => validarLimite("prioridade1MinCentavos", Infinity)).toThrow(LimiteInvalidoError);
   });
 
+  it("a janela de supressão do reajuste não aceita zero, que reenviaria o mesmo reajuste todo dia", () => {
+    expect(() => validarLimite("janelaSupressaoDias.reajuste_de_custo", 0)).toThrow(LimiteInvalidoError);
+    expect(validarLimite("janelaSupressaoDias.reajuste_de_custo", 30)).toBe(30);
+    expect(validarLimite("janelaSupressaoDias.reajuste_de_custo", null)).toBeNull();
+    expect(validarLimite("janelaSupressaoDias.ticket_medio_em_queda", 0)).toBe(0);
+  });
+
   it("recusa valor com mais de 4 casas decimais e centavos que estouram a coluna", () => {
     expect(() => validarLimite("gastoLimiteDesvio", 3.12345)).toThrow(LimiteInvalidoError);
     expect(validarLimite("gastoLimiteDesvio", 3.1234)).toBe(3.1234);

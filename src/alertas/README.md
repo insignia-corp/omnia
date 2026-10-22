@@ -40,7 +40,16 @@ Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave
 
 ## Supressão (#44)
 
-Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. O **reajuste** é a exceção: a chave inclui a compra, então o mesmo reajuste já enviado ou descartado é suprimido sem limite de idade (nunca precisa voltar). Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. A supressão só tem efeito depois que quem envia ou descarta grava o status final (`enviado` ou `descartado`) no alerta: o motor só cria `candidato` e ainda não há quem grave esse status (relatório diário e fluxo do `select_alerts`), então até lá nada é suprimido. Como a chave do reajuste inclui o id da compra atual (duas compras do mesmo produto e fornecedor no mesmo dia são alertas distintos), uma nota nova com outro reajuste do mesmo produto é um alerta novo.
+Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** em uma data anterior há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. O **reajuste** é a exceção: a chave inclui a compra, então o mesmo reajuste já enviado ou descartado é suprimido sem limite de idade (nunca precisa voltar). Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. A supressão só tem efeito depois que o status final (`enviado` ou `descartado`) é gravado no alerta: o motor só cria `candidato`, e quem grava o status é o ciclo do alerta (ver "Status final do alerta"). Como a chave do reajuste inclui o id da compra atual (duas compras do mesmo produto e fornecedor no mesmo dia são alertas distintos), uma nota nova com outro reajuste do mesmo produto é um alerta novo.
+
+## Status final do alerta (#155)
+
+`ciclo-do-alerta.ts` (`CicloDoAlerta`) grava o que o motor não grava:
+
+- `marcarEnviados(comerciante, execução)`: depois que a mensagem do relatório diário é entregue (`RelatorioDiarioService`, só quando o envio deu `enviada`), os alertas que o agente escolheu em `select_alerts` naquela execução passam de `candidato` para `enviado`, com `enviado_em`, `execucao_id` e a justificativa. Lê só as chamadas de `select_alerts` que deram certo e filtra comerciante nas duas tabelas. Os candidatos que o agente não escolheu (o teto é de 3 por dia) **continuam `candidato`**: ficar fora do teto não pode suprimir o alerta por 7 dias.
+- Falha ao marcar é registrada com o id da execução e nunca desfaz o envio (regra 9: a mensagem do dia continua uma só).
+- Nada é apagado (regra 10) e só se sai de `candidato`: um alerta `enviado` ou `descartado` nunca volta atrás nem é regravado pelo motor. A tabela `alerta` não tem gatilho de histórico imutável (esses são de `historico_custo`, `vinculo_descricao_produto` e `historico_preco_meta`); a mudança de status de um candidato não é apagar histórico.
+- `descartar(comerciante, alerta, justificativa)` existe e está testado, mas **não tem quem chame**: o MVP não tem fluxo em que o dono descarta um alerta (nem ferramenta, nem tela). Quando houver, é ele que grava o `descartado`.
 
 ## Job de reajuste após cada nota (#45)
 

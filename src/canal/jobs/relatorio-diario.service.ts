@@ -1,5 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { eq } from "drizzle-orm";
+import { CicloDoAlerta } from "../../alertas/ciclo-do-alerta";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env";
 import { DB, type Db } from "../../infra/database/database.module";
@@ -34,7 +35,10 @@ export class RelatorioDiarioService {
     @Inject(PORTA_AGENTE) private readonly agente: PortaAgente,
     @Inject(FONTE_RELATORIO) private readonly fonte: FonteRelatorio,
     private readonly caixa: CaixaMensagens,
+    private readonly ciclo: CicloDoAlerta,
   ) {}
+
+  private readonly log = new Logger(RelatorioDiarioService.name);
 
   emSilencioAgora(): boolean {
     const minutos = minutosDoDia(this.relogio.agora(), this.env.FUSO_HORARIO);
@@ -74,12 +78,30 @@ export class RelatorioDiarioService {
     });
     // A chamada ao modelo pode atravessar o início do silêncio: reconfere logo antes de entregar.
     if (this.emSilencioAgora()) return "silencio";
-    return this.caixa.enviarProativa({
+    const resultado = await this.caixa.enviarProativa({
       comercianteId: job.comercianteId,
       texto: resposta.mensagem,
       execucaoId: resposta.execucaoId,
       dataEnvio: this.hoje(),
       chave: chaveRelatorio(job),
     });
+    if (resultado === "enviada" && resposta.execucaoId) {
+      await this.marcarAlertasEnviados(job.comercianteId, resposta.execucaoId);
+    }
+    return resultado;
+  }
+
+  /**
+   * Depois da entrega, os alertas que o agente escolheu passam a `enviado` (issue #155), o que liga
+   * a supressão de 7 dias. A mensagem já saiu: falha aqui é registrada e nunca desfaz o envio.
+   */
+  private async marcarAlertasEnviados(comercianteId: string, execucaoId: string): Promise<void> {
+    try {
+      await this.ciclo.marcarEnviados(comercianteId, execucaoId);
+    } catch (e) {
+      this.log.error(
+        `Não marcou os alertas como enviados na execução ${execucaoId}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
   }
 }

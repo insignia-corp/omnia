@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { MulterModule } from "@nestjs/platform-express";
 import { AgenteModule } from "../agente/agente.module";
+import { AlertasModule } from "../alertas/alertas.module";
 import { AgenteService } from "../agente/agente.service";
 import { SessaoGuard } from "../comerciante/sessao";
 import { ENV } from "../config/config.module";
@@ -25,6 +26,7 @@ import { PaginaChatController } from "./web/pagina-chat.controller";
 @Module({
   imports: [
     AgenteModule,
+    AlertasModule,
     IngestaoModule,
     MulterModule.registerAsync({
       inject: [ENV],

@@ -38,6 +38,7 @@ const movimento = (
 
 const conta: ContaParaMetrica = {
   id: "conta-1",
+  ativa: true,
   saldoInicialCentavos: 1_000_000,
   saldoInicialEm: "2026-10-09",
 };
@@ -127,6 +128,19 @@ describe("calcularResumoDiario", () => {
       expect(valor.faturamento_centavos).toBe(100_000);
     });
 
+    it("conta ativa sem nenhuma transação importada (intervalo nulo) também deixa o saldo da conta ausente", () => {
+      const { valor } = resumo({ intervaloDeMovimentos: null });
+      expect(valor.saldo_da_conta).toMatchObject({ ausente: true, codigo: "dia_sem_extrato" });
+      expect(valor.gastos_centavos).toMatchObject({ ausente: true, codigo: "dia_sem_extrato" });
+    });
+
+    it("extrato que só começa depois do dia também deixa o saldo da conta ausente", () => {
+      const { valor } = resumo({
+        intervaloDeMovimentos: { primeira: "2026-10-20", ultima: "2026-10-25" },
+      });
+      expect(valor.saldo_da_conta).toMatchObject({ ausente: true, codigo: "dia_sem_extrato" });
+    });
+
     it("extrato que termina antes do dia também deixa o saldo da conta ausente, não defasado", () => {
       const { valor } = resumo({
         movimentos: [movimento("2026-10-18", "saida", 50_000)],
@@ -158,7 +172,10 @@ describe("calcularResumoDiario", () => {
 
     it("soma as contas, cada uma com seu saldo inicial", () => {
       const { valor } = resumo({
-        contas: [conta, { id: "conta-2", saldoInicialCentavos: 500_000, saldoInicialEm: "2026-10-15" }],
+        contas: [
+          conta,
+          { id: "conta-2", ativa: true, saldoInicialCentavos: 500_000, saldoInicialEm: "2026-10-15" },
+        ],
         movimentos: [
           movimento("2026-10-16", "entrada", 10_000, { contaId: "conta-2" }),
           movimento("2026-10-16", "saida", 4000),
@@ -168,7 +185,12 @@ describe("calcularResumoDiario", () => {
     });
 
     it("conta aberta depois da data não entra; sem nenhuma conta na data, o saldo é ausente", () => {
-      const nova = { id: "conta-2", saldoInicialCentavos: 500_000, saldoInicialEm: "2026-10-25" };
+      const nova = {
+        id: "conta-2",
+        ativa: true,
+        saldoInicialCentavos: 500_000,
+        saldoInicialEm: "2026-10-25",
+      };
       expect(resumo({ contas: [conta, nova] }).valor.saldo_da_conta).toEqual({ saldo_centavos: 1_000_000 });
       expect(resumo({ contas: [nova] }).valor.saldo_da_conta).toMatchObject({
         ausente: true,
@@ -177,7 +199,7 @@ describe("calcularResumoDiario", () => {
     });
 
     it("conta aberta depois da data sem saldo inicial não bloqueia o saldo das outras", () => {
-      const nova = { id: "conta-2", saldoInicialCentavos: null, saldoInicialEm: "2026-10-25" };
+      const nova = { id: "conta-2", ativa: true, saldoInicialCentavos: null, saldoInicialEm: "2026-10-25" };
       expect(resumo({ contas: [conta, nova] }).valor.saldo_da_conta).toEqual({ saldo_centavos: 1_000_000 });
       expect(resumo({ contas: [nova] }).valor.saldo_da_conta).toMatchObject({
         ausente: true,

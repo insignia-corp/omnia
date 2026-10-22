@@ -161,6 +161,7 @@ export class MotorDeAlertas {
     );
     const obsoletos = await this.alertas.marcarObsoletos(comercianteId, dataReferencia, {
       tipos: avaliados,
+      reajusteLimiteBps: limites.reajusteLimiteBps,
       ...(produtoIds ? { produtoIds } : {}),
       ...(semDado.length > 0 ? { excluir: semDado } : {}),
       manter: achados.filter((c) => !jaTratado(c)).map((c) => ({ tipo: c.tipo, chave: c.chave })),

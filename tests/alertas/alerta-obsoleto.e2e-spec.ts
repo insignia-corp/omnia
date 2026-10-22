@@ -338,4 +338,79 @@ describe("alerta obsoleto (e2e)", () => {
       expect((await doProduto("reajuste_de_custo"))[0]?.status).toBe("candidato");
     });
   });
+  describe("nota anterior do mesmo dia corrigida", () => {
+    it("a correção da nota anterior para o custo da nota do alerta refuta o reajuste: deixa de ser candidato", async () => {
+      const [fornecedorNovo] = await db
+        .insert(schema.fornecedor)
+        .values({ comercianteId: vilaNova, nome: "Fornecedor da nota lida errada", origem: "dono" })
+        .returning({ id: schema.fornecedor.id });
+      const novo = fornecedorNovo!.id;
+      const notaDe = async (custoCentavos: number) => {
+        const [c] = await db
+          .insert(schema.compra)
+          .values({
+            comercianteId: vilaNova,
+            fornecedorId: novo,
+            data: "2026-10-18",
+            totalCentavos: custoCentavos,
+            somaItensCentavos: custoCentavos,
+            origem: "foto_nota",
+            confianca: 1,
+          })
+          .returning({ id: schema.compra.id });
+        const [item] = await db
+          .insert(schema.itemDeCompra)
+          .values({
+            comercianteId: vilaNova,
+            compraId: c!.id,
+            produtoId: arroz,
+            ordem: 1,
+            descricaoNota: "ARROZ 5KG",
+            quantidade: 1,
+            unidade: "un",
+            valorUnitarioCentavos: custoCentavos,
+            valorTotalCentavos: custoCentavos,
+            confianca: 1,
+            origem: "foto_nota",
+          })
+          .returning({ id: schema.itemDeCompra.id });
+        await db.insert(schema.historicoCusto).values({
+          comercianteId: vilaNova,
+          produtoId: arroz,
+          fornecedorId: novo,
+          data: "2026-10-18",
+          custoUnitarioCentavos: custoCentavos,
+          itemDeCompraId: item!.id,
+          origem: "foto_nota",
+          confianca: 1,
+        });
+        return item!.id;
+      };
+      const doNovo = async () =>
+        (await doProduto("reajuste_de_custo")).filter((l) => l.fornecedorId === novo);
+
+      // A nota Z, lida errada a R$ 24,90, e a nota X, a R$ 27,90, no mesmo dia: reajuste de 12%.
+      const itemZ = await notaDe(2490);
+      await notaDe(2790);
+      await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect(await doNovo()).toHaveLength(1);
+      expect((await doNovo())[0]).toMatchObject({ status: "candidato" });
+
+      // O dono corrige a nota Z para R$ 27,90: não houve reajuste, a leitura nova de Z passa a ser a
+      // última do par e a alta da nota X deixa de existir.
+      await db.insert(schema.historicoCusto).values({
+        comercianteId: vilaNova,
+        produtoId: arroz,
+        fornecedorId: novo,
+        data: "2026-10-18",
+        custoUnitarioCentavos: 2790,
+        itemDeCompraId: itemZ,
+        origem: "dono",
+        confianca: 1,
+      });
+      const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
+      expect((await doNovo())[0]).toMatchObject({ status: "obsoleto" });
+      expect(r.candidatos.some((c) => c.fornecedorId === novo)).toBe(false);
+    });
+  });
 });

@@ -425,6 +425,21 @@ describe("regra de espaço para subir preço", () => {
     expect(prioridadeDe({ impactoCentavos: 88_400, confianca: 1 }, LIMITES_PADRAO)).toBe(1);
   });
 
+  it("produto de giro alto sem margem calculável é informado como sem dado, não como obsoleto", async () => {
+    const dois = giro([giroDoProduto("p1"), giroDoProduto("p2")]);
+    const r = await rodar(regraEspacoParaSubirPreco, {
+      giro: () => Promise.resolve({ ...dois, valor: { ...dois.valor, giro_alto: ["p1", "p2"] } }),
+      margensDosProdutos: () =>
+        Promise.resolve([
+          { produto_id: "p1", resultado: resultado(margem({ abaixo_da_meta: false })) },
+          { produto_id: "p2", resultado: dadoAusente("sem_custo", "Sem nota.") },
+        ]),
+    });
+    // p1 foi avaliado (margem acima da meta: sem candidato); só p2 ficou sem dado.
+    expect(r.produtosSemDado).toEqual(["p2"]);
+    expect(r.candidatos).toEqual([]);
+  });
+
   it("giro ausente não gera candidato", async () => {
     const r = await rodar(regraEspacoParaSubirPreco, {
       giro: () => Promise.resolve(dadoAusente("vendas_incompletas", "Faltam vendas.")),

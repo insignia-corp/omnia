@@ -80,6 +80,31 @@ export interface RepositorioAlertas {
 
 export const REPOSITORIO_ALERTAS = Symbol("REPOSITORIO_ALERTAS");
 
+/**
+ * Quantas execuções do motor seguram a trava ao mesmo tempo neste processo. Cada uma ocupa uma
+ * conexão da transação e o corpo precisa de outras: sem teto, muitas execuções juntas esgotariam o
+ * pool (10) com todas esperando conexão. Só limita a vazão; o estado do negócio continua no banco.
+ */
+export class LimiteDeConcorrencia {
+  private ativas = 0;
+  private readonly fila: Array<() => void> = [];
+
+  constructor(private readonly maximo: number) {}
+
+  async executar<T>(corpo: () => Promise<T>): Promise<T> {
+    if (this.ativas >= this.maximo) await new Promise<void>((liberar) => this.fila.push(liberar));
+    this.ativas++;
+    try {
+      return await corpo();
+    } finally {
+      this.ativas--;
+      this.fila.shift()?.();
+    }
+  }
+}
+
+const LIMITE_DE_EXECUCOES = new LimiteDeConcorrencia(4);
+
 export class RepositorioAlertasPostgres implements RepositorioAlertas {
   constructor(private readonly db: Executor) {}
 
@@ -158,14 +183,15 @@ export class RepositorioAlertasPostgres implements RepositorioAlertas {
   }
 
   async comExclusao<T>(comercianteId: string, dataReferencia: string, corpo: () => Promise<T>): Promise<T> {
-    // Dentro de uma transação já aberta por quem chamou (Tx) não há como abrir outra para a trava.
-    if (!("transaction" in this.db) || typeof this.db.transaction !== "function") return corpo();
-    return this.db.transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${`alerta:${comercianteId}:${dataReferencia}`}))`,
-      );
-      return corpo();
-    });
+    // Dentro de uma Tx a trava vale até o commit de quem chamou (a transação aninhada é um savepoint).
+    return LIMITE_DE_EXECUCOES.executar(() =>
+      this.db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${`alerta:${comercianteId}:${dataReferencia}`}))`,
+        );
+        return corpo();
+      }),
+    );
   }
 
   async marcarObsoletos(

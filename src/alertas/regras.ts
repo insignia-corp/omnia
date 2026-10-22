@@ -233,8 +233,17 @@ export const regraEspacoParaSubirPreco: RegraDeAlerta = {
       const doProduto = !margem || ehDadoAusente(margem) ? null : margem.menor_confianca;
       return menorDasConfiancas(confiancaDoGiro, doProduto);
     };
+    // Produto de giro alto sem margem calculável (sem custo ou sem venda) não foi avaliado: o motor não
+    // pode dar o candidato dele como obsoleto.
+    const produtosSemDado = ehDadoAusente(giro)
+      ? []
+      : giro.valor.giro_alto.filter((id) => {
+          const margem = margens.find((m) => m.produto_id === id)?.resultado;
+          return !margem || ehDadoAusente(margem);
+        });
     return {
       ausentes: [],
+      produtosSemDado,
       candidatos: espaco.valor.map((p) => ({
         tipo: "espaco_para_subir_preco",
         chave: p.produto_id,

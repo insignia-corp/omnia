@@ -49,6 +49,12 @@ export interface MotivoAusente {
 export interface ResultadoDaRegra {
   candidatos: CandidatoDeAlerta[];
   ausentes: MotivoAusente[];
+  /**
+   * Presente quando a ausência de dado é só de alguns produtos: a regra avaliou os demais, e o motor
+   * só deixa de marcar como obsoletos os candidatos destes. Sem isto, qualquer `ausentes` quer dizer
+   * que a regra inteira ficou sem dado.
+   */
+  produtosSemDado?: string[];
 }
 
 export interface RegraDeAlerta {

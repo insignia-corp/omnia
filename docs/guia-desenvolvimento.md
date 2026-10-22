@@ -53,7 +53,7 @@ O banco é PostgreSQL. Duas regras valem para todas as tabelas: valores em dinhe
 | Documento | comerciante, tipo (foto de nota, NF-e, planilha), arquivo, status da extração, confiança média |
 | Compra e item de compra | documento, fornecedor, data, total; por item: produto, quantidade, custo unitário, confiança |
 | Venda e item de venda | data, origem; por item: produto, quantidade, preço unitário |
-| Alerta | comerciante, tipo, prioridade, métricas de apoio (JSON), status (candidato, enviado, descartado) |
+| Alerta | comerciante, tipo, prioridade, métricas de apoio (JSON), status (candidato, enviado, descartado, obsoleto) |
 | Mensagem | direção (enviada ou recebida), categoria do template, texto, custo estimado |
  
 A tabela Mensagem, junto de um registro de tokens por execução do agente, é o que permite calcular o custo real por lojista e fechar a hipótese de preço.

@@ -85,7 +85,12 @@ describe("job de reajuste após cada nota (e2e)", () => {
       const compra = compras.find((c) => c.documentoId === entrada.documentoId);
       return Promise.resolve({ status: "extraido" as const, compraId: compra?.compraId ?? "" });
     });
-    const fila = new FilaExtracao(redis, { processar } as unknown as ProcessadorExtracao, {} as PinoLogger, gancho);
+    const fila = new FilaExtracao(
+      redis,
+      { processar } as unknown as ProcessadorExtracao,
+      {} as PinoLogger,
+      gancho,
+    );
     fila.onApplicationBootstrap();
     filasDeExtracao.push(fila);
     return { fila, processar };

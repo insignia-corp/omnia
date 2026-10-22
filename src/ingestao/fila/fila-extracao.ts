@@ -118,11 +118,7 @@ export class FilaExtracao implements OnApplicationBootstrap, OnModuleDestroy {
       avisoFalha: this.avisoFalha,
       logger: this.logger,
     });
-    if (
-      this.aposExtracao &&
-      r.compraId &&
-      (r.status === "extraido" || r.status === "revisao")
-    ) {
+    if (this.aposExtracao && r.compraId && (r.status === "extraido" || r.status === "revisao")) {
       try {
         await this.aposExtracao({
           documentoId: job.data.documentoId,

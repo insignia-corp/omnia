@@ -140,7 +140,10 @@ describe("FilaExtracao: gancho após a extração", () => {
     const erro = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
     const gancho = jest.fn().mockRejectedValue(new Error("redis fora"));
     const { fila, processar } = criar({ status: "extraido", compraId: "compra-1" }, gancho);
-    await expect(tratarNaFila(fila, jobDe(DADOS))).resolves.toEqual({ status: "extraido", compraId: "compra-1" });
+    await expect(tratarNaFila(fila, jobDe(DADOS))).resolves.toEqual({
+      status: "extraido",
+      compraId: "compra-1",
+    });
     expect(processar).toHaveBeenCalledTimes(1);
     expect(erro).toHaveBeenCalledWith(expect.stringContaining("doc-1"));
     expect(erro).toHaveBeenCalledWith(expect.stringContaining("redis fora"));
@@ -149,7 +152,10 @@ describe("FilaExtracao: gancho após a extração", () => {
 
   it("sem o gancho, devolve o resultado da extração como antes", async () => {
     const { fila, processar } = criar({ status: "extraido", compraId: "compra-1" });
-    await expect(tratarNaFila(fila, jobDe(DADOS))).resolves.toEqual({ status: "extraido", compraId: "compra-1" });
+    await expect(tratarNaFila(fila, jobDe(DADOS))).resolves.toEqual({
+      status: "extraido",
+      compraId: "compra-1",
+    });
     expect(processar).toHaveBeenCalledWith(DADOS, false);
   });
 });

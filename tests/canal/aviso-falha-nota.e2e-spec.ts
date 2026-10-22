@@ -164,12 +164,13 @@ describe("aviso ao dono quando a leitura da nota falha (e2e)", () => {
       .returning({ id: schema.documento.id });
     await conversa.avisarNotaRecebida(c, doc!.id);
 
+    // A consulta não ordena: compara o conjunto, pela chave de cada mensagem.
     const linhas = await mensagensDe(c);
-    expect(linhas.map((m) => m.texto)).toEqual([
-      "Foto de nota enviada",
-      expect.stringContaining("Recebi a foto"),
-      TEXTO_FALHA_NOTA,
-    ]);
+    expect(linhas).toHaveLength(3);
+    expect(linhas.map((m) => m.chaveIdempotencia ?? m.idExterno).sort()).toEqual(
+      [`nota-${doc!.id}`, `nota_${doc!.id}`, `nota_falha_${doc!.id}`].sort(),
+    );
+    expect(linhas.find((m) => m.chaveIdempotencia === `nota_falha_${doc!.id}`)!.texto).toBe(TEXTO_FALHA_NOTA);
     expect(linhas.some((m) => m.proativa)).toBe(false);
   });
 

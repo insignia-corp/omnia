@@ -66,10 +66,28 @@ export function contasExigidasNoDia(data: string, contas: readonly ContaParaMetr
 }
 
 /**
- * O período em que todas as contas exigidas no dia têm extrato: da última primeira transação até a
- * primeira última transação. Nulo quando não há conta exigida ou quando alguma delas não tem
- * transação importada. Um intervalo único para o comerciante deixaria o extrato em dia de uma conta
- * esconder o atraso da outra e o total de gastos sairia subestimado.
+ * O período em que a conta tem extrato: do primeiro dia com transação (ou, sem nenhuma, da abertura
+ * da conta) até o maior entre o último dia com transação e o dia da última importação concluída.
+ * Uma conta parada que foi sincronizada hoje está em dia mesmo sem movimento recente. Nulo quando
+ * não há transação nem importação: sem prova de importação, não há extrato.
+ */
+function intervaloDoExtratoDaConta(
+  conta: ContaParaMetrica,
+  intervalo: IntervaloDaConta | undefined,
+): IntervaloDeDados | null {
+  const sincronizadaEm = conta.ultimaSincronizacaoEm;
+  if (!intervalo && sincronizadaEm === null) return null;
+  const primeira = intervalo?.primeira ?? conta.saldoInicialEm ?? sincronizadaEm ?? "";
+  const ultima = [intervalo?.ultima ?? "", sincronizadaEm ?? ""].reduce((a, b) => (a > b ? a : b));
+  return { primeira, ultima };
+}
+
+/**
+ * O período em que todas as contas exigidas no dia têm extrato: da última primeira data até a
+ * primeira última data (ver `intervaloDoExtratoDaConta`). Nulo quando não há conta exigida ou
+ * quando alguma delas não tem transação nem importação. Um intervalo único para o comerciante
+ * deixaria o extrato em dia de uma conta esconder o atraso da outra e o total de gastos sairia
+ * subestimado.
  */
 export function intervaloComumDeMovimentos(
   data: string,
@@ -81,7 +99,10 @@ export function intervaloComumDeMovimentos(
   let primeira = "";
   let ultima = "9999-12-31";
   for (const conta of exigidas) {
-    const intervalo = intervalos.find((i) => i.contaId === conta.id);
+    const intervalo = intervaloDoExtratoDaConta(
+      conta,
+      intervalos.find((i) => i.contaId === conta.id),
+    );
     if (!intervalo) return null;
     if (intervalo.primeira > primeira) primeira = intervalo.primeira;
     if (intervalo.ultima < ultima) ultima = intervalo.ultima;
@@ -125,6 +146,8 @@ export interface ContaParaMetrica {
   saldoInicialCentavos: number | null;
   /** O saldo inicial vale antes das transações deste dia, que já entram no cálculo. */
   saldoInicialEm: string | null;
+  /** Dia da última importação de extrato concluída; nulo se nenhuma terminou. */
+  ultimaSincronizacaoEm: string | null;
 }
 
 /**

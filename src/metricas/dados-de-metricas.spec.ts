@@ -144,6 +144,7 @@ describe("cobertura do extrato por conta", () => {
     ativa: true,
     saldoInicialCentavos: 0,
     saldoInicialEm: "2026-09-01",
+    ultimaSincronizacaoEm: null,
     ...extra,
   });
   const intervalo = (contaId: string, primeira: string, ultima: string): IntervaloDaConta => ({
@@ -203,6 +204,41 @@ describe("cobertura do extrato por conta", () => {
       expect(intervaloComumDeMovimentos(DIA, contas, intervalos)).toEqual({
         primeira: "2026-09-01",
         ultima: DIA,
+      });
+    });
+
+    it("conta parada sincronizada no dia está em dia: a data da importação vale mais que a da última transação", () => {
+      const contas = [conta("a"), conta("b", { ultimaSincronizacaoEm: DIA })];
+      const intervalos = [intervalo("a", "2026-09-01", DIA), intervalo("b", "2026-09-01", "2026-10-05")];
+      expect(intervaloComumDeMovimentos(DIA, contas, intervalos)).toEqual({
+        primeira: "2026-09-01",
+        ultima: DIA,
+      });
+    });
+
+    it("a sincronização mais antiga que a última transação não encurta o extrato", () => {
+      const contas = [conta("a", { ultimaSincronizacaoEm: "2026-09-20" })];
+      expect(intervaloComumDeMovimentos(DIA, contas, [intervalo("a", "2026-09-01", "2026-10-10")])).toEqual({
+        primeira: "2026-09-01",
+        ultima: "2026-10-10",
+      });
+    });
+
+    it("conta recém-conectada, sincronizada e sem transação, cobre da abertura até a sincronização", () => {
+      const contas = [conta("a", { saldoInicialEm: "2026-10-01", ultimaSincronizacaoEm: DIA })];
+      expect(intervaloComumDeMovimentos(DIA, contas, [])).toEqual({ primeira: "2026-10-01", ultima: DIA });
+    });
+
+    it("conta sem transação, sem sincronização e sem abertura conhecida não tem extrato", () => {
+      expect(intervaloComumDeMovimentos(DIA, [conta("a", { saldoInicialEm: null })], [])).toBeNull();
+    });
+
+    it("a conta parada sem sincronização continua bloqueando os dias depois da última transação", () => {
+      const contas = [conta("a"), conta("b")];
+      const intervalos = [intervalo("a", "2026-09-01", DIA), intervalo("b", "2026-09-01", "2026-10-05")];
+      expect(intervaloComumDeMovimentos(DIA, contas, intervalos)).toEqual({
+        primeira: "2026-09-01",
+        ultima: "2026-10-05",
       });
     });
 

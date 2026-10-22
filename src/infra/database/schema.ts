@@ -213,6 +213,12 @@ export const conta = pgTable(
     /** Saldo na data em que a conta entrou no sistema; o saldo de um dia soma as transações a partir daí. */
     saldoInicialCentavos: bigint("saldo_inicial_centavos", { mode: "number" }),
     saldoInicialEm: date("saldo_inicial_em", { mode: "string" }),
+    /**
+     * Dia da última importação de extrato concluída com sucesso, mesmo sem transação nova. Separa
+     * "sem movimento" de "sem importação": a cobertura de extrato usa a maior entre esta data e a da
+     * última transação. Nula enquanto nenhuma importação terminou.
+     */
+    ultimaSincronizacaoEm: date("ultima_sincronizacao_em", { mode: "string" }),
     criadoEm: criadoEm(),
   },
   (t) => [

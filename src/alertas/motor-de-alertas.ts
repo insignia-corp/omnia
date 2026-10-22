@@ -9,7 +9,7 @@ import { MetricasService } from "../metricas/metricas.service";
 import { mesclarLimites, type FonteDeLimites } from "./limites";
 import { compararCandidatos, ordenarGravados, prioridadeDe } from "./prioridade";
 import { MetricasDaExecucao, type CandidatoDeAlerta, type MotivoAusente, type RegraDeAlerta } from "./regra";
-import type { AlertaGravado, RepositorioAlertas } from "./repositorio-alertas";
+import type { AlertaGravado, AlertaJaTratado, RepositorioAlertas } from "./repositorio-alertas";
 import { REGRAS_DE_ALERTA } from "./regras";
 import type { TipoAlerta } from "./tipos";
 
@@ -42,6 +42,8 @@ export interface ResultadoDoMotor {
   suprimidos: CandidatoDeAlerta[];
   /** Regras que ficaram sem dado: sem candidato, nunca zero. */
   ausentes: MotivoAusente[];
+  /** Candidatos do dia que a regra deixou de disparar e viraram `obsoleto` (depois de uma correção do dono). */
+  obsoletos: number;
 }
 
 export class MotorDeAlertas {
@@ -83,20 +85,32 @@ export class MotorDeAlertas {
     const jaGravados = semRepetirGravados
       ? await this.alertas.jaGravados(comercianteId, [...new Set(achados.map((c) => c.tipo))])
       : [];
-    const barrado = (c: CandidatoDeAlerta): boolean => {
-      if (jaGravados.some((g) => g.tipo === c.tipo && g.chave === c.chave)) return true;
+    const mesmoMovimento = (t: AlertaJaTratado, c: CandidatoDeAlerta): boolean =>
+      c.tipo === "reajuste_de_custo" &&
+      t.tipo === "reajuste_de_custo" &&
+      c.produtoId !== null &&
+      t.produtoId === c.produtoId &&
+      t.fornecedorId === c.fornecedorId &&
+      t.metricasApoio?.custo_atual_centavos === c.metricasApoio.custo_atual_centavos &&
+      t.metricasApoio?.custo_anterior_centavos === c.metricasApoio.custo_anterior_centavos &&
+      diasEntre(t.dataReferencia, dataReferencia) < limites.reajusteMesmoMovimentoDias;
+    /** Já enviado ou descartado dentro da janela: o alerta não precisa voltar. */
+    const jaTratado = (c: CandidatoDeAlerta): boolean => {
       const janela = limites.janelaSupressaoDias[c.tipo];
       return tratados.some(
         (t) =>
-          t.tipo === c.tipo &&
-          t.chave === c.chave &&
-          (janela === null || diasEntre(t.dataReferencia, dataReferencia) < janela),
+          (t.tipo === c.tipo &&
+            t.chave === c.chave &&
+            (janela === null || diasEntre(t.dataReferencia, dataReferencia) < janela)) ||
+          mesmoMovimento(t, c),
       );
     };
+    const repetido = (c: CandidatoDeAlerta): boolean =>
+      jaGravados.some((g) => g.tipo === c.tipo && g.chave === c.chave);
 
-    const suprimidos = achados.filter(barrado);
+    const suprimidos = achados.filter((c) => jaTratado(c) || repetido(c));
     const ordenados = achados
-      .filter((c) => !barrado(c))
+      .filter((c) => !jaTratado(c) && !repetido(c))
       .map((c) => ({ ...c, prioridade: prioridadeDe(c, limites) }))
       .sort(compararCandidatos);
 
@@ -116,11 +130,26 @@ export class MotorDeAlertas {
         },
       })),
     );
+
+    // O candidato do dia que a regra não dispara mais (depois de uma correção do dono) vira obsoleto.
+    // Só nas regras que avaliaram com dado: sem dado (ausente) não dá para dizer que deixou de valer. Um
+    // candidato que continua valendo mas foi só barrado pela repetição do job fica como está.
+    const avaliados = regras
+      .filter((_, i) => resultados[i]!.ausentes.length === 0 || resultados[i]!.produtosSemDado !== undefined)
+      .map((r) => r.tipo);
+    const semDado = new Set(resultados.flatMap((r) => r.produtosSemDado ?? []));
+    const obsoletos = await this.alertas.marcarObsoletos(comercianteId, dataReferencia, {
+      tipos: avaliados,
+      ...(produtoIds ? { produtoIds } : {}),
+      ...(semDado.size > 0 ? { excluirProdutoIds: semDado } : {}),
+      manter: achados.filter((c) => !jaTratado(c)).map((c) => ({ tipo: c.tipo, chave: c.chave })),
+    });
     return {
       candidatos: ordenarGravados(await this.alertas.candidatosDoDia(comercianteId, dataReferencia)),
       gravados,
       suprimidos,
       ausentes,
+      obsoletos,
     };
   }
 }

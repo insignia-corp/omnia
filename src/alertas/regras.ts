@@ -123,6 +123,7 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
   async avaliar({ metricas }) {
     const candidatos: CandidatoDeAlerta[] = [];
     const ausentes: MotivoAusente[] = [];
+    const produtosSemDado: string[] = [];
     const [margens, giro] = await Promise.all([metricas.margens(), metricas.giro()]);
     const giroPorProduto = mapaDoGiro(giro);
     // Sem nenhuma margem não há meta de margem do comerciante (ou não há produto): dizer, não calar.
@@ -136,6 +137,7 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
     for (const { produto_id, resultado } of margens) {
       if (ehDadoAusente(resultado)) {
         ausentes.push({ tipo: "margem_abaixo_da_meta", codigo: resultado.codigo, motivo: resultado.motivo });
+        produtosSemDado.push(produto_id);
         continue;
       }
       const m = resultado.valor;
@@ -175,7 +177,12 @@ export const regraMargemAbaixoDaMeta: RegraDeAlerta = {
         },
       });
     }
-    return { candidatos, ausentes: motivosUnicos(ausentes) };
+    // Sem nenhuma margem a regra inteira ficou sem dado; com margem, só os produtos sem custo ou sem venda.
+    return {
+      candidatos,
+      ausentes: motivosUnicos(ausentes),
+      ...(margens.length > 0 ? { produtosSemDado } : {}),
+    };
   },
 };
 

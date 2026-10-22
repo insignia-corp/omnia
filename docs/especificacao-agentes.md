@@ -162,7 +162,7 @@ Limite conhecido: o verificador confere se o número aparece nos resultados das 
 
 ## 7. Estado compartilhado
 
-PostgreSQL guarda dados, histórico e execuções. Redis e BullMQ guardam filas, jobs e chaves de idempotência. Tabelas novas além das da Etapa 2 (#21): `historico_preco_meta` (preço-meta confirmado, append-only; a proposta pendente reaproveita `pergunta_dono`, tipo `confirmar_acao`, em vez de uma `confirmacao_pendente`) e, se confirmadas, `alerta` com status `candidato`, `enviado` ou `descartado`. Os agentes não guardam nada entre execuções: o histórico de cada execução é montado a partir do banco.
+PostgreSQL guarda dados, histórico e execuções. Redis e BullMQ guardam filas, jobs e chaves de idempotência. Tabelas novas além das da Etapa 2 (#21): `historico_preco_meta` (preço-meta confirmado, append-only; a proposta pendente reaproveita `pergunta_dono`, tipo `confirmar_acao`, em vez de uma `confirmacao_pendente`) e, se confirmadas, `alerta` com status `candidato`, `enviado`, `descartado` ou `obsoleto`. Os agentes não guardam nada entre execuções: o histórico de cada execução é montado a partir do banco.
 
 ## 8. Avaliação por agente
 

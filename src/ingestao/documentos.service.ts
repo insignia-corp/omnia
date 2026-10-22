@@ -11,7 +11,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
 import { ARMAZENAMENTO, ErroArmazenamento, type Armazenamento } from "../infra/armazenamento/armazenamento";
-import { detectarTipo } from "../infra/armazenamento/tipo-arquivo";
+import { detectarTipo, MIME } from "../infra/armazenamento/tipo-arquivo";
 import { DB, type Db } from "../infra/database/database.module";
 import { compra, documento, fornecedor, itemDeCompra } from "../infra/database/schema";
 import { FilaExtracao } from "./fila/fila-extracao";
@@ -138,6 +138,27 @@ export class DocumentosService {
       .where(and(eq(documento.id, doc.id), eq(documento.comercianteId, comercianteId)))
       .limit(1);
     return { documentoId: doc.id, status: atual?.status ?? "extraido", duplicado: !criado || concorrente };
+  }
+
+  /**
+   * O arquivo enviado (foto ou XML) para a conversa mostrar de novo, do próprio comerciante. Documento
+   * sem arquivo no armazenamento (os do seed apontam para `fixtures/`) é 404.
+   */
+  async arquivo(comercianteId: string, documentoId: string): Promise<{ conteudo: Buffer; mime: string }> {
+    const [doc] = await this.db
+      .select({ caminho: documento.arquivoCaminho })
+      .from(documento)
+      .where(and(eq(documento.id, documentoId), eq(documento.comercianteId, comercianteId)))
+      .limit(1);
+    if (!doc?.caminho) throw new NotFoundException("Arquivo não encontrado");
+    let conteudo: Buffer;
+    try {
+      conteudo = await this.armazenamento.ler(doc.caminho);
+    } catch {
+      throw new NotFoundException("Arquivo não encontrado");
+    }
+    const tipo = detectarTipo(conteudo);
+    return { conteudo, mime: tipo ? MIME[tipo] : "application/octet-stream" };
   }
 
   /** Estado do documento, com a compra e os itens quando a extração terminou. */

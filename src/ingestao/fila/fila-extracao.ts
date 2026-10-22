@@ -38,6 +38,15 @@ const ESPERA_INICIAL_MS = 5_000;
  */
 export type AvisoFalhaExtracao = (entrada: { documentoId: string; comercianteId: string }) => Promise<void>;
 
+/**
+ * Quem avisa o dono que a nota foi lida (`extraido` ou `revisao`). Como o aviso de falha, o canal
+ * registra e recebe só ids: monta a mensagem a partir do banco.
+ */
+export type AvisoExtracaoConcluida = (entrada: {
+  documentoId: string;
+  comercianteId: string;
+}) => Promise<void>;
+
 /** Última tentativa do job: `attemptsStarted` já conta a que está rodando (`attemptsMade` só sobe ao falhar). */
 export function ehUltimaTentativa(job: Pick<Job, "attemptsStarted" | "opts">): boolean {
   return job.attemptsStarted >= (job.opts.attempts ?? 1);
@@ -84,6 +93,7 @@ export class FilaExtracao implements OnApplicationBootstrap, OnModuleDestroy {
   private worker: Worker<JobExtracao> | undefined;
   private readonly logger = new Logger(FilaExtracao.name);
   private avisoFalha: AvisoFalhaExtracao | undefined;
+  private avisoConcluida: AvisoExtracaoConcluida | undefined;
 
   constructor(
     @Inject(REDIS) private readonly redis: Redis,
@@ -97,6 +107,11 @@ export class FilaExtracao implements OnApplicationBootstrap, OnModuleDestroy {
   /** Wiring feita uma vez na subida (como `MessageChannel.aoReceber`), não estado de negócio. */
   aoFalharDeVez(aviso: AvisoFalhaExtracao): void {
     this.avisoFalha = aviso;
+  }
+
+  /** Wiring feita uma vez na subida, como `aoFalharDeVez`. */
+  aoConcluir(aviso: AvisoExtracaoConcluida): void {
+    this.avisoConcluida = aviso;
   }
 
   onApplicationBootstrap(): void {
@@ -128,6 +143,19 @@ export class FilaExtracao implements OnApplicationBootstrap, OnModuleDestroy {
       } catch (e) {
         this.logger.error(
           `Gancho pós-extração falhou para o documento ${job.data.documentoId}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+    if (this.avisoConcluida && (r.status === "extraido" || r.status === "revisao")) {
+      try {
+        await this.avisoConcluida({
+          documentoId: job.data.documentoId,
+          comercianteId: job.data.comercianteId,
+        });
+      } catch (e) {
+        // A nota já está gravada: o aviso não pode repetir o job (e cobrar a leitura de novo).
+        this.logger.warn(
+          `Aviso de nota lida do documento ${job.data.documentoId} não saiu: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
     }

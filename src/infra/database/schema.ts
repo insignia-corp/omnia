@@ -167,6 +167,17 @@ export const tipoAlerta = pgEnum("tipo_alerta", [
 export const statusAlerta = pgEnum("status_alerta", ["candidato", "enviado", "descartado"]);
 export const direcaoMensagem = pgEnum("direcao_mensagem", ["enviada", "recebida"]);
 export const canalMensagem = pgEnum("canal_mensagem", ["web", "whatsapp"]);
+/** Tipo da mensagem no formato da WhatsApp Cloud API (`button`: toque em botão de modelo). */
+export const tipoMensagem = pgEnum("tipo_mensagem", [
+  "text",
+  "image",
+  "document",
+  "interactive",
+  "template",
+  "button",
+]);
+/** Status de entrega da Cloud API; só avança, exceto `failed`. */
+export const statusMensagem = pgEnum("status_mensagem", ["sent", "delivered", "read", "failed"]);
 export const categoriaTemplate = pgEnum("categoria_template", [
   "utilidade",
   "marketing",
@@ -664,7 +675,14 @@ export const mensagem = pgTable(
     canal: canalMensagem("canal").notNull().default("web"),
     /** Categoria do template da Meta; nula em texto livre dentro da janela de 24 horas. */
     categoriaTemplate: categoriaTemplate("categoria_template"),
+    /** Texto legível da mensagem: o corpo verificado, a legenda ou o título do botão tocado. */
     texto: text("texto").notNull(),
+    tipo: tipoMensagem("tipo").notNull().default("text"),
+    /** Objeto do tipo no formato da Cloud API (`interactive`, `template`, `image`...); nulo em texto puro. */
+    conteudo: jsonb("conteudo").$type<Record<string, unknown>>(),
+    /** Id da mensagem citada (`context.id` da Cloud API). */
+    contextoId: text("contexto_id"),
+    status: statusMensagem("status"),
     /** Custo estimado em micro-dólares (USD x 1e6), inteiro. */
     custoEstimadoMicrodolares: bigint("custo_estimado_microdolares", { mode: "number" }).notNull().default(0),
     /** Mensagem iniciada pelo sistema (relatório diário). No máximo uma por dia (regra inviolável 9). */

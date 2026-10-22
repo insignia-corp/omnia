@@ -7,6 +7,7 @@ import { CONFIG, guardar } from "./config.js";
 import { icone } from "./icones.js";
 import { conferirAnexo } from "./regras-meta.js";
 import { avisosIniciais, linhaMensagem, meta, separadorDia } from "./render.js";
+import { criarTransporteApi } from "./transporte-api.js";
 import { criarTransporteDemo } from "./transporte-demo.js";
 
 const $ = (id) => document.getElementById(id);
@@ -141,13 +142,20 @@ function limparTela() {
   atualizarDescer();
 }
 
-// Transporte.
-function criarTransporte() {
-  if (CONFIG.modo !== "demo") avisar(`Modo "${CONFIG.modo}" ainda não integrado; usando a demonstração.`);
-  return criarTransporteDemo(CONFIG);
+// Transporte: o backend quando a página vem do Nest, a demonstração com `?modo=demo` ou sem backend.
+async function criarTransporte() {
+  if (CONFIG.modo === "demo") return criarTransporteDemo(CONFIG);
+  try {
+    return await criarTransporteApi(CONFIG);
+  } catch (erro) {
+    const motivo = erro instanceof Error ? erro.message : String(erro);
+    avisar(`Sem o backend (${motivo}); usando a demonstração.`);
+    console.warn("[omnia] modo api indisponível:", erro);
+    return criarTransporteDemo(CONFIG);
+  }
 }
 
-const transporte = criarTransporte();
+const transporte = await criarTransporte();
 transporte.aoEvento((e) => {
   if (e.tipo === "mensagem") {
     digitando(false);

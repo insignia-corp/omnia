@@ -17,6 +17,10 @@ export class CanalWeb implements MessageChannel {
     return Promise.resolve(this.resultado());
   }
 
+  enviarInterativo(_destinatario: string, _interativo: Record<string, unknown>): Promise<ResultadoEnvio> {
+    return Promise.resolve(this.resultado());
+  }
+
   aoReceber(): void {
     // Nada a registrar: o chat web recebe pelo controller.
   }

@@ -35,7 +35,7 @@ export const PAGINA_CHAT = `<!doctype html>
 <div id="erro" role="alert"></div>
 <form id="form">
   <label class="foto">Nota<input id="arquivo" type="file" accept="image/jpeg,image/png"></label>
-  <input id="texto" type="text" maxlength="2000" placeholder="Pergunte sobre o seu negócio" autocomplete="off">
+  <input id="texto" type="text" maxlength="4096" placeholder="Pergunte sobre o seu negócio" autocomplete="off">
   <button type="submit">Enviar</button>
 </form>
 <script>

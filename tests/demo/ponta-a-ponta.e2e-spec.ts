@@ -101,7 +101,11 @@ describe("demo ponta a ponta no chat web (e2e)", () => {
     const lista = (await request(servidor).get("/chat/mensagens").set(como).expect(200)).body as Array<{
       direcao: string;
     }>;
-    expect(lista.map((m) => m.direcao)).toEqual(["recebida", "enviada", "recebida", "enviada"]);
+    // Entre a foto e a conversa vêm a leitura da nota e as primeiras perguntas dela (#182), todas enviadas.
+    const direcoes = lista.map((m) => m.direcao);
+    expect(direcoes.slice(0, 2)).toEqual(["recebida", "enviada"]);
+    expect(direcoes.slice(-2)).toEqual(["recebida", "enviada"]);
+    expect(direcoes.filter((d) => d === "recebida")).toHaveLength(2);
 
     const enviadas = await db.select().from(schema.mensagem).where(eq(schema.mensagem.comercianteId, dono));
     expect(enviadas.filter((m) => m.direcao === "enviada" && m.execucaoId)).toHaveLength(1);

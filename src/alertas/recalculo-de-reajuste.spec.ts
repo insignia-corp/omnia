@@ -57,6 +57,50 @@ describe("recalcularReajuste (#186)", () => {
     });
   });
 
+  it("a procedência (fonte) é a das duas leituras usadas, não a da gravação", () => {
+    const r = recalcularReajuste({
+      metricasApoio: apoio("X", {
+        fonte: {
+          periodo: { inicio: "2026-09-01", fim: "2026-10-16" },
+          n_registros: 9,
+          menor_confianca: 0.2,
+          origens: ["planilha"],
+        },
+      }),
+      custos: [leitura("W", "2026-10-10", 2000, 1, 0.9), leitura("X", "2026-10-16", 2800, 2, 1)],
+      confiancaDoProduto: 1,
+      limites,
+    });
+    expect(r).toMatchObject({
+      metricasApoio: {
+        fonte: {
+          periodo: { inicio: "2026-10-10", fim: "2026-10-16" },
+          n_registros: 2,
+          menor_confianca: 0.9,
+          origens: ["foto_nota"],
+        },
+      },
+    });
+  });
+
+  it("a prioridade é refeita: impacto alto é nível 1 e confiança baixa rebaixa um nível", () => {
+    const alto = { ...limites, prioridade1MinCentavos: 5000, prioridade2MinCentavos: 1000 };
+    const forte = recalcularReajuste({
+      metricasApoio: apoio("X", { unidades_7_dias: 100 }),
+      custos: [leitura("W", "2026-10-10", 2000), leitura("X", "2026-10-16", 2800)],
+      confiancaDoProduto: 1,
+      limites: alto,
+    });
+    expect(forte).toMatchObject({ prioridade: 1, metricasApoio: { impacto_centavos: 80_000 } });
+    const duvida = recalcularReajuste({
+      metricasApoio: apoio("X", { unidades_7_dias: 100 }),
+      custos: [leitura("W", "2026-10-10", 2000, 1, 0.1), leitura("X", "2026-10-16", 2800)],
+      confiancaDoProduto: 1,
+      limites: alto,
+    });
+    expect(duvida).toMatchObject({ prioridade: 2 });
+  });
+
   it("2ª compra do par no dia: a compra do alerta não é a atual, mas a alta dela continua", () => {
     const r = recalcularReajuste({
       metricasApoio: apoio("X"),

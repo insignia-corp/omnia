@@ -324,6 +324,9 @@ describe("alerta obsoleto (e2e)", () => {
       (await doProduto("reajuste_de_custo")).filter((l) => l.fornecedorId === f);
     const rodar = () => motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
     const DIA = "2026-10-18";
+    /** Instantes crescentes depois das notas do dia, sem depender do relógio da máquina. */
+    let relogio = 0;
+    const instanteDepois = () => new Date(Date.UTC(2026, 9, 18, 20, 0, ++relogio));
 
     it("2ª compra do par no mesmo dia: a alta da primeira continua, o candidato fica", async () => {
       const f = await novoFornecedor();
@@ -348,7 +351,7 @@ describe("alerta obsoleto (e2e)", () => {
       await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
       await rodar();
       expect((await doPar(f))[0]).toMatchObject({ status: "candidato" });
-      await leitura(f, DIA, z.itemId, 2790, new Date());
+      await leitura(f, DIA, z.itemId, 2790, instanteDepois());
       const r = await rodar();
       expect((await doPar(f))[0]).toMatchObject({ status: "obsoleto" });
       expect(r.candidatos.some((c) => c.fornecedorId === f)).toBe(false);
@@ -362,7 +365,7 @@ describe("alerta obsoleto (e2e)", () => {
       await rodar();
       const [antes] = await doPar(f);
       expect(antes?.metricasApoio).toMatchObject({ custo_anterior_centavos: 2490 });
-      await leitura(f, DIA, z.itemId, 2790, new Date());
+      await leitura(f, DIA, z.itemId, 2790, instanteDepois());
       await rodar();
       const [depois] = await doPar(f);
       expect(depois).toMatchObject({ id: antes!.id, status: "candidato" });
@@ -381,7 +384,7 @@ describe("alerta obsoleto (e2e)", () => {
       await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
       await rodar();
       expect(await doPar(f)).toHaveLength(1);
-      await leitura(f, DIA, a.itemId, 2490, new Date());
+      await leitura(f, DIA, a.itemId, 2490, instanteDepois());
       await rodar();
       expect((await doPar(f))[0]).toMatchObject({ status: "candidato" });
     });
@@ -391,10 +394,10 @@ describe("alerta obsoleto (e2e)", () => {
       await nota(f, "2026-10-17", 2490, base("2026-10-17"));
       const x = await nota(f, DIA, 2790, new Date("2026-10-18T10:00:00Z"));
       await rodar();
-      await leitura(f, DIA, x.itemId, 2500, new Date());
+      await leitura(f, DIA, x.itemId, 2500, instanteDepois());
       await rodar();
       expect((await doPar(f))[0]).toMatchObject({ status: "obsoleto" });
-      await leitura(f, DIA, x.itemId, 2800, new Date());
+      await leitura(f, DIA, x.itemId, 2800, instanteDepois());
       await rodar();
       expect((await doPar(f))[0]).toMatchObject({ status: "candidato" });
       expect((await doPar(f))[0]?.metricasApoio).toMatchObject({ custo_atual_centavos: 2800 });
@@ -407,7 +410,7 @@ describe("alerta obsoleto (e2e)", () => {
       await rodar();
       const [alvo] = await doPar(f);
       await db.update(schema.alerta).set({ status: "enviado" }).where(eq(schema.alerta.id, alvo!.id));
-      await leitura(f, DIA, x.itemId, 2500, new Date());
+      await leitura(f, DIA, x.itemId, 2500, instanteDepois());
       await rodar();
       expect((await doPar(f))[0]).toMatchObject({ status: "enviado", metricasApoio: alvo!.metricasApoio });
     });

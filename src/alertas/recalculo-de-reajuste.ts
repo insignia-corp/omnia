@@ -78,6 +78,13 @@ export function recalcularReajuste(entrada: EntradaDoRecalculo): ReajusteRecalcu
       compra_atual_data: atual.data,
       impacto_centavos: impacto,
       menor_confianca: menorConfianca,
+      // Procedência das leituras usadas agora (regra 4): as duas compras, não o conjunto da gravação.
+      fonte: {
+        periodo: { inicio: anterior.data, fim: atual.data },
+        n_registros: 2,
+        menor_confianca: confianca,
+        origens: [...new Set([anterior.origem, atual.origem])].sort(),
+      },
     },
   };
 }

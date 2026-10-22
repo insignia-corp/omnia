@@ -135,8 +135,10 @@ class RepositorioFalso implements RepositorioAlertas {
       this.reajustes.filter((r) => !produtoIds || (r.produtoId !== null && produtoIds.has(r.produtoId))),
     );
   }
-  leiturasDoPar(comercianteId: string) {
+  pares: Array<{ produtoId: string; fornecedorId: string }> = [];
+  leiturasDoPar(comercianteId: string, _ate: string, par: { produtoId: string; fornecedorId: string }) {
     this.chamadasDe.push(comercianteId);
+    this.pares.push(par);
     return Promise.resolve(this.leituras);
   }
   marcarObsoletosPorId(comercianteId: string, ids: readonly string[]) {
@@ -494,7 +496,7 @@ describe("motor de alertas: candidato obsoleto (#157)", () => {
     expect(r.obsoletados[0]?.tipos).toEqual(["margem_abaixo_da_meta", "giro_em_alta"]);
   });
 
-  it("o reajuste nunca entra nos tipos que podem virar obsoletos", async () => {
+  it("o reajuste não entra nos tipos de `marcarObsoletos`: tem reavaliação própria (#186)", async () => {
     // A métrica só olha a compra atual do par: uma nota nova ou a correção de uma nota do dia faria a alta
     // sumir sem ter sido refutada.
     const r = await rodar([regraQue("reajuste_de_custo", []), regraQue("giro_em_alta", [])]);
@@ -619,6 +621,7 @@ describe("motor de alertas: reajuste obsoleto pela variação da própria compra
     const r = await motor.executar({ comercianteId: "c1", dataReferencia: REF });
     expect(repositorio.obsoletadosPorId).toEqual(["id-X"]);
     expect(repositorio.atualizados).toEqual([]);
+    expect(repositorio.pares).toEqual([{ produtoId: "p1", fornecedorId: "f1" }]);
     expect(r.obsoletos).toBe(1);
   });
 
@@ -639,6 +642,7 @@ describe("motor de alertas: reajuste obsoleto pela variação da própria compra
     expect(repositorio.atualizados).toHaveLength(1);
     expect(repositorio.atualizados[0]).toMatchObject({
       id: "id-X",
+      prioridade: 3,
       metricasApoio: { custo_anterior_centavos: 2000, custo_atual_centavos: 2790, impacto_centavos: 7900 },
     });
   });
@@ -646,7 +650,13 @@ describe("motor de alertas: reajuste obsoleto pela variação da própria compra
   it("o reajuste que a regra ainda devolve é atualizado pelo upsert, não reavaliado", async () => {
     const { motor, repositorio } = motorCom([variacao()], giro(10));
     repositorio.reajustes = [gravado("p1:f1:compra-16")];
+    // Leituras que, se reavaliado, o tornariam desfeito: a regra ainda o devolve, então não é reavaliado.
+    repositorio.leituras = {
+      custos: [leitura("p1:f1:compra-16", "2026-10-16", 2790, 1)],
+      confiancaDoProduto: 1,
+    };
     await motor.executar({ comercianteId: "c1", dataReferencia: REF });
+    expect(repositorio.pares).toEqual([]);
     expect(repositorio.obsoletadosPorId).toEqual([]);
     expect(repositorio.atualizados).toEqual([]);
   });

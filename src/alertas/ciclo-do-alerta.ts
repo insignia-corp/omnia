@@ -5,7 +5,7 @@
  * justificativa. Toda consulta e toda escrita é do comerciante da sessão (regra inviolável 3), e só
  * sai de `candidato`: um alerta já enviado ou descartado nunca volta atrás.
  */
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { Executor } from "../infra/database/database.module";
 import { alerta, chamadaFerramenta, execucaoAgente, mensagem } from "../infra/database/schema";
@@ -46,13 +46,15 @@ export class CicloDoAlerta {
           eq(chamadaFerramenta.ferramenta, "select_alerts"),
           isNull(chamadaFerramenta.erro),
         ),
-      );
-    const escolhidos = new Map<string, string>();
-    for (const c of chamadas) {
+      )
+      .orderBy(asc(chamadaFerramenta.ordem));
+    // A escolha final do agente é a última chamada bem-sucedida: cada chamada respeita o teto de 3 e
+    // somar várias passaria dele.
+    const escolhas = chamadas.flatMap((c) => {
       const entrada = escolhaDoAgente.safeParse(c.entrada);
-      if (!entrada.success) continue;
-      for (const a of entrada.data.alertas) escolhidos.set(a.alerta_id, a.justificativa);
-    }
+      return entrada.success ? [entrada.data.alertas] : [];
+    });
+    const escolhidos = new Map((escolhas.at(-1) ?? []).map((a) => [a.alerta_id, a.justificativa]));
     if (escolhidos.size === 0) return 0;
 
     let marcados = 0;
@@ -75,7 +77,7 @@ export class CicloDoAlerta {
 
   /**
    * Recupera a marcação quando o processo caiu entre entregar a mensagem do dia e marcar: pega a
-   * execução da mensagem proativa enviada em `dataEnvio` e marca os alertas dela. Idempotente.
+   * execução da mensagem proativa **entregue** (com id externo) em `dataEnvio` e marca os alertas dela. Idempotente.
    */
   async reconciliar(comercianteId: string, dataEnvio: string, enviadoEm: Date = new Date()): Promise<number> {
     const mensagens = await this.db
@@ -87,6 +89,9 @@ export class CicloDoAlerta {
           eq(mensagem.dataEnvio, dataEnvio),
           eq(mensagem.proativa, true),
           eq(mensagem.direcao, "enviada"),
+          // Entrega confirmada: a linha é gravada antes do envio e só ganha o id externo depois dele.
+          // Sem ele não se sabe se a mensagem saiu, e marcar suprimiria alertas que o dono não viu.
+          isNotNull(mensagem.idExterno),
         ),
       );
     let marcados = 0;

@@ -100,7 +100,7 @@ export class RelatorioDiarioService {
       await this.ciclo.reconciliar(comercianteId, this.hoje(), this.relogio.agora());
     } catch (e) {
       this.log.error(
-        `Não reconciliou os alertas enviados de ${this.hoje()}: ${e instanceof Error ? e.message : String(e)}`,
+        `Não reconciliou os alertas enviados de ${this.hoje()} (comerciante ${comercianteId}): ${e instanceof Error ? e.message : String(e)}`,
       );
     }
   }

@@ -40,6 +40,14 @@ describe("ciclo do alerta (e2e)", () => {
     alertaIds: string[],
     erro: string | null = null,
     resultado: "aprovada" | "fallback_verificador" = "aprovada",
+  ) => execucaoComEscolhas(comercianteId, [alertaIds], erro, resultado);
+
+  /** Uma execução com várias chamadas de select_alerts, na ordem. */
+  const execucaoComEscolhas = (
+    comercianteId: string,
+    listas: string[][],
+    erro: string | null = null,
+    resultado: "aprovada" | "fallback_verificador" = "aprovada",
   ) =>
     registro.salvar({
       comercianteId,
@@ -57,22 +65,20 @@ describe("ciclo do alerta (e2e)", () => {
       custoEstimadoMicrodolares: 0,
       latenciaMs: 1,
       erro: null,
-      chamadas: [
-        {
-          ordem: 1,
-          ferramenta: "select_alerts",
-          entrada: {
-            alertas: alertaIds.map((alerta_id) => ({
-              alerta_id,
-              justificativa: `escolhido ${alerta_id.slice(0, 4)}`,
-            })),
-          },
-          saida: erro ? null : { selecionados: alertaIds.length },
-          erro,
-          menorConfianca: null,
-          latenciaMs: 1,
+      chamadas: listas.map((alertaIds, i) => ({
+        ordem: i + 1,
+        ferramenta: "select_alerts",
+        entrada: {
+          alertas: alertaIds.map((alerta_id) => ({
+            alerta_id,
+            justificativa: `escolhido ${alerta_id.slice(0, 4)}`,
+          })),
         },
-      ],
+        saida: erro ? null : { selecionados: alertaIds.length },
+        erro,
+        menorConfianca: null,
+        latenciaMs: 1,
+      })),
     });
 
   const linha = async (id: string) => {
@@ -140,6 +146,32 @@ describe("ciclo do alerta (e2e)", () => {
       expect((await linha(alvo)).status).toBe("candidato");
     });
 
+    it("duas chamadas de select_alerts: vale só a última (o teto de 3 não pode ser somado)", async () => {
+      const [a, b, c] = [candidatos[9]!.id, candidatos[10]!.id, candidatos[11]!.id];
+      const execucaoId = await execucaoComEscolhas(vilaNova, [[a, b], [c]]);
+      expect(await ciclo.marcarEnviados(vilaNova, execucaoId)).toBe(1);
+      expect((await linha(c)).status).toBe("enviado");
+      expect((await linha(a)).status).toBe("candidato");
+      expect((await linha(b)).status).toBe("candidato");
+    });
+
+    it("reconciliar não marca quando a entrega não foi confirmada (sem id externo)", async () => {
+      const alvo = candidatos[12]!.id;
+      const execucaoId = await execucaoComEscolha(vilaNova, [alvo]);
+      await db.insert(schema.mensagem).values({
+        comercianteId: vilaNova,
+        direcao: "enviada",
+        canal: "web",
+        texto: "Bom dia (o envio lançou erro)",
+        proativa: true,
+        dataEnvio: "2026-10-18",
+        execucaoId,
+        chaveIdempotencia: "relatorio_teste_sem_entrega",
+      });
+      expect(await ciclo.reconciliar(vilaNova, "2026-10-18")).toBe(0);
+      expect((await linha(alvo)).status).toBe("candidato");
+    });
+
     it("mensagem que foi um fallback (o dono não viu os alertas) não marca nada", async () => {
       const alvo = candidatos[7]!.id;
       const execucaoId = await execucaoComEscolha(vilaNova, [alvo], null, "fallback_verificador");
@@ -158,6 +190,7 @@ describe("ciclo do alerta (e2e)", () => {
         proativa: true,
         dataEnvio: DIA,
         execucaoId,
+        idExterno: "mem-envio-1",
         chaveIdempotencia: "relatorio_teste_reconciliar",
       });
       expect(await ciclo.reconciliar(vilaNova, DIA)).toBe(1);

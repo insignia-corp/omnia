@@ -5,6 +5,7 @@
 | Tema | Dono | Camada |
 | --- | --- | --- |
 | Etapa atual, números vigentes, próxima ação, pendências | [ESTADO.md](ESTADO.md) | Estado |
+| Retrato final do projeto para a banca (resume e aponta para os donos) | [relatorio-final.md](relatorio-final.md) | Documentação |
 | Etapas, modelo de dados, métricas, agente, avaliação, LGPD | [guia-desenvolvimento.md](guia-desenvolvimento.md) | Metodologia |
 | Prazo, escopo cortado, o que a banca avalia no código | [alertas-hackathon.md](alertas-hackathon.md) (prevalece sobre o guia) | Metodologia |
 | Tabelas, colunas, histórico append-only | [modelo-de-dados.md](modelo-de-dados.md) | Documentação |

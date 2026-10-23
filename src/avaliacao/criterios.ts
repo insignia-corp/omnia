@@ -43,11 +43,12 @@ function nomesDigitados(caso: CasoAvaliacao): Map<string, string[]> {
 
 const MESES = "janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
 
-const UNIDADE_SEGUINTE = String.raw`(?!\s*(?:%|por\s+cento|reais|unidades?|cupons?|vendas?|itens|produtos|garrafas|latas|caixas|pacotes|dias|kg|litros))`;
+const UNIDADE_SEGUINTE = String.raw`(?!\s*(?:%|por\s+cento|reais|unidades?|cupons?|vendas?|itens?|produtos?|garrafas?|latas?|caixas?|pacotes?|dias?|kg|litros?|ml|un|unid))`;
 
 /**
- * Datas e anos escritos na mensagem: "20/10", "01/10/2025", "2025-10-20", "1º de outubro de 2025",
- * "setembro de 2025" e um ano recente (2015 a 2026) depois de "de", "em", "desde", "até" ou "ano". Valem
+ * Datas e anos escritos na mensagem: "2025-10-20", "20/10", "01/10/2025" e "1º de outubro de 2025" (as três
+ * últimas só depois de "de", "a", "até", "desde", "entre", "dia", "em" ou "ontem"), "setembro de 2025" e um ano
+ * recente (2015 a 2026) depois de "de", "em", "desde", "até" ou "ano". Valem
  * como o período citado, não como número dado de resposta. Data ou ano seguido de unidade ("12/10 reais",
  * "2025 unidades", "2025%") ou de dinheiro ("R$ 12/10") continua número. Limite: um valor inventado que
  * pareça um ano recente depois dessas palavras ("em 2025") passa; por isso só vale nos casos que declaram
@@ -56,9 +57,9 @@ const UNIDADE_SEGUINTE = String.raw`(?!\s*(?:%|por\s+cento|reais|unidades?|cupon
 const DATA_OU_ANO = new RegExp(
   [
     String.raw`(?<![\d.,/])\d{4}-\d{2}-\d{2}(?![\d])`,
-    String.raw`(?<![\d.,/]|R\$\s*)(?:0?[1-9]|[12]\d|3[01])/(?:0?[1-9]|1[0-2])(?:/\d{2,4})?(?![\d/])${UNIDADE_SEGUINTE}`,
-    String.raw`(?<![\d.,]|R\$\s*)(?:0?[1-9]|[12]\d|3[01])º?\s+de\s+(?:${MESES})(?:\s+de\s+\d{4})?`,
-    String.raw`(?:${MESES})\s+(?:de\s+)?(?:199\d|20\d{2})\b(?![.,]\d)`,
+    String.raw`(?<=\b(?:de|a|at[ée]|desde|entre|dia|em|ontem)\s+)(?<![\d.,/]|R\$\s*)(?:0?[1-9]|[12]\d|3[01])/(?:0?[1-9]|1[0-2])(?:/\d{2,4})?(?![\d/])${UNIDADE_SEGUINTE}`,
+    String.raw`(?<=\b(?:de|a|at[ée]|desde|entre|dia|em|ontem)\s+)(?<![\d.,]|R\$\s*)(?:0?[1-9]|[12]\d|3[01])º?\s+de\s+(?:${MESES})(?:\s+de\s+\d{4})?`,
+    String.raw`(?:${MESES})\s+(?:de\s+)?20(?:1[5-9]|2[0-6])\b(?![.,]\d)${UNIDADE_SEGUINTE}`,
     String.raw`(?<=\b(?:de|em|desde|at[ée]|ano)\s+)20(?:1[5-9]|2[0-6])\b(?![.,]\d)${UNIDADE_SEGUINTE}`,
   ].join("|"),
   "giu",

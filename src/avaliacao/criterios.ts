@@ -41,10 +41,30 @@ function nomesDigitados(caso: CasoAvaliacao): Map<string, string[]> {
   return nomes;
 }
 
-/** Números da mensagem que não são eco do nome de produto que o dono digitou. */
+const MESES = "janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
+
+/**
+ * Datas e anos escritos na mensagem: "20/10", "01/10/2025", "2025-10-20", "1º de outubro de 2025",
+ * "setembro de 2025" e um ano solto (1990 a 2099). Valem como o período citado, não como número dado de
+ * resposta. Ano seguido de unidade ("2025 unidades", "2025%") ou de dinheiro ("R$ 2025") continua número.
+ */
+const DATA_OU_ANO = new RegExp(
+  [
+    String.raw`(?<![\d.,/])\d{4}-\d{2}-\d{2}(?![\d])`,
+    String.raw`(?<![\d.,/])\d{1,2}/\d{1,2}(?:/\d{2,4})?(?![\d/])`,
+    String.raw`(?<![\d.,])\d{1,2}\s*º?\s+de\s+(?:${MESES})(?:\s+de\s+\d{4})?`,
+    String.raw`(?<![\d.,R$]\s?)(?<!R\$\s)\b(?:19|20)\d{2}\b(?![.,]\d)(?!\s*(?:%|reais|unidades?|cupons?|vendas?))`,
+  ].join("|"),
+  "giu",
+);
+
+/** A mensagem com as datas e os anos trocados por espaços (as posições dos números não mudam). */
+const semDatas = (mensagem: string): string => mensagem.replace(DATA_OU_ANO, (d) => " ".repeat(d.length));
+
+/** Números da mensagem que não são eco do nome de produto que o dono digitou nem data ou ano do período. */
 function numerosDaResposta(mensagem: string, caso: CasoAvaliacao): ReturnType<typeof extrairNumeros> {
   const nomes = nomesDigitados(caso);
-  return extrairNumeros(mensagem).filter((n) => {
+  return extrairNumeros(semDatas(mensagem)).filter((n) => {
     const unidades = nomes.get(n.texto);
     if (!unidades) return true;
     const depois = mensagem.slice(n.posicao + n.texto.length).toLocaleLowerCase("pt-BR");
@@ -145,7 +165,8 @@ export function avaliarCriterios(caso: CasoAvaliacao, execucao: ExecucaoRegistra
   const motivos: string[] = validarCaso(caso);
   const chamadas = new Set(execucao.chamadas.map((c) => c.ferramenta));
   for (const esperada of caso.ferramentasEsperadas) {
-    if (!chamadas.has(esperada)) {
+    const equivalentes = caso.ferramentasAlternativas?.[esperada] ?? [];
+    if (!chamadas.has(esperada) && !equivalentes.some((e) => chamadas.has(e))) {
       motivos.push(
         `Ferramenta esperada não chamada: ${esperada} (chamadas: ${[...chamadas].join(", ") || "nenhuma"})`,
       );

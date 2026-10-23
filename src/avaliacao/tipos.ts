@@ -79,6 +79,11 @@ export interface CasoAvaliacao {
   historico?: TurnoConversa[];
   /** Todas têm de ser chamadas pelo menos uma vez. Vazio quando o caso não exige ferramenta. */
   ferramentasEsperadas: string[];
+  /**
+   * Ferramenta equivalente que vale no lugar de uma esperada: com a resposta certa, quem chamou uma delas
+   * cumpriu a expectativa. Só para quando a alternativa devolve os mesmos números por outro caminho.
+   */
+  ferramentasAlternativas?: Readonly<Record<string, readonly string[]>>;
   criterio: Criterio;
   /** Só no modo falso: o que o modelo roteirizado responde, na ordem. */
   roteiro?: RespostaRoteirizada[];

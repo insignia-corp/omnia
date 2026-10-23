@@ -5,7 +5,7 @@ import type { CasoAvaliacao } from "./tipos";
 
 /**
  * Casos que a rodada real de 22/10 reprovou por defeito do avaliador, e não do agente: resposta certa
- * escrita de outro jeito, ou número que o dono mesmo digitou. Cada teste usa o caso real do gabarito.
+ * escrita de outro jeito, ou número que o dono mesmo digitou. Cada teste usa o caso real do gabarito, com a resposta do relatório ou uma variação curta dela.
  */
 
 const execucao = (extra: Partial<ExecucaoRegistrada>): ExecucaoRegistrada => ({
@@ -84,7 +84,19 @@ describe("número que o dono digitou não é resposta (q34, q35)", () => {
     expect(motivos.some((m) => m.includes("Respondeu com número sem chamar ferramenta: 0%"))).toBe(true);
   });
 
-  it("o número do nome com % ou R$ colado continua contando", () => {
+  it("o número do nome só é eco com a unidade que o dono digitou: 500 unidades e R$ 500 contam", () => {
+    const c = casoPorId("q34");
+    const base = "Não tenho nenhuma compra registrada dessa água 500ml, então não sei o custo.";
+    for (const extra of ["Vendi 500 unidades no mês.", "Ela custa R$ 500.", "Variou -500 no mês."]) {
+      const motivos = avaliarCriterios(
+        c,
+        execucao({ mensagemFinal: `${base} ${extra}`, chamadas: chamadasDe(c) }),
+      );
+      expect(motivos).toEqual([expect.stringContaining("Respondeu com número")]);
+    }
+  });
+
+  it("o número do nome com % colado continua contando", () => {
     const c = casoPorId("q35");
     const motivos = avaliarCriterios(
       c,

@@ -19,29 +19,36 @@ const PADRAO_NAO_SEI = new RegExp(
   "i",
 );
 
-/** Só os algarismos de um número encontrado: "R$ 500" e "500" viram "500". */
-const algarismos = (texto: string): string => texto.replace(/[^\d.,]/g, "").replace(/[.,]+$/, "");
-
-/** Número colado em letras no que o dono escreveu: o "500" de "500ml", o "5" de "5kg", o "1,5" de "1,5L". */
-const NUMERO_DE_NOME = /\d+(?:[.,]\d+)*(?=\p{L})/gu;
+/** Nome com número colado em letras no que o dono escreveu: "500ml", "5kg", "1,5L". */
+const NOME_COM_NUMERO = /(\d+(?:[.,]\d+)*)(\p{L}+)/gu;
 
 /**
- * Números que fazem parte de um nome que o dono digitou (pergunta e histórico), como o "500" de "água
- * 500ml". Quando a resposta repete o nome, o número é eco e não resposta. Só vale para o número sozinho:
- * "500%" ou "R$ 500" continuam contando, e um número solto da pergunta ("meta 0%") não é descontado.
- * O gabarito não passa por aqui.
+ * Números que fazem parte de um nome que o dono digitou (só os turnos dele, na pergunta e no histórico),
+ * como o "500" de "água 500ml", com a unidade que vinha colada. A resposta que repete o nome ("500ml" ou
+ * "500 ml") traz o número como eco, não como resposta. Só vale para o número sozinho, seguido da mesma
+ * unidade: "500%", "R$ 500", "-500" e "500 unidades" continuam contando, e um número solto da pergunta
+ * ("meta 0%") não é descontado. O gabarito não passa por aqui.
  */
-function numerosDeNomeDigitados(caso: CasoAvaliacao): Set<string> {
-  const texto = [caso.entrada, ...(caso.historico ?? []).map((t) => t.texto)].join("\n");
-  return new Set(texto.match(NUMERO_DE_NOME) ?? []);
+function nomesDigitados(caso: CasoAvaliacao): Map<string, string[]> {
+  const turnosDoDono = (caso.historico ?? []).filter((t) => t.papel === "dono").map((t) => t.texto);
+  const texto = [caso.entrada, ...turnosDoDono].join("\n");
+  const nomes = new Map<string, string[]>();
+  for (const [, numero, unidade] of texto.matchAll(NOME_COM_NUMERO)) {
+    if (numero === undefined || unidade === undefined) continue;
+    nomes.set(numero, [...(nomes.get(numero) ?? []), unidade.toLocaleLowerCase("pt-BR")]);
+  }
+  return nomes;
 }
 
 /** Números da mensagem que não são eco do nome de produto que o dono digitou. */
 function numerosDaResposta(mensagem: string, caso: CasoAvaliacao): ReturnType<typeof extrairNumeros> {
-  const digitados = numerosDeNomeDigitados(caso);
-  return extrairNumeros(mensagem).filter(
-    (n) => !(digitados.has(algarismos(n.texto)) && !/[%R$]/.test(n.texto)),
-  );
+  const nomes = nomesDigitados(caso);
+  return extrairNumeros(mensagem).filter((n) => {
+    const unidades = nomes.get(n.texto);
+    if (!unidades) return true;
+    const depois = mensagem.slice(n.posicao + n.texto.length).toLocaleLowerCase("pt-BR");
+    return !unidades.some((u) => new RegExp(`^\\s?${u}(?!\\p{L})`, "u").test(depois));
+  });
 }
 
 /** O número barrado aparece na mensagem como número inteiro, não como pedaço de outro ("7" em "1.767,11"). */

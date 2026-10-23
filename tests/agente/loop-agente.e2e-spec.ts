@@ -175,7 +175,7 @@ describe("loop do agente com banco real (e2e)", () => {
       const [execucao] = (await execucoesDe(a)).filter((e) => e.id === r.execucaoId);
       expect(execucao).toMatchObject({
         gatilho: "relatorio_diario",
-        versaoPrompt: "sistema-v3",
+        versaoPrompt: "sistema-v4",
         bloqueiosVerificador: 0,
       });
       const chamadas = await db

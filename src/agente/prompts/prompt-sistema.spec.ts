@@ -70,6 +70,7 @@ describe("carregarPromptSistema", () => {
       expect(regra(11)).toContain("não escreva número nenhum que veio do pedido");
       expect(regra(11)).toContain("responda a pergunta com a ferramenta e recuse só o resto");
       expect(regra(11)).toContain("Pedido para todos os produtos");
+      expect(regra(11)).toContain("depois da confirmação do dono, e peça o produto e o valor");
       expect(regra(14)).toContain("`get_product_margin`");
       expect(regra(14)).toContain("No relatório diário esta regra não vale");
       expect(regra(14)).toContain("margem atual e o preço que leva à meta");

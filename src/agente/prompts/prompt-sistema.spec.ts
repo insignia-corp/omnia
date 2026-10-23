@@ -38,8 +38,8 @@ describe("carregarPromptSistema", () => {
       for (const termo of ["parado", "reajuste", "posso subir o preço", "gasto fora do normal"]) {
         expect(regra).toContain(termo);
       }
-      expect(regra).toContain("`get_product_margin`");
       expect(regra).toContain("`get_cost_changes`");
+      expect(regra).toContain("siga também a regra 14");
     });
 
     it("tem as regras de recusa curta, o que dá para responder e período sem vendas", () => {

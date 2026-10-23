@@ -7,6 +7,7 @@ import { montarCatalogo } from "../../src/agente/ferramentas/catalogo";
 import type { ContextoSessao } from "../../src/agente/ferramentas/ferramenta";
 import { RegistroFerramentas } from "../../src/agente/ferramentas/registro-ferramentas";
 import { criarGetCostChanges } from "../../src/agente/ferramentas/plano-a/get-cost-changes";
+import { somarDias } from "../../src/lib/datas/datas";
 import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
@@ -54,6 +55,8 @@ interface Gabarito {
 
 const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf8")) as Gabarito;
 const REF = gabarito.parametros.data_referencia;
+/** As janelas de get_top_products terminam ontem: a referência do gabarito é o último dia com vendas, então a execução é a do dia seguinte. */
+const DIA_DA_EXECUCAO = somarDias(REF, 1);
 
 /** O que o teste lê da saída: valor da métrica, dado ausente ou lista de candidatos. */
 interface Saida {
@@ -136,12 +139,16 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
   });
 
   it("get_top_products devolve os rankings do gabarito", async () => {
-    const volume = await chamar(vilaNova, "get_top_products", { criterio: "volume" });
+    const volume = await chamar({ ...vilaNova, dataReferencia: DIA_DA_EXECUCAO }, "get_top_products", {
+      criterio: "volume",
+    });
     const produtosVolume = volume.valor.produtos as Array<{ produto_id: string; unidades_7_dias: number }>;
     expect(produtosVolume.map((p) => [skuPorProduto.get(p.produto_id), p.unidades_7_dias])).toEqual(
       gabarito.giro.maior_volume.map((p) => [p.produto_id, p.unidades_7_dias]),
     );
-    const alta = await chamar(vilaNova, "get_top_products", { criterio: "alta" });
+    const alta = await chamar({ ...vilaNova, dataReferencia: DIA_DA_EXECUCAO }, "get_top_products", {
+      criterio: "alta",
+    });
     const produtosAlta = alta.valor.produtos as Array<{ produto_id: string; alta_bps: number | null }>;
     expect(produtosAlta.map((p) => [skuPorProduto.get(p.produto_id), p.alta_bps])).toEqual(
       gabarito.giro.maior_alta.map((p) => [p.produto_id, p.alta_bps]),
@@ -492,7 +499,9 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     });
     expect(margemDeOutroLojista).toMatchObject({ ausente: true });
     const resultados = [
-      await chamar(esquina, "get_top_products", { criterio: "volume" }),
+      await chamar({ ...esquina, dataReferencia: DIA_DA_EXECUCAO }, "get_top_products", {
+        criterio: "volume",
+      }),
       await chamar(esquina, "get_cost_changes", {}),
       margemDeOutroLojista,
     ];

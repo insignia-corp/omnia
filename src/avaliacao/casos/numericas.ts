@@ -106,6 +106,17 @@ function mensagemDoGabarito(p: PerguntaAvaliacao): string {
   return `${abertura}${partes.join("; ")}.`;
 }
 
+/**
+ * Ferramenta equivalente aceita no lugar de `list_alert_candidates`, quando a resposta certa veio pela
+ * ferramenta de detalhe: q27 (reajuste de fornecedor) por `get_cost_changes` e q29 (posso subir o preço)
+ * por `get_product_margin`. Os dois trazem os números que o caso confere (reajuste, margem e meta); o giro
+ * que q29 também menciona no gabarito não tem checagem numérica, então a alternativa não o exige.
+ */
+const ALTERNATIVAS: Record<string, Record<string, string[]>> = {
+  q27: { list_alert_candidates: ["get_cost_changes"] },
+  q29: { list_alert_candidates: ["get_product_margin"] },
+};
+
 function casoNumerico(p: PerguntaAvaliacao): CasoAvaliacao {
   if (p.numeros_esperados.length === 0) throw new Error(`${p.id}: pergunta numérica sem número esperado`);
   return {
@@ -115,6 +126,7 @@ function casoNumerico(p: PerguntaAvaliacao): CasoAvaliacao {
     gatilho: "mensagem_dono",
     entrada: p.pergunta,
     ferramentasEsperadas: p.ferramentas_esperadas,
+    ...(ALTERNATIVAS[p.id] ? { ferramentasAlternativas: ALTERNATIVAS[p.id] } : {}),
     criterio: {
       tipo: "numero_correto",
       numeros: numerosEsperados(p),

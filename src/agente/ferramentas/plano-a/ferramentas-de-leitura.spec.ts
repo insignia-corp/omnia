@@ -197,20 +197,17 @@ describe("ferramentas de leitura do plano A", () => {
     ] as const) {
       expect((await registro.executar(contexto, nome, entrada)).ok).toBe(true);
     }
+    // Só o ranking mede a janela que termina ontem (a data de referência ainda não tem vendas completas):
+    // nas demais o contexto chega como a sessão o montou.
     for (const chamadas of [
       mock.resumoDiario.mock.calls,
-      mock.giro.mock.calls,
       mock.variacoesDeCusto.mock.calls,
       mock.margemDoProduto.mock.calls,
     ]) {
       expect(chamadas).toHaveLength(1);
-      // O comerciante é o da sessão; o ranking mede a janela que termina ontem, então só a data muda.
-      expect(chamadas[0]?.[0]).toMatchObject({
-        comercianteId: contexto.comercianteId,
-        nomeComercio: contexto.nomeComercio,
-      });
+      expect((chamadas as unknown[][])[0]?.[0]).toBe(contexto);
     }
-    expect((mock.resumoDiario.mock.calls as unknown[][])[0]?.[0]).toBe(contexto);
+    expect(mock.giro.mock.calls).toHaveLength(1);
     expect((mock.giro.mock.calls as unknown[][])[0]?.[0]).toEqual({
       ...contexto,
       dataReferencia: "2026-10-18",

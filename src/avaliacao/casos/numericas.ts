@@ -29,12 +29,12 @@ const CONTEXTOS: Record<string, Record<string, RegExp>> = {
     "mediana dos 60 dias": /mediana|normal|t[íi]pic|costum/i,
   },
   q25: {
-    "custo anterior": /anterior|antes|era\b/i,
-    "custo atual": /atual|agora|passou|hoje/i,
+    "custo anterior": /anterior|antes|era\b|(?:passou|subiu|foi)\s+de\s*R\$/i,
+    "custo atual": /atual|agora|passou|hoje|para\s+R\$/i,
   },
   q26: {
-    "custo anterior": /anterior|antes|era\b/i,
-    "custo atual": /atual|agora|passou|hoje/i,
+    "custo anterior": /anterior|antes|era\b|(?:passou|subiu|foi)\s+de\s*R\$/i,
+    "custo atual": /atual|agora|passou|hoje|para\s+R\$/i,
   },
   q27: {
     "reajuste de Arroz branco tipo 1 5kg": /arroz/i,

@@ -109,7 +109,8 @@ function mensagemDoGabarito(p: PerguntaAvaliacao): string {
 /**
  * Ferramenta equivalente aceita no lugar de `list_alert_candidates`, quando a resposta certa veio pela
  * ferramenta de detalhe: q27 (reajuste de fornecedor) por `get_cost_changes` e q29 (posso subir o preço)
- * por `get_product_margin`. Os dois trazem os mesmos números que o candidato de alerta carregaria.
+ * por `get_product_margin`. Os dois trazem os números que o caso confere (reajuste, margem e meta); o giro
+ * que q29 também menciona no gabarito não tem checagem numérica, então a alternativa não o exige.
  */
 const ALTERNATIVAS: Record<string, Record<string, string[]>> = {
   q27: { list_alert_candidates: ["get_cost_changes"] },

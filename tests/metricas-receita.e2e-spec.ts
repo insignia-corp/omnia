@@ -9,6 +9,7 @@ import { carregarEnv } from "../src/config/env";
 import { migrar } from "../src/infra/database/migrar";
 import * as schema from "../src/infra/database/schema";
 import { semear } from "../src/infra/database/seed/semear";
+import { somarDias } from "../src/lib/datas/datas";
 import { NumerosAutorizados, verificarNumeros } from "../src/lib/verificador-numeros/verificador-numeros";
 import { PARAMETROS_RECEITA } from "../src/metricas/receita-por-produto";
 import { MetricasService } from "../src/metricas/metricas.service";
@@ -88,7 +89,14 @@ describe("receita por produto contra o gabarito (e2e)", () => {
   });
 
   it("get_top_products com criterio receita devolve o ranking do gabarito, e o verificador aceita os valores", async () => {
-    const saida = await registro.executar(vilaNova, "get_top_products", { criterio: "receita" });
+    // A janela termina ontem: a execução do dia seguinte ao fim das vendas lê os 7 dias até a referência do gabarito.
+    const saida = await registro.executar(
+      { ...vilaNova, dataReferencia: somarDias(REF, 1) },
+      "get_top_products",
+      {
+        criterio: "receita",
+      },
+    );
     if (!saida.ok) throw new Error(saida.erro);
     const resultado = saida.saida as {
       valor: { criterio: string; produtos: Array<{ produto_id: string; receita_centavos: number }> };

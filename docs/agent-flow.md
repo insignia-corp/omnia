@@ -139,9 +139,10 @@ Limites e esforço vêm do ambiente. Os nomes e os valores padrão moram em [`sr
 
 | Ferramenta | Efeito | Situação em 2026-10-21 |
 | --- | --- | --- |
-| `get_daily_summary`, `get_top_products` | nenhum | Pronta (#50, #148; PRs #145 e #169): `get_top_products` aceita os critérios `volume`, `alta` e `receita` |
-| `get_period_summary` | nenhum | Pronta (#182): semana ou mês até a data, contra o período anterior |
+| `get_daily_summary`, `get_top_products` | nenhum | Pronta (#50, #148; PRs #145 e #169): `get_top_products` aceita os critérios `volume`, `alta` e `receita`, com a janela até ontem (como `get_period_summary` sem `ate`); `get_daily_summary` sem data usa a data de referência |
+| `get_period_summary` | nenhum | Pronta (#182): semana ou mês até a data (sem data, até ontem), contra o período anterior |
 | `get_product_margin`, `get_cost_changes` | nenhum | Pronta (#51; PR #145). `get_product_margin` também acha apelidos confirmados e distingue produtos de mesmo nome (#156; PR #168) |
+| `list_product_margins` | nenhum | Pronta (melhoria pedida pelo dono): lista as margens dos produtos sem precisar do nome (menor, maior, abaixo da meta) e diz o total que atende ao filtro, para as perguntas de margem sem produto |
 | `list_alert_candidates` | nenhum | Pronta (#52; PR #174): roda o motor de alertas para o comerciante e a data da sessão, sem entrada do modelo |
 | `select_alerts` | nenhum | Pronta (#133): até 3 ids com justificativa, conferidos contra o comerciante e a data |
 | `ask_owner`, `save_owner_answer` | `pergunta_dono`, `escreve_config` | Pronta (PR #132) |

@@ -63,6 +63,12 @@ const POR_ID: Record<string, Roteirizado> = {
   },
 };
 
+/**
+ * Casos em que o "não sei" diz o período sem dado (o mês de q33, setembro do ano passado em q39), e a
+ * resposta certa pode citar datas e anos. Nos outros a checagem de número fica inteira.
+ */
+const CITAM_PERIODO = new Set(["q33", "q39"]);
+
 function casoSemResposta(p: PerguntaAvaliacao): CasoAvaliacao {
   const roteirizado = POR_ID[p.id];
   if (!roteirizado) throw new Error(`${p.id}: pergunta sem resposta sem roteiro em casos/sem-resposta.ts`);
@@ -73,7 +79,11 @@ function casoSemResposta(p: PerguntaAvaliacao): CasoAvaliacao {
     gatilho: "mensagem_dono",
     entrada: p.pergunta,
     ferramentasEsperadas: p.ferramentas_esperadas,
-    criterio: { tipo: "sem_resposta", padraoNaoSei: roteirizado.padraoNaoSei },
+    criterio: {
+      tipo: "sem_resposta",
+      padraoNaoSei: roteirizado.padraoNaoSei,
+      ...(CITAM_PERIODO.has(p.id) ? { aceitaPeriodo: true } : {}),
+    },
     roteiro: [texto(roteirizado.resposta)],
   };
 }

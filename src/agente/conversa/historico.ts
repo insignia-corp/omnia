@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or } from "drizzle-orm";
+import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import type { Executor } from "../../infra/database/database.module";
 import { mensagem } from "../../infra/database/schema";
 
@@ -17,6 +17,13 @@ export interface TurnoConversa {
  * Quem chama é o canal (modo conversa, plano C): grava a mensagem recebida, carrega o histórico com
  * `AGENTE_HISTORICO_TURNOS` e passa o resultado em `PedidoAgente.historico`.
  */
+/**
+ * Fora do histórico ficam os avisos montados a partir de nota ou recibo (`nota_...`) e as perguntas dela
+ * (`pergunta_...`): levam fornecedor e descrição de item lidos do documento, que são dado e nunca
+ * instrução (regra 6), e no histórico entrariam com a voz do assistente.
+ */
+const semTextoDeDocumento = sql`coalesce(${mensagem.chaveIdempotencia}, '') !~ '^(nota|pergunta)_'`;
+
 export async function carregarHistorico(
   db: Executor,
   comercianteId: string,
@@ -43,7 +50,7 @@ export async function carregarHistorico(
   const linhas = await db
     .select({ direcao: mensagem.direcao, texto: mensagem.texto })
     .from(mensagem)
-    .where(and(eq(mensagem.comercianteId, comercianteId), anteriores))
+    .where(and(eq(mensagem.comercianteId, comercianteId), anteriores, semTextoDeDocumento))
     .orderBy(desc(mensagem.criadoEm), desc(mensagem.id))
     .limit(maxTurnos);
   return linhas.reverse().map((l) => ({

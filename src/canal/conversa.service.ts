@@ -225,7 +225,12 @@ export class ConversaService implements OnModuleInit {
     const resposta = await this.executarAgente(comercianteId, nomeComercio, pedido, recebidaId);
     // Texto livre que o verificador barrou até o fim: em vez da frase de erro, o menu mostra o que dá para
     // perguntar. Erro de modelo (`fallback_erro`) e toque em botão seguem como estavam.
-    if (lida.acao === null && resposta.resultado === "fallback_verificador") {
+    // Com proposta pendente a resposta segue como antes: o menu esconderia os botões de confirmação dela.
+    if (
+      lida.acao === null &&
+      resposta.resultado === "fallback_verificador" &&
+      !(await this.temConfirmacaoPendente(comercianteId))
+    ) {
       return { saidas: [menu(nomeComercio, TEXTO_SEM_RESPOSTA)], execucaoId: resposta.execucaoId };
     }
     // O agente encerra a proposta pendente antes de rodar (a não ser no próprio "sim" ou "não"): uma

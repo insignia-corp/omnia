@@ -40,6 +40,8 @@ describe("carregarPromptSistema", () => {
       }
       expect(regra).toContain("`get_cost_changes`");
       expect(regra).toContain("siga também a regra 14");
+      expect(regra).toContain("não para totais");
+      expect(regra).toContain("`get_daily_summary` do dia perguntado");
     });
 
     it("tem as regras de recusa curta, o que dá para responder e período sem vendas", () => {
@@ -66,7 +68,10 @@ describe("carregarPromptSistema", () => {
       expect(regra(10)).toContain("comece com uma frase clara dizendo que não sabe");
       expect(regra(10)).toContain("Só depois");
       expect(regra(11)).toContain("não escreva número nenhum que veio do pedido");
+      expect(regra(11)).toContain("responda a pergunta com a ferramenta e recuse só o resto");
+      expect(regra(11)).toContain("Pedido para todos os produtos");
       expect(regra(14)).toContain("`get_product_margin`");
+      expect(regra(14)).toContain("No relatório diário esta regra não vale");
       expect(regra(14)).toContain("margem atual e o preço que leva à meta");
     });
 
@@ -91,7 +96,7 @@ describe("carregarPromptSistema", () => {
       ]);
       for (const nome of citadas) {
         // Campos citados nas regras da v3, não ferramentas.
-        if (nome === "pergunta_id" || nome?.endsWith("_centavos")) continue;
+        if (nome === "pergunta_id" || (nome ?? "").endsWith("_centavos")) continue;
         expect(existentes.has(nome ?? "")).toBe(true);
       }
       expect(v4).not.toMatch(/[—–]/);

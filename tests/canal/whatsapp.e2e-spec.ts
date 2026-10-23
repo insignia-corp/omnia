@@ -22,7 +22,7 @@ import {
 import { RELOGIO, type Relogio } from "../../src/canal/relogio";
 import { COMERCIANTE_DEMO } from "../../src/canal/web/whatsapp.controller";
 import { TEXTO_PERGUNTA_JA_RESPONDIDA, TEXTO_SEM_PRODUTO } from "../../src/canal/whatsapp/perguntas-da-nota";
-import { TEXTO_CANCELAR, TEXTO_SEM_PROPOSTA } from "../../src/canal/whatsapp/respostas";
+import { TEXTO_CANCELAR, TEXTO_SEM_PROPOSTA, TEXTO_SEM_RESPOSTA } from "../../src/canal/whatsapp/respostas";
 import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
@@ -242,6 +242,62 @@ describe("WhatsApp simulado integrado (e2e, issue #182)", () => {
         type: "text",
         text: { body: expect.stringContaining("Tudo certo") },
       });
+    });
+
+    it("a segunda mensagem chega ao agente com a primeira conversa no histórico, e só a deste comerciante", async () => {
+      const c = await novoComerciante("E2E WhatsApp memória A");
+      const outro = await novoComerciante("E2E WhatsApp memória B");
+      await enviar(outro, textoDoDono("Segredo do outro lojista: caixa 777"));
+      await enviar(c, textoDoDono("Como foi o mês passado?"));
+      await enviar(c, textoDoDono("e do mês?"));
+      const pedido = modelo.pedidos.at(-1)!;
+      const mensagens = JSON.stringify(pedido.messages);
+      // O turno anterior (pergunta e resposta) vem do banco antes da pergunta nova, que fica por último.
+      expect(mensagens).toContain("Como foi o mês passado?");
+      expect(mensagens).toContain("Tudo certo por aqui");
+      expect(mensagens.indexOf("Como foi o mês passado?")).toBeLessThan(mensagens.indexOf("e do mês?"));
+      expect(textoDo(pedido)).toContain("e do mês?");
+      expect(textoDo(pedido)).not.toContain("Como foi o mês passado?");
+      // Nada do outro comerciante, nem a mensagem atual repetida no histórico.
+      expect(mensagens).not.toContain("Segredo do outro lojista");
+      expect(mensagens.split("e do mês?").length - 1).toBe(1);
+    });
+
+    it("primeira mensagem do comerciante chega sem histórico", async () => {
+      const c = await novoComerciante("E2E WhatsApp memória vazia");
+      await enviar(c, textoDoDono("Como está o caixa hoje?"));
+      expect(modelo.pedidos.at(-1)!.messages).toHaveLength(1);
+    });
+
+    it("texto livre que o verificador barra até o fim abre o menu sem número; botão e erro seguem como antes", async () => {
+      const c = await novoComerciante("E2E WhatsApp sem resposta");
+      // Número que nenhuma ferramenta devolveu: o verificador bloqueia todas as tentativas.
+      const inventada = () => Array.from({ length: 12 }, () => texto("Você faturou 98765 reais ontem."));
+      modelo.roteiro = inventada();
+      const livre = await enviar(c, textoDoDono("Quanto faturei ontem?"));
+      const saida = livre.mensagens[1]!;
+      expect(saida.interactive!.type).toBe("list");
+      expect(saida.interactive!.body.text).toBe(TEXTO_SEM_RESPOSTA);
+      // Regra 8: a abertura é fixa e não leva número.
+      expect(TEXTO_SEM_RESPOSTA).not.toMatch(/\d/);
+      expect(JSON.stringify(saida)).not.toContain("98765");
+      const [gravada] = await db
+        .select({ execucaoId: schema.mensagem.execucaoId })
+        .from(schema.mensagem)
+        .where(and(eq(schema.mensagem.comercianteId, c), eq(schema.mensagem.direcao, "enviada")))
+        .orderBy(schema.mensagem.criadoEm);
+      expect(gravada?.execucaoId).not.toBeNull();
+
+      // Mesmo bloqueio depois de um toque em botão: continua a frase do verificador, não o menu.
+      modelo.roteiro = inventada();
+      const menuAnterior = (await enviar(c, textoDoDono("menu"))).mensagens[1]!;
+      const botao = await enviar(
+        c,
+        tocar("resumo_semana", "Resumo da semana", menuAnterior.id, "list_reply"),
+      );
+      const respostaBotao = botao.mensagens[1]!;
+      expect(corpoDe(respostaBotao)).toContain("Não consegui confirmar os números");
+      expect(respostaBotao.interactive?.type).not.toBe("list");
     });
 
     it("reentrega do mesmo id devolve as mesmas mensagens sem rodar o agente de novo", async () => {

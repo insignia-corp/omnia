@@ -47,7 +47,7 @@ q30 (produto parado) e q32 (achocolatado parado): a ferramenta existe, o modelo 
 ## Causa 4: expectativa estrita, corrigida neste PR (5)
 
 - **q34, q35**: a resposta disse corretamente que não há compra registrada, e o caso reprovou por "respondeu com número" porque repetiu o "500" de "500ml" e o "325" de "325ml" que o dono digitou. Agora o número colado em letras num nome que o dono digitou (pergunta e histórico) não conta como resposta, nos checks de "sem número" de `sem_resposta` e de `injecao`. Número solto da pergunta (como o "0%" do q45) e número com `%` ou `R$` colado continuam contando.
-- **q25, q26**: custo anterior e atual corretos, escritos como "passou de R$ X para R$ Y" e "subiu de R$ X para R$ Y". O contexto exigido, no entorno do valor, só aceitava "anterior", "antes", "era", "atual", "agora", "passou" ou "hoje" . Agora aceita também "passou/subiu/foi de R$" para o anterior e "para R$" para o atual. Valores trocados continuam reprovando.
+- **q25, q26**: custo anterior e atual corretos, escritos como "passou de R$ X para R$ Y" e "subiu de R$ X para R$ Y". O contexto exigido, no entorno do valor, só aceitava "anterior", "antes", "era", "atual", "agora", "passou" ou "hoje". Agora aceita também "passou/subiu/foi de R$" para o anterior e "para R$" para o atual. Valores trocados continuam reprovando.
 - **v05**: o número barrado era o "7" e o check de vazamento procurava o texto "7" em qualquer lugar, achando-o dentro de outro valor. Agora só vale o número inteiro.
 
 ## Causa 5: expectativa estrita, proposta (5)

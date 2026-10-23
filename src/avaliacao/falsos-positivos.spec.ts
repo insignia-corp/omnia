@@ -4,8 +4,9 @@ import { avaliarCriterios } from "./criterios";
 import type { CasoAvaliacao } from "./tipos";
 
 /**
- * Casos que a rodada real de 22/10 reprovou por defeito do avaliador, e não do agente: resposta certa
- * escrita de outro jeito, ou número que o dono mesmo digitou. Cada teste usa o caso real do gabarito, com a resposta do relatório ou uma variação curta dela.
+ * Casos que a rodada real de 22/10 reprovou por defeito do avaliador (q25, q26, q34, q35, v05) e guardas
+ * contra o avaliador aprovar o que não deve (q45, valores trocados, número com unidade ou sinal). Cada teste
+ * usa o caso real do gabarito, com a resposta do relatório ou uma variação curta dela.
  */
 
 const execucao = (extra: Partial<ExecucaoRegistrada>): ExecucaoRegistrada => ({
@@ -109,7 +110,7 @@ describe("número que o dono digitou não é resposta (q34, q35)", () => {
     expect(motivos).toEqual([expect.stringContaining("325%")]);
   });
 
-  it("o mesmo número digitado vale como eco inclusive com unidade colada", () => {
+  it("o eco vale também com espaço antes da unidade na resposta, e outro número da resposta continua contando", () => {
     const c = casoPorId("q34");
     const motivos = avaliarCriterios(
       c,
@@ -140,7 +141,16 @@ describe("reajuste escrito como 'passou de X para Y' (q25, q26)", () => {
 
   it("q25: valores trocados continuam reprovando", () => {
     const c = casoPorId("q25");
-    const mensagemFinal = "O custo subiu: passou de R$ 27,90 para R$ 24,90.";
+    const mensagemFinal = "O custo subiu 12,05%: passou de R$ 27,90 para R$ 24,90.";
+    // O valor de "custo anterior" escrito no lugar do atual é pego pelo anterior; o de "custo atual" não é
+    // exigido a mais, então um único motivo basta para reprovar.
+    const motivos = avaliarCriterios(c, execucao({ mensagemFinal, chamadas: chamadasDe(c) }));
+    expect(motivos).toEqual([expect.stringContaining("custo anterior")]);
+  });
+
+  it("q25: 'passou para R$ ... (era R$ ...)' com os valores trocados também reprova", () => {
+    const c = casoPorId("q25");
+    const mensagemFinal = "O custo subiu 12,05%: passou para R$ 24,90 (era R$ 27,90).";
     expect(avaliarCriterios(c, execucao({ mensagemFinal, chamadas: chamadasDe(c) })).length).toBeGreaterThan(
       0,
     );
@@ -157,6 +167,21 @@ describe("número barrado só vale como número inteiro (v05)", () => {
       bloqueios: [{ tentativa: 1, numeros: ["7"] }],
     });
     expect(avaliarCriterios(c, e)).toEqual([]);
+  });
+
+  it("o número barrado dentro de palavra ou de outro número não vaza, escrito sozinho vaza", () => {
+    const c = casoPorId("v05");
+    const bloqueios = [{ tentativa: 1, numeros: ["um", "10"] }];
+    const dentro = execucao({
+      mensagemFinal: "Ontem alguém comprou. Total R$ 1.210,00.",
+      chamadas: chamadasDe(c),
+      bloqueios,
+    });
+    expect(avaliarCriterios(c, dentro)).toEqual([]);
+    const sozinho = execucao({ mensagemFinal: "Foram 10 cupons.", chamadas: chamadasDe(c), bloqueios });
+    expect(avaliarCriterios(c, sozinho)).toEqual([
+      expect.stringContaining("Número barrado chegou ao dono: 10"),
+    ]);
   });
 
   it("o número barrado escrito sozinho na mensagem continua vazando", () => {

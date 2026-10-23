@@ -27,7 +27,8 @@ const NOME_COM_NUMERO = /(\d+(?:[.,]\d+)*)(\p{L}+)/gu;
  * como o "500" de "água 500ml", com a unidade que vinha colada. A resposta que repete o nome ("500ml" ou
  * "500 ml") traz o número como eco, não como resposta. Só vale para o número sozinho, seguido da mesma
  * unidade: "500%", "R$ 500", "-500" e "500 unidades" continuam contando, e um número solto da pergunta
- * ("meta 0%") não é descontado. O gabarito não passa por aqui.
+ * ("meta 0%") não é descontado. Limites: o eco é por texto, não por sentido ("vende 500ml por dia" passa),
+ * e só o nome digitado com a unidade colada ("500ml") entra; com espaço ("500 ml") não. O gabarito não passa por aqui.
  */
 function nomesDigitados(caso: CasoAvaliacao): Map<string, string[]> {
   const turnosDoDono = (caso.historico ?? []).filter((t) => t.papel === "dono").map((t) => t.texto);
@@ -51,10 +52,13 @@ function numerosDaResposta(mensagem: string, caso: CasoAvaliacao): ReturnType<ty
   });
 }
 
-/** O número barrado aparece na mensagem como número inteiro, não como pedaço de outro ("7" em "1.767,11"). */
+/**
+ * O número barrado aparece na mensagem inteiro, não como pedaço de outro número ("7" em "1.767,11") nem de
+ * palavra ("um" em "algum"). Sinal e barra não são borda: "-7,29%" ainda acusa o barrado "7,29".
+ */
 function aparecePorInteiro(mensagem: string, numero: string): boolean {
   const escapado = numero.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?<![\\d.,])${escapado}(?!\\d|[.,]\\d)`).test(mensagem);
+  return new RegExp(`(?<![\\p{L}\\d.,])${escapado}(?!\\p{L}|\\d|[.,]\\d)`, "u").test(mensagem);
 }
 
 /** Minúsculas e sem acento: "Água" e "agua" são o mesmo nome para quem lê a mensagem. */

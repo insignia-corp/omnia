@@ -2,7 +2,7 @@
 
 Leitura offline de [2026-10-22-sistema-v3-claude-sonnet-5-5.md](2026-10-22-sistema-v3-claude-sonnet-5-5.md): 32 dos 55 casos falharam (20 numéricos, 5 sem resposta, 4 do verificador, 3 de injeção). Nada foi rodado de novo: a rodada é anterior ao `get_period_summary` (#182). Cada caso aparece em uma causa só, a principal. O que é inferência do relatório está marcado; só uma rodada nova com o registro de execuções confirma.
 
-Para medir a nova linha de base (estimativa da rodada de 22/10: cerca de US$ 1,2 e 7 minutos; precisa de `ANTHROPIC_API_KEY`):
+Para medir a nova linha de base (estimativa da rodada de 22/10: cerca de US$ 1,2 e 7 minutos; precisa do PostgreSQL no ar, porque o `seed:demo` zera o banco, e de `ANTHROPIC_API_KEY`):
 
 ```bash
 npm run seed:demo && npm run eval -- --modelo real
@@ -34,10 +34,10 @@ Conserto: ler os bloqueios do registro da rodada nova (`execucao_agente`), separ
 
 O agente disse com honestidade que não tem como responder:
 
-- **Total de 7 dias** (q05): não havia ferramenta de período. O `get_period_summary` (#182) responde, mas devolve dado ausente quando algum dia do período não tem vendas importadas (`get-period-summary.ts`, linhas 17 a 19), e o dia de referência do seed está sem vendas: só se resolve com esse dia coberto (mesmo dado do q13 a q16). Confirmar na rodada nova.
+- **Total de 7 dias** (q05): não havia ferramenta de período. O `get_period_summary` (#182) responde, mas devolve dado ausente quando algum dia do período não tem vendas importadas (`get-period-summary.ts`, linhas 17 a 19), e a data da rodada (20/10) não tem vendas importadas. Além disso, o gabarito do q05 soma os 7 dias até "ontem" (de 13/10 a 19/10, conferido pela soma dos dias do relatório), e a ferramenta sem `ate` termina na data de referência: o total não bate mesmo com o dia coberto, a menos que a chamada leve `ate` igual a ontem. Decisão do dono: "últimos 7 dias" termina em ontem ou em hoje? Confirmar na rodada nova.
 - **Ticket médio e gasto contra o normal** (q04, q12): o agente só tinha o resumo do dia e não via outros dias nem o padrão de gasto. O `get_period_summary` traz o ticket do período, com a mesma ressalva de cobertura do q05; o gasto fora do padrão depende de `list_alert_candidates` (causa 3). Parcial.
 - **Saldo da conta** (q10): o saldo vem junto do resumo do dia, e o dia de referência não tinha vendas importadas. Dado do seed (ou ferramenta de saldo à parte). Tamanho P a M.
-- **Produto ou unidades da semana por volume, receita e alta** (q13, q14, q15, q16): o agente respondeu que as vendas importadas não cobrem o período. A descrição da ferramenta diz que o período pode vir como não coberto pelas vendas importadas (`get-top-products.ts`, linha 25), e o dia de referência do seed está sem vendas (inferência: o relatório não mostra a saída da ferramenta). Conserto: decidir entre completar o dado do seed, deslocar a data de referência para um dia com vendas ou deixar a ferramenta devolver o que há com o aviso de cobertura parcial. Tamanho M.
+- **Produto ou unidades da semana por volume, receita e alta** (q13, q14, q15, q16): o agente respondeu que as vendas importadas não cobrem o período. A descrição da ferramenta diz que o período pode vir como não coberto pelas vendas importadas (`get-top-products.ts`, linha 25), e a data da rodada (20/10) não tem vendas importadas (inferência: o relatório não mostra a saída da ferramenta). Conserto: decidir entre completar o dado do seed, deslocar a data de referência para um dia com vendas ou deixar a ferramenta devolver o que há com o aviso de cobertura parcial. Tamanho M.
 - **Ranking e contagem por margem** (q22, q24): não existe ferramenta que liste produtos por margem ou conte os abaixo da meta, só a margem de um produto por nome. O agente explicou isso e ofereceu consultar os mais vendidos. Conserto: ferramenta nova de lista de margem (função determinística sobre a métrica existente). Tamanho G.
 
 ## Causa 3: não chamou `list_alert_candidates` (4)

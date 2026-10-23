@@ -68,7 +68,6 @@ export function criarListProductMargins(metricas: MetricasService) {
         return dadoAusente(
           "sem_meta_de_margem",
           "Sem meta de margem do comerciante ou sem produtos cadastrados.",
-          "Qual margem de lucro você quer em cada produto?",
         );
       }
       const calculadas = todas.flatMap((m) => (ehDadoAusente(m.resultado) ? [] : [m.resultado]));

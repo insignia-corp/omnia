@@ -116,6 +116,7 @@ Decisões do orquestrador:
 | `get_top_products` | nenhum | P0 | Ranking por volume, alta do giro ou receita (#50, #148) |
 | `get_product_margin` | nenhum | P0 | Margem, custo, preço, preço que leva à meta (#182) e confiança; dado ausente explícito (#51) |
 | `get_cost_changes` | nenhum | P0 | Reajustes por produto e fornecedor (#51) |
+| `list_product_margins` | nenhum | P0 | Lista as margens sem precisar do nome (menor, maior, abaixo da meta), com o total que atende ao filtro e a meta usada; melhoria pedida pelo dono |
 | `list_alert_candidates` | nenhum | P0 | Candidatos com prioridade e impacto em centavos (#52) |
 | `select_alerts` | nenhum | P0 | **Novo.** Recebe até 3 `alerta_id` com justificativa curta. Valida os ids contra a tabela `alerta` do comerciante e da data. Existe para que a decisão fique registrada em `chamada_ferramenta`, na ordem, e apareça na tela de bastidores |
 | `ask_owner` | pergunta_dono | P0 | Registra a pergunta e aguarda a resposta pelo canal (#53) |

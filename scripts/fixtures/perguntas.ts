@@ -254,19 +254,19 @@ export function montarPerguntas(
     ),
     numerica(
       "Qual produto me dá mais lucro, em porcentagem de margem?",
-      ["get_product_margin"],
+      ["list_product_margins"],
       [n("maior margem", percentual(porMargem[0]?.margem_bps ?? 0), "percentual")],
       [porMargem[0]?.nome ?? ""],
     ),
     numerica(
       "Qual produto tem a menor margem?",
-      ["get_product_margin"],
+      ["list_product_margins"],
       [n("menor margem", percentual(porMargem.at(-1)?.margem_bps ?? 0), "percentual")],
       [porMargem.at(-1)?.nome ?? ""],
     ),
     numerica(
       "Quantos produtos estão com margem abaixo da minha meta?",
-      ["get_product_margin"],
+      ["list_product_margins"],
       [n("produtos abaixo da meta", abaixoDaMeta.length, "unidades"), n("meta de margem", metaPercentual, "percentual")],
       abaixoDaMeta.map((m) => m.nome),
     ),

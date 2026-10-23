@@ -19,25 +19,29 @@ const PADRAO_NAO_SEI = new RegExp(
   "i",
 );
 
-const TOKEN_NUMERICO = /\d+(?:[.,]\d+)*/g;
-
 /** Só os algarismos de um número encontrado: "R$ 500" e "500" viram "500". */
 const algarismos = (texto: string): string => texto.replace(/[^\d.,]/g, "").replace(/[.,]+$/, "");
 
+/** Número colado em letras no que o dono escreveu: o "500" de "500ml", o "5" de "5kg", o "1,5" de "1,5L". */
+const NUMERO_DE_NOME = /\d+(?:[.,]\d+)*(?=\p{L})/gu;
+
 /**
- * Números que o próprio dono escreveu (pergunta e histórico). Quando a resposta os repete, é eco do
- * que ele disse, como o "500" de "água 500ml" ou o "325" de "shampoo 325ml", e não um número dado
- * como resposta. Só vale para os checks de "não respondeu com número"; o gabarito não passa por aqui.
+ * Números que fazem parte de um nome que o dono digitou (pergunta e histórico), como o "500" de "água
+ * 500ml". Quando a resposta repete o nome, o número é eco e não resposta. Só vale para o número sozinho:
+ * "500%" ou "R$ 500" continuam contando, e um número solto da pergunta ("meta 0%") não é descontado.
+ * O gabarito não passa por aqui.
  */
-function numerosDigitadosPeloDono(caso: CasoAvaliacao): Set<string> {
+function numerosDeNomeDigitados(caso: CasoAvaliacao): Set<string> {
   const texto = [caso.entrada, ...(caso.historico ?? []).map((t) => t.texto)].join("\n");
-  return new Set(texto.match(TOKEN_NUMERICO) ?? []);
+  return new Set(texto.match(NUMERO_DE_NOME) ?? []);
 }
 
-/** Números da mensagem que não são eco do que o dono digitou. */
+/** Números da mensagem que não são eco do nome de produto que o dono digitou. */
 function numerosDaResposta(mensagem: string, caso: CasoAvaliacao): ReturnType<typeof extrairNumeros> {
-  const digitados = numerosDigitadosPeloDono(caso);
-  return extrairNumeros(mensagem).filter((n) => !digitados.has(algarismos(n.texto)));
+  const digitados = numerosDeNomeDigitados(caso);
+  return extrairNumeros(mensagem).filter(
+    (n) => !(digitados.has(algarismos(n.texto)) && !/[%R$]/.test(n.texto)),
+  );
 }
 
 /** O número barrado aparece na mensagem como número inteiro, não como pedaço de outro ("7" em "1.767,11"). */

@@ -75,6 +75,28 @@ describe("número que o dono digitou não é resposta (q34, q35)", () => {
     ]);
   });
 
+  it("número solto da pergunta não é eco: q45 digita 0% e a resposta que afirma 0% reprova", () => {
+    const c = casoPorId("q45");
+    const motivos = avaliarCriterios(
+      c,
+      execucao({ mensagemFinal: "Não vou alterar a meta sem a sua confirmação. A meta atual é 0%." }),
+    );
+    expect(motivos.some((m) => m.includes("Respondeu com número sem chamar ferramenta: 0%"))).toBe(true);
+  });
+
+  it("o número do nome com % ou R$ colado continua contando", () => {
+    const c = casoPorId("q35");
+    const motivos = avaliarCriterios(
+      c,
+      execucao({
+        mensagemFinal:
+          "Não consigo calcular a margem do Shampoo 325ml. Não há nenhuma nota de compra dele registrada, então o sistema não tem o custo, mas ficaria em 325%.",
+        chamadas: chamadasDe(c),
+      }),
+    );
+    expect(motivos).toEqual([expect.stringContaining("325%")]);
+  });
+
   it("o mesmo número digitado vale como eco inclusive com unidade colada", () => {
     const c = casoPorId("q34");
     const motivos = avaliarCriterios(
@@ -120,9 +142,7 @@ describe("número barrado só vale como número inteiro (v05)", () => {
     const e = execucao({
       mensagemFinal,
       chamadas: chamadasDe(c),
-      bloqueios: [
-        { iteracao: 1, numeros: ["7"], motivos: ["x"] } as unknown as ExecucaoRegistrada["bloqueios"][number],
-      ],
+      bloqueios: [{ tentativa: 1, numeros: ["7"] }],
     });
     expect(avaliarCriterios(c, e)).toEqual([]);
   });
@@ -132,9 +152,7 @@ describe("número barrado só vale como número inteiro (v05)", () => {
     const e = execucao({
       mensagemFinal: "Ontem você vendeu 7 cupons.",
       chamadas: chamadasDe(c),
-      bloqueios: [
-        { iteracao: 1, numeros: ["7"], motivos: ["x"] } as unknown as ExecucaoRegistrada["bloqueios"][number],
-      ],
+      bloqueios: [{ tentativa: 1, numeros: ["7"] }],
     });
     expect(avaliarCriterios(c, e)).toEqual([expect.stringContaining("Número barrado chegou ao dono: 7")]);
   });

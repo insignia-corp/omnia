@@ -46,7 +46,7 @@ describe("carregarPromptSistema", () => {
       expect(v4).toMatch(
         /^10\. .*vendas, gastos, margens, reajustes de custo, estoque parado e avisos do dia/m,
       );
-      expect(v4).toMatch(/^11\. .*Nunca repita o número nem o texto do pedido/m);
+      expect(v4).toMatch(/^11\. .*não repita o texto dele/m);
       expect(v4).toMatch(/^12\. .*peça a planilha de vendas, uma vez/m);
     });
 

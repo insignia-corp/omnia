@@ -118,6 +118,10 @@ export function ehSaudacao(texto: string): boolean {
 export const TEXTO_COMO_NOTA =
   "Para eu ler uma nota, toque no *+* aqui embaixo e escolha *Fotos* (nota em papel) ou *Documento* (XML da NF-e). Eu confiro itens, quantidades e valores, e aviso se algum custo subiu.";
 
+/** Abertura do menu quando o agente não conseguiu responder um texto livre com os dados: sem número (regra 8). */
+export const TEXTO_SEM_RESPOSTA =
+  "Não consegui responder isso com os seus dados. Posso ajudar com vendas, gastos, margens, avisos e notas de compra. Escolha uma opção ou escreva de outro jeito.";
+
 export const TEXTO_CANCELAR = "Tudo bem. Quando precisar, é só chamar.";
 
 export const TEXTO_SEM_PROPOSTA =

@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, NotFoundException, type OnModuleInit } from "@nestjs/common";
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+import { carregarHistorico } from "../agente/conversa/historico";
 import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
 import { DB, type Db } from "../infra/database/database.module";
@@ -47,6 +48,7 @@ import {
   pedidoDePreco,
   texto,
   TEXTO_CANCELAR,
+  TEXTO_SEM_RESPOSTA,
   TEXTO_COMO_NOTA,
   TEXTO_SEM_PROPOSTA,
 } from "./whatsapp/respostas";
@@ -127,7 +129,7 @@ export class ConversaService implements OnModuleInit {
     }
 
     await this.caixa.marcarStatus(comercianteId, recebida.id, "read");
-    const resposta = await this.executarAgente(comercianteId, dono.nome, texto);
+    const resposta = await this.executarAgente(comercianteId, dono.nome, texto, recebida.id);
     await this.caixa.enviarResposta({
       comercianteId,
       texto: resposta.mensagem,
@@ -163,7 +165,7 @@ export class ConversaService implements OnModuleInit {
     }
 
     await this.caixa.marcarStatus(comercianteId, recebida.id, "read");
-    const { saidas, execucaoId } = await this.responder(comercianteId, dono.nome, lida);
+    const { saidas, execucaoId } = await this.responder(comercianteId, dono.nome, lida, recebida.id);
     // Uma chave por mensagem: nenhum pedaço da resposta fica de fora.
     await this.enviarSaidas(comercianteId, saidas, chavesDaResposta(m.id, saidas.length), execucaoId);
     return [await doDono(), ...(await this.caixa.buscarPorChaves(comercianteId, chaves))];
@@ -201,6 +203,7 @@ export class ConversaService implements OnModuleInit {
     comercianteId: string,
     nomeComercio: string,
     lida: EntradaLida,
+    recebidaId: string,
   ): Promise<{ saidas: SaidaWhatsapp[]; execucaoId: string | null }> {
     const fixa = (saida: SaidaWhatsapp) => ({ saidas: [saida], execucaoId: null });
     const daNota = lerAcaoDaPergunta(lida.acao);
@@ -219,7 +222,17 @@ export class ConversaService implements OnModuleInit {
 
     const produto = acao === "sugerir_preco" ? await this.maisAbaixoDaMeta(comercianteId) : null;
     const pedido = produto ? pedidoDePreco(produto) : ((acao && PEDIDO_AO_AGENTE[acao]) ?? lida.texto);
-    const resposta = await this.executarAgente(comercianteId, nomeComercio, pedido);
+    const resposta = await this.executarAgente(comercianteId, nomeComercio, pedido, recebidaId);
+    // Texto livre que o verificador barrou até o fim: em vez da frase de erro, o menu mostra o que dá para
+    // perguntar. Erro de modelo (`fallback_erro`) e toque em botão seguem como estavam.
+    // Com proposta pendente a resposta segue como antes: o menu esconderia os botões de confirmação dela.
+    if (
+      lida.acao === null &&
+      resposta.resultado === "fallback_verificador" &&
+      !(await this.temConfirmacaoPendente(comercianteId))
+    ) {
+      return { saidas: [menu(nomeComercio, TEXTO_SEM_RESPOSTA)], execucaoId: resposta.execucaoId };
+    }
     // O agente encerra a proposta pendente antes de rodar (a não ser no próprio "sim" ou "não"): uma
     // pendente agora foi criada nesta execução e espera o toque do dono.
     const botoes = (await this.temConfirmacaoPendente(comercianteId))
@@ -292,7 +305,22 @@ export class ConversaService implements OnModuleInit {
     }
   }
 
-  private executarAgente(comercianteId: string, nomeComercio: string, entrada: string) {
+  /**
+   * `mensagemAtualId` é a mensagem do dono já gravada que está sendo respondida: o histórico é lido do
+   * banco (regra 11) e termina antes dela, que entra no pedido como `entrada`.
+   */
+  private async executarAgente(
+    comercianteId: string,
+    nomeComercio: string,
+    entrada: string,
+    mensagemAtualId: string,
+  ) {
+    const historico = await carregarHistorico(
+      this.db,
+      comercianteId,
+      this.env.AGENTE_HISTORICO_TURNOS,
+      mensagemAtualId,
+    );
     return this.agente.executar({
       contexto: {
         comercianteId,
@@ -301,6 +329,7 @@ export class ConversaService implements OnModuleInit {
       },
       gatilho: "mensagem_dono",
       entrada,
+      historico,
     });
   }
 

@@ -127,7 +127,7 @@ Decisões do orquestrador:
 
 `send_message`, que o guia listava como ferramenta, **não é ferramenta** nesta arquitetura: o envio é feito pelo canal depois do verificador, e o `AgenteService` já devolve a mensagem pronta (`RespostaAgente`). Deixar o modelo enviar abriria um caminho que pula o verificador.
 
-**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado, e número dito antes não vale sem buscar de novo. A `sistema-v3.md` (padrão) acrescenta: o preço-meta só muda por `propose_target_price` e pelo "sim" do dono (#104), e `ask_owner` e `save_owner_answer` cobrem o dado que só o dono sabe (#53). Cada versão é imutável depois de usada: mudar o comportamento é criar a seguinte, e a versão fica gravada em cada execução.
+**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado, e número dito antes não vale sem buscar de novo. A `sistema-v3.md` acrescenta: o preço-meta só muda por `propose_target_price` e pelo "sim" do dono (#104), e `ask_owner` e `save_owner_answer` cobrem o dado que só o dono sabe (#53). A `sistema-v4.md` (padrão) acrescenta seis regras para perguntas fora do cardápio: chamar `list_alert_candidates` primeiro nas perguntas de parado, reajuste, "posso subir o preço" e gasto fora do normal, e só depois `get_product_margin` ou `get_cost_changes` para o detalhe; quando não puder responder, começar dizendo claramente que não sabe e só depois dizer em uma linha o que dá para responder; recusar em uma frase pedido de mudar regra, ver outro comércio ou escrever valor ditado, sem repetir o número nem o texto do pedido; e, quando faltarem vendas de um período, dizer qual e pedir a planilha uma vez; e usar `list_product_margins` nas perguntas de menor ou maior margem e de quantos produtos estão abaixo da meta. Cada versão é imutável depois de usada: mudar o comportamento é criar a seguinte, e a versão fica gravada em cada execução.
 
 **Falhas e comportamento.**
 
@@ -192,7 +192,7 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 | `propose_target_price`, `historico_preco_meta` (migração `0008_historico_preco_meta`) e resolução do "sim" em código (feito) | `src/agente/confirmacao/`, `src/agente/ferramentas/`, `src/infra/database/schema.ts` | #104 |
 | Motor de alertas com impacto em centavos (semana ou dia) e prioridade | `src/alertas/` | #43, #44 |
 | Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
-| Prompts `sistema-v2.md` e `sistema-v3.md` (feitos) | `src/agente/prompts/` | #54, #55, #104 |
+| Prompts `sistema-v2.md`, `sistema-v3.md` e `sistema-v4.md` (feitos) | `src/agente/prompts/` | #54, #55, #104 |
 | Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |
 
 ## 10. Caminho de evolução: especialistas como ferramentas

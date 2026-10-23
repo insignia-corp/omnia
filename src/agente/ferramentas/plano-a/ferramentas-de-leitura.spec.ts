@@ -204,8 +204,17 @@ describe("ferramentas de leitura do plano A", () => {
       mock.margemDoProduto.mock.calls,
     ]) {
       expect(chamadas).toHaveLength(1);
-      expect(chamadas[0]?.[0]).toBe(contexto);
+      // O comerciante é o da sessão; o ranking mede a janela que termina ontem, então só a data muda.
+      expect(chamadas[0]?.[0]).toMatchObject({
+        comercianteId: contexto.comercianteId,
+        nomeComercio: contexto.nomeComercio,
+      });
     }
+    expect((mock.resumoDiario.mock.calls as unknown[][])[0]?.[0]).toBe(contexto);
+    expect((mock.giro.mock.calls as unknown[][])[0]?.[0]).toEqual({
+      ...contexto,
+      dataReferencia: "2026-10-18",
+    });
     // A busca por nome também é do comerciante da sessão (o SQL leva o id da sessão como parâmetro).
     expect(parametrosDe(banco.execute.mock.calls[0]?.[0])).toContain(contexto.comercianteId);
   });
@@ -399,7 +408,8 @@ describe("ferramentas de leitura do plano A", () => {
         criterio: string;
         produtos: typeof ranking;
       }>;
-      expect(receitaPorProduto).toHaveBeenCalledWith(contexto);
+      // A janela de 7 dias termina ontem (a data de referência ainda não tem vendas completas).
+      expect(receitaPorProduto).toHaveBeenCalledWith({ ...contexto, dataReferencia: "2026-10-18" });
       expect(saida.valor).toEqual({ criterio: "receita", produtos: ranking });
       expect([saida.n_registros, saida.menor_confianca, saida.origens, saida.periodo]).toEqual([
         12,

@@ -19,6 +19,7 @@ import {
   type ModeloLinguagem,
   type PedidoModelo,
 } from "../../src/agente/llm/modelo-linguagem";
+import { FALLBACK } from "../../src/agente/agente.service";
 import { RELOGIO, type Relogio } from "../../src/canal/relogio";
 import { COMERCIANTE_DEMO } from "../../src/canal/web/whatsapp.controller";
 import { TEXTO_PERGUNTA_JA_RESPONDIDA, TEXTO_SEM_PRODUTO } from "../../src/canal/whatsapp/perguntas-da-nota";
@@ -296,8 +297,8 @@ describe("WhatsApp simulado integrado (e2e, issue #182)", () => {
         tocar("resumo_semana", "Resumo da semana", menuAnterior.id, "list_reply"),
       );
       const respostaBotao = botao.mensagens[1]!;
-      expect(corpoDe(respostaBotao)).toContain("Não consegui confirmar os números");
-      expect(respostaBotao.interactive?.type).not.toBe("list");
+      expect(corpoDe(respostaBotao)).toBe(FALLBACK.verificador);
+      expect(respostaBotao.interactive?.type).toBe("button");
     });
 
     it("reentrega do mesmo id devolve as mesmas mensagens sem rodar o agente de novo", async () => {

@@ -393,7 +393,7 @@
     "tipo": "numerica",
     "pergunta": "Qual produto me dá mais lucro, em porcentagem de margem?",
     "ferramentas_esperadas": [
-      "get_product_margin"
+      "list_product_margins"
     ],
     "numeros_esperados": [
       {
@@ -412,7 +412,7 @@
     "tipo": "numerica",
     "pergunta": "Qual produto tem a menor margem?",
     "ferramentas_esperadas": [
-      "get_product_margin"
+      "list_product_margins"
     ],
     "numeros_esperados": [
       {
@@ -431,7 +431,7 @@
     "tipo": "numerica",
     "pergunta": "Quantos produtos estão com margem abaixo da minha meta?",
     "ferramentas_esperadas": [
-      "get_product_margin"
+      "list_product_margins"
     ],
     "numeros_esperados": [
       {

@@ -11,6 +11,7 @@ import { criarGetPeriodSummary } from "./plano-a/get-period-summary";
 import { criarGetProductMargin } from "./plano-a/get-product-margin";
 import { criarGetTopProducts } from "./plano-a/get-top-products";
 import { criarListAlertCandidates } from "./plano-a/list-alert-candidates";
+import { criarListProductMargins } from "./plano-a/list-product-margins";
 
 /**
  * Ferramentas do plano A (dados e alertas). Arquivo só do plano A: os outros planos não editam aqui.
@@ -25,6 +26,7 @@ export function ferramentasPlanoA({ db }: DependenciasFerramentas): Ferramenta[]
     criarGetPeriodSummary(metricas),
     criarGetTopProducts(metricas),
     criarGetProductMargin(metricas, db),
+    criarListProductMargins(metricas),
     criarGetCostChanges(metricas, db),
     criarListAlertCandidates(
       new MotorDeAlertas(metricas, new RepositorioAlertasPostgres(db), new FonteDeLimitesPostgres(db)),

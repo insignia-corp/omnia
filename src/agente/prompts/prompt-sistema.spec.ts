@@ -85,6 +85,7 @@ describe("carregarPromptSistema", () => {
         "save_owner_answer",
         "get_product_margin",
         "get_cost_changes",
+        "get_daily_summary",
         "list_product_margins",
         // Parâmetros de list_product_margins e campos de saída citados na regra 13.
         "filtro",

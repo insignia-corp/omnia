@@ -47,7 +47,7 @@ describe("carregarPromptSistema", () => {
         /^10\. .*vendas, gastos, margens, reajustes de custo, estoque parado e avisos do dia/m,
       );
       expect(v4).toMatch(/^11\. .*não repita o texto dele/m);
-      expect(v4).toMatch(/^12\. .*peça a planilha de vendas, uma vez/m);
+      expect(v4).toMatch(/^12\. .*peça a planilha de vendas\. Peça uma vez só na conversa/m);
     });
 
     it("manda usar list_product_margins nas perguntas de menor ou maior margem e de quantos abaixo da meta", () => {
@@ -55,14 +55,18 @@ describe("carregarPromptSistema", () => {
       expect(regra).toContain("`list_product_margins`");
       expect(regra).toContain("menor ou a maior margem");
       expect(regra).toContain("quantos produtos estão abaixo da meta");
+      expect(regra).toContain("`filtro` com `abaixo_da_meta`");
+      expect(regra).toContain("`total_que_atendem`");
       expect(regra).toContain("`get_product_margin`");
     });
 
     it("pede o não sei explícito antes das alternativas, recusa sem repetir o pedido e o preço com a margem", () => {
       const regra = (n: number) => v4.split("\n").find((l) => l.startsWith(`${n}. `)) ?? "";
+      expect(regra(10)).toContain("vale a regra 6");
       expect(regra(10)).toContain("comece com uma frase clara dizendo que não sabe");
       expect(regra(10)).toContain("Só depois");
       expect(regra(11)).toContain("não escreva número nenhum que veio do pedido");
+      expect(regra(14)).toContain("`get_product_margin`");
       expect(regra(14)).toContain("margem atual e o preço que leva à meta");
     });
 
@@ -77,10 +81,17 @@ describe("carregarPromptSistema", () => {
         "get_product_margin",
         "get_cost_changes",
         "list_product_margins",
+        // Parâmetros de list_product_margins e campos de saída citados na regra 13.
+        "filtro",
+        "ordenar",
+        "abaixo_da_meta",
+        "menor_margem",
+        "maior_margem",
+        "total_que_atendem",
       ]);
       for (const nome of citadas) {
         // Campos citados nas regras da v3, não ferramentas.
-        if (nome === "pergunta_id" || nome === "abaixo_da_meta" || nome?.endsWith("_centavos")) continue;
+        if (nome === "pergunta_id" || nome?.endsWith("_centavos")) continue;
         expect(existentes.has(nome ?? "")).toBe(true);
       }
       expect(v4).not.toMatch(/[—–]/);

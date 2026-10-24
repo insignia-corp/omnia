@@ -15,7 +15,7 @@ Atualizado em: 2026-10-24 · commit base: `399ac4a` (`develop` após o PR 203) �
 - Etapa 6 (canal): na `develop`, `MessageChannel`, chat web como plano B, escolha por `CANAL`, job do relatório diário com chave de idempotência e horário de silêncio (#64, #66, #106). WhatsApp simulado para o pitch (#179, PR 181) ligado ao backend e ao banco (#182, PR 190), ambos mesclados: `/whatsapp` servido pelo Nest, status e digitando do banco, botões e lista escolhidos em código, modelo `resumo_diario` fora da janela de 24 h, nota lida na conversa e `/painel`. Resposta em texto livre mantém o histórico da conversa e uma resposta barrada abre o menu (PR 192). Painel do dono e bastidores com o visual novo para o pitch (PRs 208 e 210). Detalhe em `src/canal/README.md`. A Cloud API real (#61 a #63) e áudio (#107) não começaram.
 - Etapa 7 (avaliação): o harness `npm run eval` existe (#68), com perguntas numéricas, casos do verificador, perguntas sem resposta, injeção de instrução e casos de medição (#69, #70, #72, #73 e #74, fechadas). Rodadas com modelo real em 22/10 (prompt v3), 23/10 (v3 e v4) e 24/10 (v5): a final está em `docs/avaliacoes/2026-10-24-sistema-v5-claude-sonnet-5-5-rodada-final.md` e os números vigentes em "Números vigentes". O avaliador foi corrigido e afrouxado onde a resposta estava certa (PRs 193, 196 e 200); a leitura das falhas está em `docs/avaliacoes/analise-falhas-22-10.md`. A avaliação da extração de notas tem runner próprio, `npm run eval:extracao` (#71), e custo e tempo por execução saem de `npm run eval:custo` (#74).
 - Etapa 8 (demo): dataset fixo com reset em um comando (#76), tela de bastidores (#77) na `develop`. Faltam roteiro, gravação e checklist de congelamento (#78, #79, #111).
-- Próxima ação: mesclar o PR 215 (resumo do dia e avisos olham ontem); depois, roteiro, gravação e checklist de congelamento (#78, #79, #111) e ensaio do pitch em `/whatsapp` com `npm run seed:demo` e `DEMO_DATA_REFERENCIA=2026-10-20`. Congelamento do código: hoje, 24/10 às 15h30. Fila atual: `gh issue list --label prioridade:P0 --state open`.
+- Próxima ação: mesclar o PR 215 (resumo do dia e avisos olham ontem, o único PR aberto); depois, roteiro, gravação e checklist de congelamento (#78, #79, #111) e ensaio do pitch em `/whatsapp` com `npm run seed:demo` e `DEMO_DATA_REFERENCIA=2026-10-20`. Congelamento do código: hoje, 24/10 às 15h30. Fila atual: `gh issue list --label prioridade:P0 --state open`.
 
 ## Números vigentes
 
@@ -36,9 +36,7 @@ Gerados em 2026-10-24 sobre a `develop` em `399ac4a` (limpa), com Node 24, Postg
 
 ## Em PR aberto
 
-- Este PR: checkpoint final do ESTADO e leitura dos README de `alertas`, `metricas`, `ingestao` e `comerciante` contra o código.
-- PR 215: resumo do dia e avisos olham ontem, o último dia completo (#211).
-- PRs 216 e 217: revisão das docs de agente, canal e eval (216) e das docs-base (217) contra o código.
+- PR 215: resumo do dia e avisos olham ontem, o último dia completo (#211). É o único aberto em 2026-10-24 (`gh pr list`); os PRs 216, 217 e 218 (revisão das docs e este ESTADO) já foram mesclados.
 
 ## Pendências
 
@@ -66,5 +64,5 @@ Gerados em 2026-10-24 sobre a `develop` em `399ac4a` (limpa), com Node 24, Postg
 - 2026-10-21 (madrugada de 22): cobertura de extrato por conta e origem e confiança do produto nas métricas (PR 170).
 - 2026-10-22: alertas fechados de ponta a ponta (#155, #157, #147, #186), extrato por sincronização (#166), resolução de planilha parcial (#142), exceção da regra 7 (#172), WhatsApp simulado ligado ao banco (#182, PR 190) e a primeira rodada real do eval.
 - 2026-10-23: histórico da conversa e menu quando o agente não consegue responder (PR 192), avaliador corrigido e análise das falhas (PR 193), `list_product_margins` (PR 194) e a rodada real do eval; este checkpoint.
-- 2026-10-24: prompt `sistema-v5` e rodada final do eval real (45 de 55), período padrão ontem nas ferramentas, painel e bastidores com o visual do pitch, este checkpoint final e a revisão dos README de módulo.
+- 2026-10-24: prompt `sistema-v5` e rodada final do eval real (45 de 55), período padrão ontem nas ferramentas, painel e bastidores com o visual do pitch, este checkpoint final e a revisão dos README de módulo e das docs-base. Mesclados no dia: PRs 196 a 203 (avaliador, prompts v4 e v5, relatórios do eval), 208 e 210 (visuais) e 216 a 218 (docs).
 - 2026-10-24 15h30: congelamento do código.

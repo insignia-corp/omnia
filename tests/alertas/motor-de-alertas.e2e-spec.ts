@@ -40,6 +40,12 @@ const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf
   alertas_que_nao_devem_disparar: NaoDispara[];
 };
 const REF = gabarito.parametros.data_referencia;
+/**
+ * A regra de gasto fora do padrão saiu do motor (o extrato bancário é trabalho futuro): o gabarito segue
+ * com ela em `fixtures/`, e o teste a tira dos esperados.
+ */
+const alertasEsperados = gabarito.alertas_esperados.filter((a) => a.tipo !== "gasto_fora_do_padrao");
+const QUANTOS = alertasEsperados.length;
 
 describe("motor de alertas contra o gabarito (e2e)", () => {
   const url = carregarEnv().DATABASE_URL;
@@ -110,19 +116,19 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
     it("o motor no seed gera exatamente os candidatos do gabarito", async () => {
       const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
       const obtidos = r.candidatos.map(chaveDaLinha).sort();
-      const esperados = gabarito.alertas_esperados
+      const esperados = alertasEsperados
         .map((a) => chaveDoGabarito(a.tipo, a.produto_id, a.fornecedor_id))
         .sort();
-      expect(esperados).toHaveLength(16);
+      expect(esperados).toHaveLength(15);
       expect(obtidos).toEqual(esperados);
-      expect(r.gravados).toBe(16);
+      expect(r.gravados).toBe(QUANTOS);
       expect(r.suprimidos).toEqual([]);
     });
 
     it("grava como candidato, com os números do gabarito nas métricas de apoio", async () => {
       const linhas = await linhasDoBanco(vilaNova);
-      expect(linhas).toHaveLength(16);
-      for (const esperado of gabarito.alertas_esperados) {
+      expect(linhas).toHaveLength(QUANTOS);
+      for (const esperado of alertasEsperados) {
         const chave = chaveDoGabarito(esperado.tipo, esperado.produto_id, esperado.fornecedor_id);
         const linha = linhas.find((l) => chaveDaLinha(l) === chave);
         expect(linha).toMatchObject({ status: "candidato", dataReferencia: REF });
@@ -139,7 +145,7 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       }
     });
 
-    it("a prioridade vai de 1 a 3, e os dois alertas de mais de R$ 900 do dia são prioridade 1", async () => {
+    it("a prioridade vai de 1 a 3, e o alerta de mais de R$ 900 do dia é prioridade 1", async () => {
       const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
       expect(r.candidatos.map((c) => c.prioridade)).toEqual(
         [...r.candidatos.map((c) => c.prioridade)].sort(),
@@ -156,7 +162,7 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       });
       const porTipo = (tipo: string) => r.candidatos.filter((c) => c.tipo === tipo);
       expect(porTipo("ticket_medio_em_queda")[0]?.prioridade).toBe(1);
-      expect(porTipo("gasto_fora_do_padrao")[0]?.prioridade).toBe(1);
+      expect(porTipo("gasto_fora_do_padrao")).toEqual([]);
       // Sem impacto em reais, giro e estoque parado ficam no nível mais baixo.
       for (const c of [...porTipo("giro_em_alta"), ...porTipo("estoque_parado")])
         expect(c.prioridade).toBe(3);
@@ -180,7 +186,7 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       const antes = await linhasDoBanco(vilaNova);
       const r = await motor.executar({ comercianteId: vilaNova, dataReferencia: REF });
       expect(r.gravados).toBe(0);
-      expect(r.candidatos).toHaveLength(16);
+      expect(r.candidatos).toHaveLength(QUANTOS);
       expect(await linhasDoBanco(vilaNova)).toEqual(antes);
     });
   });
@@ -203,11 +209,11 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
         expect(l.comercianteId).toBe(esquina);
         if (l.produtoId) expect(dela.has(l.produtoId)).toBe(true);
       }
-      // O lojista vizinho continua com os mesmos 16.
+      // O lojista vizinho continua com os mesmos candidatos.
       expect(await linhasDoBanco(vilaNova)).toEqual(antes);
     });
 
-    it("a Esquina tem 14 dias de dados: giro, ticket e gasto vêm como dado ausente, não como zero", async () => {
+    it("a Esquina tem 14 dias de dados: giro e ticket vêm como dado ausente, não como zero", async () => {
       const r = await motor.executar({ comercianteId: esquina, dataReferencia: REF });
       const codigos = r.ausentes.map((a) => `${a.tipo}:${a.codigo}`);
       expect(codigos).toEqual(
@@ -215,16 +221,10 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
           "giro_em_alta:historico_insuficiente",
           "espaco_para_subir_preco:historico_insuficiente",
           "ticket_medio_em_queda:historico_insuficiente",
-          "gasto_fora_do_padrao:historico_insuficiente",
         ]),
       );
       const tipos = new Set((await linhasDoBanco(esquina)).map((l) => l.tipo));
-      for (const tipo of [
-        "giro_em_alta",
-        "espaco_para_subir_preco",
-        "ticket_medio_em_queda",
-        "gasto_fora_do_padrao",
-      ]) {
+      for (const tipo of ["giro_em_alta", "espaco_para_subir_preco", "ticket_medio_em_queda"]) {
         expect(tipos.has(tipo as never)).toBe(false);
       }
     });
@@ -311,7 +311,8 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
         "reajuste_de_custo|P03",
       ]);
       expect(r.candidatos.some((c) => c.tipo === "reajuste_de_custo")).toBe(false);
-      expect(r.candidatos).toHaveLength(14);
+      // Os 15 do gabarito sem o gasto, menos os 2 reajustes suprimidos.
+      expect(r.candidatos).toHaveLength(QUANTOS - 2);
     });
 
     it("alerta enviado há 7 dias ou mais, ou só candidato, não suprime", async () => {

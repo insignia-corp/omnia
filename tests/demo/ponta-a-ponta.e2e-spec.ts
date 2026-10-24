@@ -44,6 +44,8 @@ const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf
 const REF = gabarito.parametros.data_referencia;
 /** A demo roda no dia seguinte ao gabarito (`DEMO_DATA_REFERENCIA=2026-10-20`): os avisos são de ontem, o REF. */
 const HOJE = somarDias(REF, 1);
+/** A regra de gasto fora do padrão saiu do motor (extrato bancário é trabalho futuro). */
+const QUANTOS_ALERTAS = gabarito.alertas_esperados.filter((a) => a.tipo !== "gasto_fora_do_padrao").length;
 const reajuste = gabarito.alertas_esperados.find(
   (a) => a.tipo === "reajuste_de_custo" && a.produto_id === "P01",
 )!;
@@ -242,9 +244,7 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
       .where(eq(schema.chamadaFerramenta.execucaoId, execucao!.id))
       .orderBy(asc(schema.chamadaFerramenta.ordem));
     expect(chamadas.map((c) => c.ferramenta)).toEqual(["list_alert_candidates", "select_alerts"]);
-    expect((chamadas[0]!.saida as { n_registros: number }).n_registros).toBe(
-      gabarito.alertas_esperados.length,
-    );
+    expect((chamadas[0]!.saida as { n_registros: number }).n_registros).toBe(QUANTOS_ALERTAS);
     expect(
       (chamadas[1]!.entrada as { alertas: Array<{ alerta_id: string }> }).alertas.map((a) => a.alerta_id),
     ).toEqual([alertaDoJob]);
@@ -258,7 +258,7 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
     expect(escolhido.enviadoEm).not.toBeNull();
     expect(escolhido.execucaoId).toBe(execucao!.id);
     const outros = alertas.filter((a) => a.id !== alertaDoJob);
-    expect(outros).toHaveLength(gabarito.alertas_esperados.length - 1);
+    expect(outros).toHaveLength(QUANTOS_ALERTAS - 1);
     expect(outros.every((a) => a.status === "candidato")).toBe(true);
   });
 

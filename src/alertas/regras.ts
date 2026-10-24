@@ -391,6 +391,10 @@ export const regraGastoForaDoPadrao: RegraDeAlerta = {
   },
 };
 
+/**
+ * As regras que o motor roda. A de gasto fora do padrão (`regraGastoForaDoPadrao`) fica fora: o extrato
+ * bancário saiu do produto (futuro). A função e o teste dela continuam no código.
+ */
 export const REGRAS_DE_ALERTA: readonly RegraDeAlerta[] = [
   regraReajusteDeCusto,
   regraMargemAbaixoDaMeta,
@@ -398,5 +402,4 @@ export const REGRAS_DE_ALERTA: readonly RegraDeAlerta[] = [
   regraGiroEmAlta,
   regraEstoqueParado,
   regraTicketMedioEmQueda,
-  regraGastoForaDoPadrao,
 ];

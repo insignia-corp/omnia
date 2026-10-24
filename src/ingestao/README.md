@@ -11,7 +11,7 @@ Foto de nota (modelo com visão + validação em código), planilha de vendas e 
 3. registra a execução (gatilho `extracao_nota`) com tokens, custo e latência, antes de gravar: a chamada já foi cobrada, então uma queda ou um job repetido não deixam extração sem auditoria;
 4. grava fornecedor, compra e itens numa transação (`gravar-compra.ts`) e deixa o documento em `extraido` ou `revisao`. Há `revisao` quando existe item duvidoso ou a confiança do documento fica abaixo do limite; nesse caso a nota nunca fica sem saída, porque ela gera a pergunta do item ou a do documento (veja "Perguntas ao dono").
 
-Dois casos de entrada ruim não derrubam a gravação: CNPJ sem 14 dígitos (ilegível, "N/A") grava o fornecedor com `cnpj` nulo e o reaproveita só pelo nome entre fornecedores também sem CNPJ, nunca com identificador vazio compartilhado; data que não existe no calendário ("2026-02-31") grava a compra na data do envio do documento, com o motivo `data_invalida`, a confiança do documento reduzida e a do histórico de custo limitada a ela. Se a gravação falhar na última tentativa, o documento vai para `falha` em vez de ficar em `processando`.
+Dois casos de entrada ruim não derrubam a gravação: Identificador sem CNPJ de 14 dígitos, CNPJ alfanumérico válido ou CPF com dígito verificador certo (ilegível, "N/A") grava o fornecedor com `cnpj` nulo e o reaproveita só pelo nome entre fornecedores também sem CNPJ, nunca com identificador vazio compartilhado; data que não existe no calendário ("2026-02-31") grava a compra na data do envio do documento, com o motivo `data_invalida`, a confiança do documento reduzida e a do histórico de custo limitada a ela. Se a gravação falhar na última tentativa, o documento vai para `falha` em vez de ficar em `processando`.
 
 `GET /documentos/:id` devolve status, motivos, compra e itens com a confiança de cada um.
 
@@ -19,8 +19,9 @@ Dois casos de entrada ruim não derrubam a gravação: CNPJ sem 14 dígitos (ile
 
 Depois de gravar os itens, cada descrição tenta ligar a um produto (`vinculo/vincular-produto.ts`), nesta ordem:
 
-1. vínculo já confirmado pelo dono (mesmo fornecedor primeiro, depois qualquer um): liga sem perguntar;
-2. similaridade `pg_trgm` contra o catálogo e contra descrições já confirmadas. Liga sozinho se passar de `LIMITE_SIMILARIDADE` e superar o segundo candidato por 0,1; senão pergunta ao dono com até 3 sugestões.
+1. código de barras (GTIN válido) igual ao de um produto do comerciante, quando a origem o traz (a NF-e traz, a foto não): liga sem perguntar;
+2. vínculo já confirmado pelo dono (mesmo fornecedor primeiro, depois qualquer um): liga sem perguntar;
+3. similaridade `pg_trgm` contra o catálogo e contra descrições já confirmadas. Liga sozinho se chegar a `LIMITE_SIMILARIDADE` (padrão 0,45) e ficar pelo menos 0,1 acima do segundo candidato; senão pergunta ao dono com até 3 sugestões.
 
 Item ligado grava uma linha em `historico_custo` com a menor entre a confiança do item, a do vínculo e a do documento (CNPJ, data e soma conferidos em código). Item sem produto fica sem custo no histórico até o dono escolher. O código de barras (GTIN com dígito verificador válido, `lib/gtin`) é o primeiro passo quando a origem o traz; a foto não traz, a NF-e traz (`cEAN`). Quando nada liga, `vinculo/sugestor-vinculo.ts` pede ao modelo (`VINCULO_MODELO`, Haiku por padrão) o produto do cadastro, uma chamada por nota e só para os itens sem vínculo. O modelo vê referências locais (`i1`, `p1`...), nunca ids; o código valida a referência e traduz para o produto do próprio comerciante, e a confiança é limitada a 0,7. A sugestão nunca liga o item: entra como "Parece ser X" na pergunta `confirmar_vinculo` (`contexto.sugestao_modelo`), e se o dono confirma o vínculo é gravado com `metodo = modelo` e `confirmado_pelo_dono`. Sem chave de API, com tudo ligado, em job repetido, ou se o modelo falhar, não há sugestão e a nota segue como antes (o erro não sobe, para não repetir o job e cobrar a extração de novo). Cada chamada é registrada em `execucao_agente` com `gatilho = vinculo_produto`, tokens e custo.
 
@@ -35,11 +36,11 @@ Item abaixo de `LIMITE_CONFIANCA_ITEM` gera uma `pergunta_dono` `confirmar_item`
 
 A correção do item entra com origem `dono` e confiança 1 (a quantidade, se vier, com no máximo 3 casas decimais, a precisão de `item_de_compra.quantidade`), e o `historico_custo` ganha uma linha nova: o que o modelo leu continua lá. O documento é recalculado (`revisao/recalcular-documento.ts`): soma refeita contra o total, motivo do item resolvido sai, status volta a `extraido` quando não resta item duvidoso nem motivo do documento. Confirmar um vínculo liga também os outros itens iguais do mesmo fornecedor e dispensa as perguntas deles.
 
-Confirmar o documento tira a nota da revisão (motivo `documento_confirmado`: os motivos continuam na lista, mas deixam de reduzir a confiança) e reemite o custo dos itens ligados com a confiança nova, em linhas novas do `historico_custo`. Corrigir um item que faça a soma deixar de fechar também cria essa pergunta, para a nota nunca ficar em revisão sem saída.
+Confirmar o documento tira a nota da revisão (motivo `documento_confirmado`: os motivos continuam na lista, mas deixam de reduzir a confiança) e reemite o custo dos itens ligados com a confiança nova, em linhas novas do `historico_custo`. Toda resposta de item ou de nota reemite o custo (`reemitirCustos`, em `revisao/custos-do-documento.ts`), e a linha nova só entra quando custo ou confiança mudam; a resposta de vínculo grava o `historico_custo` direto. Corrigir um item que faça a soma deixar de fechar também cria essa pergunta, para a nota nunca ficar em revisão sem saída.
 
 ## Planilha de vendas (#28)
 
-`POST /documentos/planilhas` (campo `arquivo`, CSV ou XLSX) guarda o arquivo, cria o `documento` e lê os cabeçalhos. O formato é identificado pela assinatura dos cabeçalhos (`planilha/mapeamento.ts`):
+`POST /documentos/planilhas` (campo `arquivo`, CSV ou XLSX; um arquivo por envio, até `UPLOAD_MAX_BYTES`, 10 MiB por padrão; acima do limite 413, tipo não aceito 415) guarda o arquivo, cria o `documento` e lê os cabeçalhos. O formato é identificado pela assinatura dos cabeçalhos (`planilha/mapeamento.ts`):
 
 - **Primeira vez do formato:** devolve `precisa_confirmar` com o mapeamento sugerido (data, hora, cupom, código de barras, produto, quantidade, preço unitário, total) e os campos obrigatórios que faltam. O dono confirma em `POST /documentos/planilhas/:id/confirmar` com `{ "mapeamento": { "data": "Data", ... } }`; o mapeamento fica em `mapeamento_planilha` por comerciante.
 - **Formato já confirmado:** importa na hora, sem perguntar de novo.
@@ -52,9 +53,9 @@ Conferido contra o gabarito (`tests/planilha-vendas.e2e-spec.ts`): CSV e XLSX im
 
 ## NF-e em XML (#29)
 
-O mesmo `POST /documentos/notas` aceita o XML (o tipo vem dos primeiros bytes, não da extensão). `nfe/ler-nfe.ts` lê em código, sem modelo: parser SAX (`saxes`) que não lê DTD nem resolve entidades e recusa qualquer DOCTYPE (XXE, entidades em cascata). Os elementos casam pelo nome local, então prefixo de namespace e o layout antigo (`dEmi`) funcionam. Só entram emitente, data, itens (`xProd`, `uCom`, `qCom`, `vUnCom`, `vProd`), número e `vNF`; texto livre como `infAdic` é ignorado e nada do XML vira instrução. Dinheiro vem por texto e inteiro (`parseDecimalNfe`, até 10 casas, arredonda na 3ª), sem ponto flutuante. O total é o `vNF`.
+O mesmo `POST /documentos/notas` aceita o XML (o tipo vem dos primeiros bytes, não da extensão). `nfe/ler-nfe.ts` lê em código, sem modelo: parser SAX (`saxes`) que não lê DTD nem resolve entidades e recusa qualquer DOCTYPE (XXE, entidades em cascata). Os elementos casam pelo nome local, então prefixo de namespace e o layout antigo (`dEmi`) funcionam. Só entram emitente, data, itens (`xProd`, `uCom`, `qCom`, `vUnCom`, `vProd`, `cEAN`), número e `vNF`; texto livre como `infAdic` é ignorado e nada do XML vira instrução. Dinheiro vem por texto e inteiro (`parseDecimalNfe`, até 10 casas, arredonda na 3ª), sem ponto flutuante. O total é o `vNF`.
 
-O XML é lido antes de ser guardado (inválido devolve 422 e não deixa rastro). Depois passa pelas mesmas conferências da foto (`validarNota`) e pelo mesmo `gravarCompra`, na própria requisição e sem fila, com origem `nfe` e confiança 1 em compra e itens. Vínculo, perguntas e histórico de custo seguem o caminho da foto; como o vínculo por similaridade devolve a própria similaridade, o custo gravado pode ter confiança menor que 1. Nota com frete, desconto ou imposto que faz a soma dos itens divergir do `vNF` cai em `revisao` (`soma_diverge_do_total`) e o dono confirma.
+O XML é lido antes de ser guardado (inválido devolve 422 e não deixa rastro). Depois passa pelas mesmas conferências da foto (`validarNota`) e pelo mesmo `gravarCompra`, na própria requisição e sem fila, com origem `nfe`; a leitura entra com confiança 1 e as conferências em código (soma, CNPJ, data) a reduzem quando falham. Vínculo, perguntas e histórico de custo seguem o caminho da foto; como o vínculo por similaridade devolve a própria similaridade, o custo gravado pode ter confiança menor que 1. Nota com frete, desconto ou imposto que faz a soma dos itens divergir do `vNF` cai em `revisao` (`soma_diverge_do_total`) e o dono confirma.
 
 Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem outro hash e vira outra compra. Conferido em `tests/ingestao-nfe.e2e-spec.ts` contra `fixtures/notas/nota-18`.
 
@@ -64,7 +65,7 @@ Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem
 | --- | --- |
 | JSON fora do esquema | uma nova tentativa com o erro do Zod; depois `falha` (`json_invalido`) |
 | Imagem ilegível, recusa, erro não transitório | `falha` na hora, nada gravado |
-| Timeout, 408, 409, 429, 5xx | o BullMQ repete o job; `falha` só na última tentativa |
+| Timeout, falha de rede, 408, 409, 429, 5xx | o BullMQ repete o job; `falha` só na última tentativa |
 | Erro ao validar ou gravar (banco fora, restrição violada) | o BullMQ repete o job; na última tentativa o documento vira `falha` (`erro_gravacao`). A execução do modelo é registrada antes da gravação, então toda chamada cobrada fica auditada; no caminho de falha, o estado `falha` e o registro vão na mesma transação |
 | Job repetido de documento já resolvido | ignorado, sem nova chamada ao modelo |
 | `falha` de vez (na hora ou na última tentativa) | o worker chama o aviso que o canal registra (`FilaExtracao.aoFalharDeVez`); se a nota entrou pelo chat, o dono recebe uma resposta fixa pedindo outra foto (#158). Job repetido de documento já em `falha` chama o aviso de novo (cobre o processo que caiu antes de avisar); a chave da mensagem impede repetir. Tentativa que será repetida não avisa; nota de `POST /documentos/notas` não tem conversa e não avisa |
@@ -75,4 +76,4 @@ Reenviar o mesmo arquivo é `duplicado`; o mesmo XML com espaços diferentes tem
 
 ## Pendente nesta etapa
 
-Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso de falha só sai pelo chat web; no WhatsApp ele depende de a foto chegar pela conversa (#63). O estado continua em `documento.status` e `documento.erro`.
+Ninguém testou o sugestor com chave real: validar à mão com 2 ou 3 descrições. O aviso de falha só sai pelo chat web; no WhatsApp ele depende de a foto chegar pela conversa (#63). O estado continua em `documento.status_extracao` e `documento.erro`.

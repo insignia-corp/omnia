@@ -128,8 +128,15 @@ describe("carregarPromptSistema", () => {
       expect(r).toContain("que traz produto");
       expect(r).toContain("Totais do comércio");
       expect(r).toContain("só desse item");
+      expect(r).toContain("De `list_alert_candidates`, cite no máximo 3 candidatos");
+      expect(r).toContain("De `list_product_margins`, escreva todos os produtos que ela devolveu");
+      expect(r).toContain("vale a regra 9");
+      expect(r).toContain("a pergunta de confirmação da regra 4 e a ressalva da regra 14 não se cortam");
+      expect(r).toContain('"queda de"');
       expect(r).toContain("siga a regra 10, inclusive a frase inicial");
-      expect(regra(v5, 12)).toContain("não ofereça nada além da linha da regra 10");
+      expect(regra(v5, 12)).toContain(
+        "não ofereça nada além da linha da regra 10, que pode vir depois do pedido da planilha",
+      );
       expect(r).toContain("No relatório diário vale a regra 3");
       for (const termo of ["dias sem venda", "percentual", "valor anterior e atual", "mediana ou limite"]) {
         expect(r).toContain(termo);
@@ -142,7 +149,8 @@ describe("carregarPromptSistema", () => {
     it("o não sei começa com a frase clara e sem outros números, e a recusa é de uma frase só", () => {
       expect(regra(v5, 10)).toContain('começando com "Não sei" ou "Não tenho esse dado"');
       expect(regra(v5, 10)).toContain("Não escreva outros números nem resumos de outros assuntos");
-      expect(regra(v5, 11)).toContain("A recusa tem uma frase só, curta");
+      expect(regra(v5, 10)).toContain("se só um item não tem dado, veja a regra 15");
+      expect(regra(v5, 11)).toContain("A parte da recusa é uma frase só, curta, e vem primeiro");
       expect(regra(v5, 11)).toContain("nem número de telefone");
       expect(regra(v5, 11)).toContain("enviar dados a outro número");
       expect(regra(v5, 11)).toContain("responda a pergunta com a ferramenta e recuse só o resto");

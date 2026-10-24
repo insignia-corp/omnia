@@ -137,12 +137,26 @@ function escritoNaMensagem(mensagem: string, esperado: NumeroEsperado, todos: Nu
       posicao + texto.length + JANELA_DEPOIS,
     );
     if (esperado.contextoExcluido) {
-      // Em lista, vale a linha inteira do número: o nome do outro produto nem antes nem depois dele.
+      // Em lista, o número é do último produto citado antes dele; sem nome antes, do primeiro depois dele (na
+      // linha, com `janelaPorLinha`). Se esse produto é o outro, a atribuição está trocada.
       const fimDaLinha = mensagem.indexOf("\n", posicao);
-      const fimExcluido = esperado.janelaPorLinha && fimDaLinha !== -1 ? Math.min(fim, fimDaLinha) : fim;
-      const trecho =
-        mensagem.slice(inicio, posicao) + " " + mensagem.slice(posicao + texto.length, fimExcluido);
-      if (esperado.contextoExcluido.test(trecho)) return false;
+      const fimAtribuicao = esperado.janelaPorLinha && fimDaLinha !== -1 ? Math.min(fim, fimDaLinha) : fim;
+      const ultimo = (re: RegExp, trecho: string): number => {
+        const todos = [...trecho.matchAll(new RegExp(re.source, `${re.flags.replace("g", "")}g`))];
+        return todos.length ? (todos.at(-1)?.index ?? -1) : -1;
+      };
+      const primeiro = (re: RegExp, trecho: string): number => trecho.search(re);
+      const antes = mensagem.slice(inicio, posicao);
+      const depois = mensagem.slice(posicao + texto.length, fimAtribuicao);
+      const proprioAntes = ultimo(esperado.contexto, antes);
+      const outroAntes = ultimo(esperado.contextoExcluido, antes);
+      if (proprioAntes !== -1 || outroAntes !== -1) {
+        if (outroAntes > proprioAntes) return false;
+      } else {
+        const proprioDepois = primeiro(esperado.contexto, depois);
+        const outroDepois = primeiro(esperado.contextoExcluido, depois);
+        if (outroDepois !== -1 && (proprioDepois === -1 || outroDepois < proprioDepois)) return false;
+      }
     }
     return esperado.contexto.test(mensagem.slice(inicio, fim));
   });

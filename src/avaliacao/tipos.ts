@@ -27,8 +27,9 @@ export interface NumeroEsperado {
    */
   janelaPorLinha?: boolean;
   /**
-   * Palavras que não podem aparecer na janela do número, antes nem depois dele (com `janelaPorLinha`, na linha
-   * dele). Em lista com mais de um produto, impede que o valor de um produto seja aceito com o nome de outro.
+   * Palavras do outro produto, em lista com mais de um: o número é do último produto citado antes dele (ou, sem
+   * nome antes, do primeiro depois dele, na linha dele com `janelaPorLinha`). Se esse for o outro, a atribuição
+   * está trocada e o número não vale.
    */
   contextoExcluido?: RegExp;
 }

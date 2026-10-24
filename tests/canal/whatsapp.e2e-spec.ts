@@ -503,7 +503,7 @@ describe("WhatsApp simulado integrado (e2e, issue #182)", () => {
       });
       expect(recebi!.text!.body).toMatch(/Recebi o XML/);
       // A leitura vem montada do banco; sem dúvida, com botões e cabeçalho; com dúvida, seguida das perguntas.
-      expect(corpoDe(lida)).toMatch(/^Nota da .+ recebida: \d+ itens?, total R\$ [\d.]+,\d{2}\./);
+      expect(corpoDe(lida)).toMatch(/^🧾 \*.+\*\n\d+ itens?, total \*R\$ [\d.]+,\d{2}\*/u);
       if (lida!.type === "interactive") expect(lida!.interactive!.header!.text).toBe("Nota lida");
       else expect(perguntas.length).toBeGreaterThan(0);
       expect(perguntas.length).toBeLessThanOrEqual(3);

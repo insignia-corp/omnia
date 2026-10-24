@@ -34,7 +34,12 @@ const nota16: NotaParaMensagem = {
 describe("textoNotaLida", () => {
   it("todos os custos iguais: só confirma, sem listar itens", () => {
     expect(textoNotaLida(nota16)).toBe(
-      "Nota da Distribuidora Aurora Alimentos recebida: 3 itens, total R$ 473,70. Tudo certo com os preços.",
+      [
+        "🧾 *Distribuidora Aurora Alimentos*",
+        "3 itens, total *R$ 473,70*",
+        "",
+        "✅ Tudo certo com os preços.",
+      ].join("\n"),
     );
   });
 
@@ -43,20 +48,23 @@ describe("textoNotaLida", () => {
     const acucar = avisoDeCusto("Açúcar refinado 1kg", 309, 299)!;
     expect(textoNotaLida({ ...nota16, avisosDeCusto: [cafe, acucar] })).toBe(
       [
-        "Nota da Distribuidora Aurora Alimentos recebida: 3 itens, total R$ 473,70.",
-        "Atenção: Café torrado 500g, a última compra foi por R$ 16,90 e agora veio por R$ 18,70 (alta de 10,65%).",
-        "Atenção: Açúcar refinado 1kg, a última compra foi por R$ 3,09 e agora veio por R$ 2,99 (queda de 3,24%).",
+        "🧾 *Distribuidora Aurora Alimentos*",
+        "3 itens, total *R$ 473,70*",
+        "",
+        "⚠️ *Custo diferente da última compra*",
+        "• *Café torrado 500g*: de R$ 16,90 para R$ 18,70 (alta de 10,65%)",
+        "• *Açúcar refinado 1kg*: de R$ 3,09 para R$ 2,99 (queda de 3,24%)",
       ].join("\n"),
     );
   });
 
   it("um item só fica no singular", () => {
-    expect(textoNotaLida({ ...nota16, itens: [nota16.itens[0]!] })).toContain("recebida: 1 item, total");
+    expect(textoNotaLida({ ...nota16, itens: [nota16.itens[0]!] })).toContain("\n1 item, total");
   });
 
   it("soma que não fecha aparece, sem esconder o total da nota", () => {
     expect(textoNotaLida({ ...nota16, somaItensCentavos: 47000 })).toContain(
-      "Tudo certo com os preços.\n\nA soma dos itens dá R$ 470,00, diferente do total da nota.",
+      "✅ Tudo certo com os preços.\n\nA soma dos itens dá R$ 470,00, diferente do total da nota.",
     );
   });
 

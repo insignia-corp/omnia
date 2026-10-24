@@ -36,9 +36,10 @@ const confiancaDe = (metricasApoio: Record<string, unknown>): number | null =>
  * Candidatos a alerta do dia (issue #52). Roda o motor de alertas para o comerciante da sessão e o
  * dia anterior à data de referência da execução (o último dia completo), e devolve os candidatos para o agente escolher até 3 em
  * `select_alerts`. Nada vem do modelo: a ferramenta não tem entrada, então o modelo não escolhe
- * comerciante nem data. O motor só acrescenta linhas `candidato` derivadas das métricas e é
- * idempotente (comerciante, tipo, chave e data), sem efeito sobre dinheiro nem sobre configuração
- * do dono, então a ferramenta é de leitura do ponto de vista do dono (efeito "nenhum").
+ * comerciante nem data. O motor grava linhas `candidato` derivadas das métricas, de forma
+ * idempotente (comerciante, tipo, chave e data), e marca como `obsoleto` o candidato do dia que a
+ * regra deixou de disparar, sem apagar nenhuma linha. Não há efeito sobre dinheiro nem sobre
+ * configuração do dono, então a ferramenta é de leitura do ponto de vista do dono (efeito "nenhum").
  */
 export function criarListAlertCandidates(motor: MotorDeAlertas) {
   return definirFerramenta({

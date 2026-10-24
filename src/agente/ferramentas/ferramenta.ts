@@ -21,8 +21,8 @@ export interface ContextoSessao {
 /**
  * O que a ferramenta faz no mundo. No MVP só `nenhum` e `escreve_config` (regra 7). `nenhum` quer
  * dizer sem efeito sobre dinheiro nem sobre a configuração do dono; pode materializar estado
- * derivado das métricas, idempotente e só de acréscimo (por exemplo, os candidatos a alerta de
- * `list_alert_candidates`), sem confirmação do dono.
+ * derivado das métricas, de forma idempotente e sem apagar histórico (por exemplo, os candidatos a
+ * alerta de `list_alert_candidates` e o status deles, como `obsoleto`), sem confirmação do dono.
  */
 export type EfeitoFerramenta = "nenhum" | "pergunta_dono" | "escreve_config";
 

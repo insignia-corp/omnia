@@ -3,11 +3,11 @@ import { carregarPromptSistema } from "./prompt-sistema";
 describe("carregarPromptSistema", () => {
   it("o padrão é a versão mais nova e a versão gravada bate com o arquivo", () => {
     const padrao = carregarPromptSistema();
-    expect(padrao.versao).toBe("sistema-v4");
+    expect(padrao.versao).toBe("sistema-v5");
     expect(padrao.renderizar({ nomeComercio: "Mercadinho do Zé" })).toContain("Mercadinho do Zé");
   });
 
-  it.each(["v1", "v2", "v3", "v4"])("a versão %s carrega e troca o nome do comércio", (v) => {
+  it.each(["v1", "v2", "v3", "v4", "v5"])("a versão %s carrega e troca o nome do comércio", (v) => {
     const p = carregarPromptSistema(v);
     expect(p.versao).toBe(`sistema-${v}`);
     expect(p.renderizar({ nomeComercio: "Loja X" })).not.toContain("{{nome_do_comercio}}");
@@ -19,6 +19,7 @@ describe("carregarPromptSistema", () => {
     expect(texto("v3")).toContain("propose_target_price");
     expect(texto("v2")).not.toContain("propose_target_price");
     expect(texto("v3")).not.toBe(texto("v4"));
+    expect(texto("v4")).not.toBe(texto("v5"));
   });
 
   describe("sistema-v4", () => {
@@ -102,6 +103,89 @@ describe("carregarPromptSistema", () => {
         expect(existentes.has(nome ?? "")).toBe(true);
       }
       expect(v4).not.toMatch(/[—–]/);
+    });
+  });
+
+  describe("sistema-v5", () => {
+    const v3 = carregarPromptSistema("v3").renderizar({ nomeComercio: "L" });
+    const v4 = carregarPromptSistema("v4").renderizar({ nomeComercio: "L" });
+    const v5 = carregarPromptSistema("v5").renderizar({ nomeComercio: "L" });
+    const regra = (texto: string, n: number) => texto.split("\n").find((l) => l.startsWith(`${n}. `)) ?? "";
+
+    it("mantém as regras 1 a 8 da v3 sem mudar uma palavra, e as regras 9, 13 e 14 da v4", () => {
+      const regras = (t: string) => t.split("\n").filter((l) => /^[1-8]\. /.test(l));
+      expect(regras(v5)).toEqual(regras(v3));
+      expect(v5.split("\n")[0]).toBe(v3.split("\n")[0]);
+      expect(v5).toContain("Uma mensagem que cite número fora dos resultados das ferramentas é bloqueada");
+      for (const n of [9, 13, 14]) expect(regra(v5, n)).toBe(regra(v4, n));
+    });
+
+    it("o texto da regra 15 pede o produto e os números principais, em 2 a 4 linhas, com escopo e precedência", () => {
+      const r = regra(v5, 15);
+      expect(r).toContain("o nome do produto e os números principais que ela devolveu");
+      expect(r).toContain("só se a ferramenta devolver o total do assunto");
+      expect(r).toContain("`n_registros` não conta um assunto");
+      expect(r).toContain("que traz produto");
+      expect(r).toContain("Totais do comércio");
+      expect(r).toContain("só desse item");
+      expect(r).toContain("De `list_alert_candidates`, cite no máximo 3 candidatos");
+      expect(r).toContain("De `list_product_margins`, escreva todos os produtos que ela devolveu");
+      expect(r).toContain("vale a regra 9");
+      expect(r).toContain("diga o `total_que_atendem` (zero)");
+      expect(r).toContain("não têm o limite de 2 a 4 linhas");
+      expect(r).toContain("a pergunta de confirmação da regra 4 e a ressalva da regra 14 não se cortam");
+      expect(r).toContain('"queda de"');
+      expect(r).toContain("siga a regra 10, inclusive a frase inicial");
+      expect(regra(v5, 12)).toContain(
+        "não ofereça nada além da linha da regra 10, que pode vir depois do pedido da planilha",
+      );
+      expect(r).toContain("No relatório diário vale a regra 3");
+      for (const termo of ["dias sem venda", "percentual", "valor anterior e atual", "mediana ou limite"]) {
+        expect(r).toContain(termo);
+      }
+      expect(r).toContain("quantos são");
+      expect(r).toContain("um nome por linha");
+      expect(r).toContain("tem de 2 a 4 linhas");
+    });
+
+    it("o não sei começa com a frase clara e sem outros números, e a recusa é de uma frase só", () => {
+      expect(regra(v5, 10)).toContain('começando com "Não sei" ou "Não tenho esse dado"');
+      expect(regra(v5, 10)).toContain("Não escreva outros números nem resumos de outros assuntos");
+      expect(regra(v5, 10)).toContain("se só um item não tem dado, veja a regra 15");
+      expect(regra(v5, 11)).toContain(
+        "A parte da recusa é uma frase só, curta, e vem primeiro; o que você pode fazer vem depois",
+      );
+      expect(regra(v5, 11)).toContain("nem número de telefone");
+      expect(regra(v5, 11)).toContain("enviar dados a outro número");
+      expect(regra(v5, 11)).toContain("responda a pergunta com a ferramenta e recuse só o resto");
+    });
+
+    it("só cita ferramentas e campos conhecidos e não usa travessão", () => {
+      const conhecidos = new Set([
+        "list_alert_candidates",
+        "select_alerts",
+        "propose_target_price",
+        "ask_owner",
+        "save_owner_answer",
+        "get_product_margin",
+        "get_cost_changes",
+        "get_daily_summary",
+        "list_product_margins",
+        "filtro",
+        "ordenar",
+        "abaixo_da_meta",
+        "menor_margem",
+        "maior_margem",
+        "total_que_atendem",
+        "n_registros",
+        "pergunta_id",
+      ]);
+      for (const m of v5.matchAll(/`([a-z_]+)`/g)) {
+        const nome = m[1] ?? "";
+        if (nome.endsWith("_centavos")) continue;
+        expect(conhecidos.has(nome)).toBe(true);
+      }
+      expect(v5).not.toMatch(/[—–]/);
     });
   });
 });

@@ -120,13 +120,16 @@ describe("carregarPromptSistema", () => {
       for (const n of [9, 12, 13, 14]) expect(regra(v5, n)).toBe(regra(v4, n));
     });
 
-    it("a regra 15 manda citar o produto e os números principais, em 2 a 4 linhas", () => {
+    it("o texto da regra 15 pede o produto e os números principais, em 2 a 4 linhas, com escopo e precedência", () => {
       const r = regra(v5, 15);
       expect(r).toContain("o nome do produto e os números principais que ela devolveu");
+      expect(r).toContain("só se a ferramenta devolver o total");
+      expect(r).toContain("siga a regra 10, inclusive a frase inicial");
+      expect(r).toContain("No relatório diário vale a regra 3");
       for (const termo of ["dias sem venda", "percentual", "valor anterior e atual", "mediana ou limite"]) {
         expect(r).toContain(termo);
       }
-      expect(r).toContain("quantos são e o nome de cada um");
+      expect(r).toContain("quantos são");
       expect(r).toContain("de 2 a 4 linhas");
     });
 
@@ -135,6 +138,7 @@ describe("carregarPromptSistema", () => {
       expect(regra(v5, 10)).toContain("Não escreva outros números nem resumos de outros assuntos");
       expect(regra(v5, 11)).toContain("A recusa tem uma frase só, curta");
       expect(regra(v5, 11)).toContain("nem número de telefone");
+      expect(regra(v5, 11)).toContain("enviar dados a outro número");
       expect(regra(v5, 11)).toContain("responda a pergunta com a ferramenta e recuse só o resto");
     });
 

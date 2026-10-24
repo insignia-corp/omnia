@@ -29,6 +29,7 @@ import { inserirLinhasSeed } from "../../src/infra/database/seed/semear";
 import { uuidDeterministico } from "../../src/infra/database/seed/uuid-deterministico";
 import type { ClienteVisao, RespostaVisao } from "../../src/ingestao/extracao/cliente-visao";
 import { CLIENTE_VISAO } from "../../src/ingestao/ingestao.module";
+import { somarDias } from "../../src/lib/datas/datas";
 import { ModeloRelatorioFalso } from "./modelo-falso";
 
 interface AlertaGabarito {
@@ -41,6 +42,8 @@ const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf
   alertas_esperados: AlertaGabarito[];
 };
 const REF = gabarito.parametros.data_referencia;
+/** A demo roda no dia seguinte ao gabarito (`DEMO_DATA_REFERENCIA=2026-10-20`): os avisos são de ontem, o REF. */
+const HOJE = somarDias(REF, 1);
 const reajuste = gabarito.alertas_esperados.find(
   (a) => a.tipo === "reajuste_de_custo" && a.produto_id === "P01",
 )!;
@@ -69,7 +72,7 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
   const modelo = new ModeloRelatorioFalso(produtoAlvo);
   const visao: ClienteVisao = { extrair: () => Promise.resolve(comoDoModelo("nota-16")) };
   // 2026-10-19 11:00 em São Paulo, fora do silêncio.
-  const relogioFalso: Relogio = { agora: () => new Date(`${REF}T14:00:00Z`) };
+  const relogioFalso: Relogio = { agora: () => new Date(`${HOJE}T14:00:00Z`) };
   const dataAnterior = process.env.DEMO_DATA_REFERENCIA;
 
   let app: INestApplication;
@@ -98,7 +101,7 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
         and(
           eq(schema.mensagem.comercianteId, dono),
           eq(schema.mensagem.proativa, true),
-          eq(schema.mensagem.dataEnvio, REF),
+          eq(schema.mensagem.dataEnvio, HOJE),
         ),
       );
   const execucoesDeRelatorio = () =>
@@ -114,7 +117,7 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
 
   beforeAll(async () => {
     process.env.ARMAZENAMENTO_DIR = dirArquivos;
-    process.env.DEMO_DATA_REFERENCIA = REF;
+    process.env.DEMO_DATA_REFERENCIA = HOJE;
     const env = carregarEnv();
     await migrar(env.DATABASE_URL);
     pool = new Pool({ connectionString: env.DATABASE_URL, max: 4 });
@@ -214,7 +217,7 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
   });
 
   it("o relatório diário roda o motor real, o agente escolhe o reajuste e a mensagem sai verificada no chat web", async () => {
-    await app.get(FilaRelatorioDiario).enfileirar({ comercianteId: dono, data: REF });
+    await app.get(FilaRelatorioDiario).enfileirar({ comercianteId: dono, data: HOJE });
     // A mensagem é gravada antes da entrega e o alerta só vira enviado depois: espera o fim do job.
     await esperar(async () =>
       (await alertasDoDono()).some((a) => a.id === alertaDoJob && a.status === "enviado") ? true : undefined,
@@ -261,7 +264,7 @@ describe("demo ponta a ponta no chat web, com o motor de alertas real (e2e)", ()
 
   it("regra 9: repetir o relatório no mesmo dia não chama o modelo nem envia de novo", async () => {
     const antes = modelo.chamadas;
-    const job = { comercianteId: dono, data: REF };
+    const job = { comercianteId: dono, data: HOJE };
     expect(await app.get(RelatorioDiarioService).processar(job)).toBe("ja_enviada_hoje");
     await app.get(FilaRelatorioDiario).enfileirar(job);
     await new Promise((r) => setTimeout(r, 1_000));

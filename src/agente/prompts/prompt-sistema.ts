@@ -7,7 +7,7 @@ export interface PromptSistema {
 }
 
 /** Prompt versionado em arquivo. A versão é gravada em cada execução do agente. */
-export function carregarPromptSistema(versao = "v5"): PromptSistema {
+export function carregarPromptSistema(versao = "v6"): PromptSistema {
   const modelo = readFileSync(path.join(__dirname, `sistema-${versao}.md`), "utf8");
   return {
     versao: `sistema-${versao}`,

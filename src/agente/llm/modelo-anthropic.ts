@@ -9,7 +9,10 @@ import type { ModeloLinguagem, PedidoModelo } from "./modelo-linguagem";
  * - Pensamento adaptativo é o padrão do modelo; a profundidade é controlada por `effort`.
  * - `fallbacks: "default"`: se o modelo recusar por um classificador de segurança, a API
  *   refaz o pedido em outro modelo, dentro da mesma chamada.
- * - `cache_control` no topo: ferramentas e prompt de sistema estáveis ficam em cache.
+ * - Dois pontos de cache: um no fim do prompt de sistema (ferramentas e sistema, iguais em toda
+ *   execução, são lidos do cache de uma pergunta para a outra) e o `cache_control` do topo, no fim da
+ *   conversa (a segunda iteração da mesma execução lê o que a primeira gravou). Só o do topo deixava cada
+ *   pergunta gravar de novo uns 11 mil tokens, porque o fim da conversa muda a cada pergunta.
  * - O SDK repete 408, 409, 429, 5xx e erros de conexão com espera exponencial (`LLM_MAX_RETRIES`);
  *   o timeout vem do .env. Esgotadas as tentativas o erro sobe e o loop responde com o fallback.
  */
@@ -41,7 +44,7 @@ export class ModeloAnthropic implements ModeloLinguagem {
       {
         model: this.env.LLM_MODELO,
         max_tokens: 16000,
-        system: pedido.system,
+        system: [{ type: "text", text: pedido.system, cache_control: { type: "ephemeral" } }],
         messages: pedido.messages,
         tools: pedido.tools,
         output_config: { effort: pedido.esforco ?? this.env.LLM_ESFORCO },

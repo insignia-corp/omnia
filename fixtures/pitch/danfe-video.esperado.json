@@ -1,0 +1,43 @@
+{
+  "fornecedor": {
+    "nome": "Distribuidora São Jorge",
+    "cnpj": "82736491000106"
+  },
+  "data_emissao": "2026-10-23",
+  "itens": [
+    {
+      "descricao": "FEIJAO CARIOCA 1KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 629,
+      "valor_total_centavos": 15096,
+      "confianca": 1
+    },
+    {
+      "descricao": "MACARRAO ESPAGUETE 500G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 339,
+      "valor_total_centavos": 8136,
+      "confianca": 1
+    },
+    {
+      "descricao": "ACUCAR REFINADO 1KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 309,
+      "valor_total_centavos": 7416,
+      "confianca": 1
+    },
+    {
+      "descricao": "CAFE TORRADO 500G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1870,
+      "valor_total_centavos": 22440,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 53088,
+  "confianca_documento": 1
+}

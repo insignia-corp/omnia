@@ -1,6 +1,21 @@
-import { carregarFormatadores } from "./formatadores-pagina";
+import { runInNewContext } from "node:vm";
+import { FORMATADORES_PAGINA } from "./formatadores-pagina";
 
-const f = carregarFormatadores();
+interface Formatadores {
+  reais(centavos: number | null | undefined): string;
+  dolares(microdolares: number | null | undefined, casas: number): string;
+  latencia(ms: number | null | undefined): string;
+  rotuloGatilho(gatilho: string): string;
+  rotuloResultado(resultado: string, gatilho: string): { texto: string; cor: string };
+  rotuloTipoAlerta(tipo: string): string;
+  rotuloStatusAlerta(status: string): { texto: string; cor: string };
+  rotuloStatusExtracao(status: string): { texto: string; cor: string };
+}
+
+// Executa o mesmo texto que a página embute, então o que se testa é o que a tela usa.
+const f = runInNewContext(
+  `${FORMATADORES_PAGINA}; ({ reais, dolares, latencia, rotuloGatilho, rotuloResultado, rotuloTipoAlerta, rotuloStatusAlerta, rotuloStatusExtracao })`,
+) as Formatadores;
 
 describe("reais", () => {
   it("formata centavos inteiros", () => {

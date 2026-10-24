@@ -82,21 +82,3 @@ const STATUS_EXTRACAO = {
 };
 const rotuloStatusExtracao = (s) => STATUS_EXTRACAO[s] || { texto: s, cor: "cinza" };
 `;
-
-/** Os formatadores como funções, para os testes. Mesma fonte que a página. */
-export interface FormatadoresPagina {
-  reais(centavos: number | null | undefined): string;
-  dolares(microdolares: number | null | undefined, casas: number): string;
-  latencia(ms: number | null | undefined): string;
-  rotuloGatilho(gatilho: string): string;
-  rotuloResultado(resultado: string, gatilho: string): { texto: string; cor: string };
-  rotuloTipoAlerta(tipo: string): string;
-  rotuloStatusAlerta(status: string): { texto: string; cor: string };
-  rotuloStatusExtracao(status: string): { texto: string; cor: string };
-}
-
-export function carregarFormatadores(): FormatadoresPagina {
-  return new Function(
-    `${FORMATADORES_PAGINA}; return { reais, dolares, latencia, rotuloGatilho, rotuloResultado, rotuloTipoAlerta, rotuloStatusAlerta, rotuloStatusExtracao };`,
-  )() as FormatadoresPagina;
-}

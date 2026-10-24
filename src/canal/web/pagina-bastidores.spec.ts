@@ -1,3 +1,4 @@
+import { Script } from "node:vm";
 import { PAGINA_BASTIDORES } from "./pagina-bastidores";
 import { PAGINA_CHAT } from "./pagina-chat";
 
@@ -60,6 +61,6 @@ describe("página bastidores", () => {
 
   it("o script embutido é JavaScript válido", () => {
     const script = /<script>([\s\S]*)<\/script>/.exec(PAGINA_BASTIDORES)![1]!;
-    expect(() => new Function(script)).not.toThrow();
+    expect(() => new Script(script)).not.toThrow();
   });
 });

@@ -68,7 +68,7 @@ export const PAGINA_BASTIDORES = String.raw`<!doctype html>
   .resumo .valor { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
   .resumo .valor.ambar { color: var(--ambar); }
   .colunas { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-  .direita { display: grid; gap: 14px; }
+  .direita { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .secao { padding: 16px 18px 18px; scroll-margin-top: 14px; }
   h2 { margin: 0 0 12px; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
   .vazio { display: flex; align-items: center; gap: 10px; padding: 18px; border: 1px dashed var(--borda); border-radius: 12px; color: var(--cinza); background: var(--cinza-claro); }
@@ -126,7 +126,7 @@ export const PAGINA_BASTIDORES = String.raw`<!doctype html>
   .json-corpo { display: none; padding: 0 10px 10px; }
   .json.aberto > .json-corpo { display: block; }
   .json-corpo .tit { margin: 6px 0 3px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--cinza); font-weight: 600; }
-  pre.codigo { margin: 0; padding: 8px 10px; background: var(--fundo); border: 1px solid var(--borda); border-radius: 8px; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14rem; overflow: auto; }
+  pre.codigo { margin: 0; padding: 8px 10px; background: var(--fundo); border: 1px solid var(--borda); border-radius: 8px; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 6rem; overflow: auto; }
   pre.codigo .chave { color: #0F5C8A; }
   pre.codigo .texto { color: #7C3AED; }
   pre.codigo .num { color: var(--ambar); }
@@ -447,7 +447,7 @@ function desenharExecucao(e, limite) {
   return alternavel(chave("e", e.id), "exec", [setaIcone(), titulo, met], corpo);
 }
 
-// A execução mais recente que a tela vê pela primeira vez abre sozinha, com a primeira chamada e o JSON dela.
+// A execução mais recente que a tela vê pela primeira vez abre sozinha, com a primeira chamada (o JSON abre no clique).
 function abrirNovas(execucoes) {
   const novas = execucoes.filter((e) => !vistas.has(e.id));
   for (const e of execucoes) vistas.add(e.id);
@@ -455,7 +455,7 @@ function abrirNovas(execucoes) {
   if (!maisRecente) return;
   abertos.add(chave("e", maisRecente.id));
   const primeira = maisRecente.chamadas[0];
-  if (primeira) { abertos.add(chave("c", maisRecente.id, primeira.ordem)); abertos.add(chave("j", maisRecente.id, primeira.ordem)); }
+  if (primeira) { abertos.add(chave("c", maisRecente.id, primeira.ordem)); }
 }
 
 function desenharExecucoes(painel) {
@@ -606,9 +606,18 @@ $("comerciante").addEventListener("change", () => {
   versaoVista = null;
   abertos = new Set();
   vistas = new Set();
-  $("nome-comercio").textContent = "Comerciante";
+  limparTela();
   atualizar();
 });
+
+// Ao trocar de comerciante nada do anterior fica na tela, nem se a nova consulta falhar.
+function limparTela() {
+  $("nome-comercio").textContent = "Comerciante";
+  $("resumo").replaceChildren();
+  $("lista-execucoes").replaceChildren(vazio("Carregando…"));
+  $("nota").replaceChildren(vazio("Carregando…"));
+  $("lista-alertas").replaceChildren(vazio("Carregando…"));
+}
 
 let versaoVista = null;
 async function atualizar() {
@@ -618,7 +627,8 @@ async function atualizar() {
     $("lista-execucoes").replaceChildren(vazio("Informe o id do comerciante no topo para ver o agente trabalhando."));
     return;
   }
-  if (document.hidden) return;
+  // Aba em segundo plano não faz polling, mas a primeira carga sempre acontece.
+  if (document.hidden && versaoVista !== null) return;
   try {
     const r = await fetch("/bastidores/painel?limite=10", { headers: { "X-Comerciante-Id": id } });
     if (!r.ok) throw new Error(((await r.json().catch(() => ({}))).message) || ("Erro " + r.status));

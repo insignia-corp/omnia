@@ -33,7 +33,7 @@ export const PAGINA_PAINEL = `<!doctype html>
   .lateral a[aria-current="true"] { background: var(--verde); color: #fff; font-weight: 700; }
   .lateral svg { width: 22px; height: 22px; flex: none; }
 
-  main { padding: 26px 32px 18px; display: grid; gap: 18px; align-content: start; min-width: 0; }
+  main { padding: 22px 30px 14px; display: grid; gap: 16px; align-content: start; min-width: 0; }
   .topo { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
   .topo h1 { margin: 0; font-size: 2.15rem; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; }
   .topo p { margin: 4px 0 0; color: var(--cinza); font-size: 1.08rem; }
@@ -41,14 +41,14 @@ export const PAGINA_PAINEL = `<!doctype html>
   .botao:hover { background: var(--verde-escuro); }
   .botao svg { width: 24px; height: 24px; }
 
-  .cartao { background: #fff; border: 1px solid var(--borda); border-radius: 14px; box-shadow: var(--sombra); padding: 18px 22px; min-width: 0; }
+  .cartao { background: #fff; border: 1px solid var(--borda); border-radius: 14px; box-shadow: var(--sombra); padding: 16px 20px; min-width: 0; }
   .numeros { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .numeros .cartao { display: flex; flex-direction: column; gap: 10px; }
   #dia { background: var(--verde-claro); border-color: #BBF7D0; }
   .titulo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .titulo h2 { margin: 0; font-size: 1.25rem; font-weight: 700; }
   .titulo span { color: var(--cinza); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-  .valor { margin: 0; font-size: 2.45rem; line-height: 1.1; font-weight: 800; letter-spacing: -0.025em; color: var(--verde-escuro); font-variant-numeric: tabular-nums; }
+  .valor { margin: 0; font-size: 2.3rem; line-height: 1.1; font-weight: 800; letter-spacing: -0.025em; color: var(--verde-escuro); font-variant-numeric: tabular-nums; }
   .etiqueta { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; line-height: 1.3; }
   .etiqueta b { font-weight: 800; }
   .etiqueta.alta { background: #BBF7D0; color: var(--verde-escuro); }
@@ -60,11 +60,12 @@ export const PAGINA_PAINEL = `<!doctype html>
   .grafico text { font: 12px Inter, ui-sans-serif, system-ui, sans-serif; fill: var(--cinza); }
   .ausente { color: var(--cinza); margin: 0; }
 
-  .baixo { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr); align-items: start; }
+  .baixo { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.38fr); align-items: start; }
   .baixo h2 { margin: 0; font-size: 1.45rem; font-weight: 800; letter-spacing: -0.015em; }
-  .sub { margin: 2px 0 12px; color: var(--cinza); font-size: 0.85rem; }
+  .baixo h2.com-espaco { margin-bottom: 12px; }
+  .sub { margin: 2px 0 10px; color: var(--cinza); font-size: 0.85rem; }
   .avisos { display: grid; gap: 10px; }
-  .aviso { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; align-items: start; border: 1px solid var(--borda); border-left: 6px solid var(--verde); border-radius: 10px; padding: 12px 16px; background: #fff; }
+  .aviso { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; align-items: start; border: 1px solid var(--borda); border-left: 6px solid var(--verde); border-radius: 10px; padding: 10px 14px; background: #fff; }
   .aviso.p1 { border-left-color: var(--vermelho); } .aviso.p1 .icone { color: var(--vermelho); }
   .aviso.p2 { border-left-color: var(--ambar); } .aviso.p2 .icone { color: var(--ambar); }
   .aviso.p3 .icone { color: var(--verde); }
@@ -77,7 +78,7 @@ export const PAGINA_PAINEL = `<!doctype html>
 
   .tabela { border: 1px solid var(--borda); border-radius: 10px; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
   tr:last-child td { border-bottom: 0; }
   th { background: #F9FAFB; color: var(--cinza); font-weight: 600; font-size: 0.92rem; }
   td { font-variant-numeric: tabular-nums; }
@@ -132,7 +133,7 @@ export const PAGINA_PAINEL = `<!doctype html>
     <section id="mes" class="cartao"><div class="titulo"><h2>Mês</h2></div></section>
   </div>
   <div class="baixo">
-    <section id="avisos" class="cartao"><h2>Precisa da sua atenção hoje</h2><p class="sub">Calculado hoje a partir dos seus dados</p><div id="lista-avisos"></div></section>
+    <section id="avisos" class="cartao"><h2 class="com-espaco">Precisa da sua atenção hoje</h2><div id="lista-avisos"></div></section>
     <section id="produtos" class="cartao"><h2>Produtos abaixo da meta de margem</h2><p class="sub">Preço médio dos últimos 30 dias contra o custo da nota mais recente</p><div id="margens"></div></section>
   </div>
   <footer>Números calculados pelo Omnia a partir das suas vendas, notas e extrato.</footer>
@@ -158,15 +159,24 @@ function saudacao() {
   return h < 12 ? "Bom dia!" : h < 18 ? "Boa tarde!" : "Boa noite!";
 }
 
-// Ícones de linha dos avisos: prioridade 1 alerta, 2 atenção, demais oportunidade.
+// Ícones de linha dos avisos, pelo tipo; a cor vem da prioridade (1 vermelho, 2 âmbar, demais verde).
+const ALERTA = [["circle", { cx: 12, cy: 12, r: 9.5 }], ["path", { d: "M12 7v6M12 16.5v.5" }]];
+const ATENCAO = [["path", { d: "M12 3.5L21.5 20h-19z" }], ["path", { d: "M12 10v4.5M12 17.2v.3" }]];
+const SUBINDO = [["path", { d: "M3 17l6-6 4 4 8-8" }], ["path", { d: "M15 7h6v6" }]];
+const DESCENDO = [["path", { d: "M3 7l6 6 4-4 8 8" }], ["path", { d: "M15 17h6v-6" }]];
+const CAIXA = [["path", { d: "M12 2.5l8.5 4.75v9.5L12 21.5l-8.5-4.75v-9.5z" }], ["path", { d: "M3.5 7.25L12 12l8.5-4.75M12 12v9.5" }]];
 const ICONES = {
-  1: [["circle", { cx: 12, cy: 12, r: 9.5 }], ["path", { d: "M12 7v6M12 16.5v.5" }]],
-  2: [["path", { d: "M12 3.5L21.5 20h-19z" }], ["path", { d: "M12 10v4.5M12 17.2v.3" }]],
-  3: [["path", { d: "M3 17l6-6 4 4 8-8" }], ["path", { d: "M15 7h6v6" }]],
+  margem_abaixo_da_meta: ALERTA,
+  reajuste_de_custo: ATENCAO,
+  gasto_fora_do_padrao: ATENCAO,
+  ticket_medio_em_queda: DESCENDO,
+  giro_em_alta: SUBINDO,
+  espaco_para_subir_preco: SUBINDO,
+  estoque_parado: CAIXA,
 };
-function icone(prioridade) {
+function icone(tipo) {
   const s = svg("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": 1.8, "stroke-linecap": "round", "stroke-linejoin": "round", class: "icone", "aria-hidden": "true" });
-  for (const [tag, attrs] of ICONES[prioridade] ?? ICONES[3]) s.append(svg(tag, attrs));
+  for (const [tag, attrs] of ICONES[tipo] ?? ALERTA) s.append(svg(tag, attrs));
   return s;
 }
 
@@ -190,7 +200,7 @@ function cabecalho(s, titulo, periodo) {
 
 // Barras dos dias da semana; dia sem dado é só um tracejado (lacuna), dia sem venda fica no zero.
 function barras(serie) {
-  const L = 340, A = 108, base = 86, alto = 78, passo = L / serie.length, larg = Math.round(passo * 0.62);
+  const L = 340, A = 96, base = 76, alto = 70, passo = L / serie.length, larg = Math.round(passo * 0.62);
   const max = Math.max(0, ...serie.map((d) => d.faturamento_centavos ?? 0));
   const g = svg("svg", { viewBox: "0 0 " + L + " " + A, class: "grafico", role: "img", "aria-label": "Faturamento por dia da semana" });
   g.append(svg("line", { x1: 0, x2: L, y1: base + 0.5, y2: base + 0.5, stroke: "#E5E7EB" }));
@@ -210,7 +220,7 @@ function barras(serie) {
 
 // Linha do mês dia a dia; trechos sem dado quebram a linha em vez de cair a zero.
 function linha(serie) {
-  const L = 340, A = 108, topo = 10, base = 86, alto = base - topo, n = serie.length;
+  const L = 340, A = 96, topo = 8, base = 76, alto = base - topo, n = serie.length;
   const max = Math.max(0, ...serie.map((d) => d.faturamento_centavos ?? 0));
   const x = (i) => (n === 1 ? L / 2 : Math.round((i * L) / (n - 1)));
   const y = (v) => base - (max === 0 ? 0 : Math.round((v * alto) / max));
@@ -293,7 +303,7 @@ function avisos(d) {
       ver.addEventListener("click", (e) => { e.preventDefault(); realcar("produto-" + x.produto_id); });
       corpo.append(ver);
     }
-    card.append(icone(x.prioridade), corpo);
+    card.append(icone(x.tipo), corpo);
     return card;
   });
   const lista = el("div", "avisos");
@@ -359,6 +369,7 @@ async function carregar() {
   } catch (e) {
     $("erro").textContent = e instanceof Error ? e.message : "Não foi possível carregar o painel.";
     $("subtitulo").textContent = "";
+    $("whatsapp").hidden = true;
   }
 }
 carregar();

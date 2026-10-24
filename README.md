@@ -32,8 +32,6 @@ O trabalho está organizado em [milestones](https://github.com/insignia-corp/omn
 | 7. Avaliação | Metas da avaliação atingidas |
 | 8. Piloto e demo | Um lojista responde "estou lucrando em cima do que mais vende?" em menos de um minuto |
 
-Prazo: congelamento do código no **sábado 24/10/2026 às 15h30** ([alertas do hackathon](docs/alertas-hackathon.md)).
-
 Trilhas paralelas: **Segurança e LGPD**, **Validação e negócio** (entrevistas, custos, concorrentes) e **Pitch e equipe**.
 
 Acompanhe o andamento no [quadro do projeto](https://github.com/orgs/insignia-corp/projects/2) e veja a organização do trabalho, as labels e o fluxo de branches no [CONTRIBUTING](CONTRIBUTING.md).
@@ -43,7 +41,7 @@ Acompanhe o andamento no [quadro do projeto](https://github.com/orgs/insignia-co
 ```
 .
 ├── .github/          # Templates de issue e PR, CODEOWNERS
-├── docs/             # Guia de desenvolvimento, contexto do hackathon, decisões
+├── docs/             # Guia de desenvolvimento, arquitetura, decisões
 ├── drizzle/          # Migrações SQL
 ├── src/
 │   ├── agente/       # Loop do agente, ferramentas, prompt, registro de execuções
@@ -92,8 +90,6 @@ npm run dev
 ## Documentação
 
 - [Guia de desenvolvimento](docs/guia-desenvolvimento.md): arquitetura, etapas, modelo de dados, métricas, agente, avaliação, segurança
-- [Contexto do hackathon](docs/contexto-hackathon.md): critérios da banca, persona, viabilidade, custos, riscos
-- [Alertas do hackathon](docs/alertas-hackathon.md): prazo, escopo e critérios da banca (seção 9.4 do edital)
 - [Modelo de dados](docs/modelo-de-dados.md): tabelas, diagrama, histórico append-only e seed
 - [Arquitetura](docs/arquitetura.md): módulos, dados, serviços externos e modelos por papel
 - [Fluxo do agente](docs/agent-flow.md): inputs, lógica e outputs do agente

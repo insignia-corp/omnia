@@ -37,4 +37,4 @@ Premissas: 30 relatórios, 10 perguntas e 14 notas por mês, 40 mensagens enviad
 | Agregador (dividido por 1 lojista) | 1 | sem cotação | sem cotação |
 | **Total dos componentes com valor** | | | **US$ 0,7769** |
 
-Sem valor nesta rodada: mensagens do canal; agregador. O total acima não os inclui. Informe-os com `--mensagem-usd` e `--agregador-usd-mes` (o agregador é cotação pendente: ver `docs/contexto-hackathon.md`).
+Sem valor nesta rodada: mensagens do canal; agregador. O total acima não os inclui. Informe-os com `--mensagem-usd` e `--agregador-usd-mes` (o agregador é cotação pendente).

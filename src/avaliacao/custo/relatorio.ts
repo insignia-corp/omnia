@@ -87,7 +87,7 @@ export function renderizarRelatorioDeCusto(r: RodadaDeCusto): string {
     "",
     r.projecao.naoCotados.length === 0
       ? "Todos os componentes têm valor."
-      : `Sem valor nesta rodada: ${r.projecao.naoCotados.join("; ")}. O total acima não os inclui. Informe-os com \`--mensagem-usd\` e \`--agregador-usd-mes\` (o agregador é cotação pendente: ver \`docs/contexto-hackathon.md\`).`,
+      : `Sem valor nesta rodada: ${r.projecao.naoCotados.join("; ")}. O total acima não os inclui. Informe-os com \`--mensagem-usd\` e \`--agregador-usd-mes\` (o agregador é cotação pendente).`,
     "",
   ];
   return L.join("\n");

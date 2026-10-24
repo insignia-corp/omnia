@@ -8,7 +8,7 @@ Stack: TypeScript, NestJS, PostgreSQL (`pg_trgm`), Drizzle, Redis + BullMQ, Dock
 
 ## Primeiro passo de toda sessão
 
-Leia `docs/ESTADO.md` (fonte única de "você está aqui": etapa, números, próxima ação, pendências). Antes de refazer qualquer coisa (função, teste, doc, decisão), confira nele e no código se já existe. Em seguida, antes de desenvolver, pergunte ao usuário qual plano (A, B ou C) ele segue (segurança fica para o fim) e quais issues quer fazer, conforme `docs/protocolos/divisao-planos.md`. Ao terminar, siga `docs/protocolos/checkpoint.md`. Depois de editar, siga `docs/protocolos/auditoria.md`.
+Leia `docs/ESTADO.md` (fonte única de "você está aqui": etapa, números, próxima ação, pendências). Antes de refazer qualquer coisa (função, teste, doc, decisão), confira nele e no código se já existe. Ao terminar, siga `docs/protocolos/checkpoint.md`. Depois de editar, siga `docs/protocolos/auditoria.md`.
 
 ## Regras invioláveis
 
@@ -27,12 +27,11 @@ Leia `docs/ESTADO.md` (fonte única de "você está aqui": etapa, números, pró
 
 PRs em issues `regra-inviolável` precisam de teste que prove a regra.
 
-## Prazo e escopo (detalhe em `docs/alertas-hackathon.md`, que prevalece sobre o guia)
+## Escopo
 
-- Congelamento do código: sábado 24/10/2026 às 15h30, tudo no GitHub.
 - Prioridade: menor ciclo ponta a ponta (nota entra, extração, métricas, alerta, agente escreve, verificador confere, mensagem sai). Issues `prioridade:P0` primeiro.
 - Fora do escopo (label `fora-do-escopo-regional`, não fazer): PDV, NF-e pela SEFAZ, e-mail semanal, extrato bancário, Pluggy e Open Finance (implementação futura).
-- WhatsApp é opcional: o canal fica atrás de `MessageChannel`, com chat web como plano B.
+- O canal fica atrás de `MessageChannel`, com chat web como alternativa ao WhatsApp.
 
 ## Convenções
 
@@ -73,14 +72,13 @@ A CI roda os mesmos passos, mais varredura de segredos (gitleaks) e build da ima
 | Extração e validação de notas, vínculo nota-produto | `docs/guia-desenvolvimento.md` § Ingestão e extração de notas |
 | Fórmulas e limites das métricas | `docs/guia-desenvolvimento.md` § Métricas determinísticas |
 | Ferramentas do agente, prompt, verificador | `docs/guia-desenvolvimento.md` § O agente e `docs/especificacao-agentes.md` |
-| Fluxo do agente (entregável da banca) | `docs/agent-flow.md` |
+| Fluxo do agente | `docs/agent-flow.md` |
 | Módulos, serviços e dados | `docs/arquitetura.md` |
 | Por que foi decidido assim | `docs/decisoes/` |
 | WhatsApp, templates, jobs | `docs/guia-desenvolvimento.md` § WhatsApp e jobs |
 | Metas e testes de avaliação | `docs/guia-desenvolvimento.md` § Avaliação |
 | Segurança e LGPD | `docs/guia-desenvolvimento.md` § Segurança e LGPD |
 | Dados de teste, gabarito, centavos e bps | `fixtures/README.md` |
-| Critérios da banca, persona, custos, riscos | `docs/contexto-hackathon.md` (só sob demanda) |
 | Resultados brutos de eval e testes | `evidencias/` (só os números que importam sobem para o ESTADO) |
 
 ## Anti-retrabalho e economia de contexto

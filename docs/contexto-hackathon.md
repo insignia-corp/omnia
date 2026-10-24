@@ -12,7 +12,7 @@ A banca pontua cinco critérios, e Solução e Uso de IA sozinho vale 30%. Valid
 | --- | --- | --- | --- |
 | Problema e validação | 20% | Dor apoiada em pesquisas públicas do Sebrae (RJ, RS, MT). Nenhuma entrevista própria | Fazer 5 a 10 entrevistas com donos de mercadinho ou conveniência |
 | Solução e uso de IA | 30% | Arquitetura definida: o código calcula, o agente decide o que avisar | Prototipar 3 ferramentas do agente e um conjunto de perguntas de teste |
-| Diferencial e viabilidade | 20% | Diferencial é ser proativo no WhatsApp. Custos ainda sem cotação | Cotar agregador e estimar custo por lojista por mês |
+| Diferencial e viabilidade | 20% | Diferencial é ser proativo no WhatsApp. Custos ainda sem cotação | Estimar custo por lojista por mês (o agregador do extrato, se um dia entrar, é implementação futura) |
 | Equipe | 15% | Perfil do autor é técnico (full-stack). Demais integrantes não informados | Registrar a jornada gamificada desde já |
 | Qualidade do pitch | 15% | Roteiro ainda não escrito | Ensaiar 3 minutos com a demo do fluxo do agente |
  
@@ -39,13 +39,13 @@ Meta sugerida, ajustável: metade dos entrevistados descreve um reajuste que per
  
 O agente fica em segundo plano e fala com o dono pelo WhatsApp. O código calcula os números, e o modelo de linguagem decide o que vale avisar e como dizer.
  
-1. O dono conecta a conta PJ uma vez (agregador de Open Finance), envia fotos de notas de compra e uma planilha de vendas.
+1. O dono envia fotos de notas de compra e uma planilha de vendas. (Conectar a conta PJ por Open Finance é implementação futura, fora do produto atual.)
 2. Um modelo com visão extrai os itens das notas, com campo de confiança, e os dados vão para o PostgreSQL.
 3. Jobs agendados calculam margem, giro, variação de custo e anomalias por código.
 4. O agente recebe os candidatos a alerta, escolhe o que avisar hoje e escreve uma mensagem curta.
 5. O dono responde no mesmo WhatsApp. O agente consulta as métricas por ferramentas ou pergunta o que falta.
  
-O dono recebe um relatório diário curto (faturamento, gastos, saldo e comparação com dias anteriores), alertas de produto de maior giro, margem baixa ou com espaço para subir, reajuste de custo, estoque parado e gasto fora do padrão, e respostas a perguntas livres como "qual produto me dá mais lucro?".
+O dono recebe um relatório diário curto (faturamento e comparação com dias anteriores), alertas de produto de maior giro, margem baixa ou com espaço para subir, reajuste de custo e estoque parado, e respostas a perguntas livres como "qual produto me dá mais lucro?".
  
 Por que precisa ser agente, e não só um dashboard:
  
@@ -73,7 +73,7 @@ A viabilidade depende de qual dado entra primeiro. Três regras externas já for
  
 | Insight | Dado necessário | Fonte | O que já foi checado |
 | --- | --- | --- | --- |
-| Faturamento, fluxo de caixa e gastos | Entradas e saídas da conta PJ | Open Finance via agregador, como a [Pluggy](https://docs.pluggy.ai/pt/docs/overview) | A Pluggy tem sandbox para testar o fluxo inteiro sem credenciais reais. Há [tutoriais de conexão](https://docs.pluggy.ai/pt/docs/developer-tools/tutorials) de contas PJ de bancos como Itaú, Bradesco, Banco do Brasil, Inter e Santander. A cobertura PJ deve ser confirmada com a empresa |
+| Fluxo de caixa e gastos (implementação futura, fora do produto atual) | Entradas e saídas da conta PJ | Open Finance via agregador | Fica como implementação futura; o faturamento vem da planilha de vendas |
 | Produto que mais vende | Itens vendidos | PDV, NFC-e ou planilha de vendas | O Open Finance não entrega itens vendidos |
 | Custo de compra e reajuste | Itens e preços das notas de compra | Foto da nota lida por modelo com visão, ou NF-e pela [Distribuição de DF-e](https://portalspedbrasil.com.br/?p=16011) | A consulta exige certificado digital. Sem manifestação do destinatário só vem o resumo da nota. O XML completo vem após manifestar ciência, confirmação ou operação não realizada, e fica disponível por até 3 meses |
 | Margem por produto | Preço de venda e custo | Soma das duas fontes acima | Sem PDV, planilha ou nota, não há margem |
@@ -85,9 +85,9 @@ Custos de mensagem no [WhatsApp](https://developers.facebook.com/documentation/b
 - Há cota gratuita de 1.000 mensagens de serviço por mês por número. Desde 1º de outubro de 2026, mensagens de serviço acima da cota são cobradas.
 - A Meta só altera preços no primeiro dia de cada trimestre e publica tabelas em BRL. Contas em BRL estão disponíveis para empresas elegíveis desde 1º de julho de 2026.
  
-Sobre o agregador, um [relato informal](https://www.tabnews.com.br/dalmiborba/b9ab022c-fa5e-4cbc-acc9-114056377a20) numa comunidade de desenvolvedores cita cerca de R$ 2.500 por mês para a Pluggy, sem fonte oficial. Tratar como alerta de custo e pedir cotação.
+Um agregador de extrato bancário é implementação futura e não entra no custo do protótipo atual.
  
-Modelo de negócio (hipótese): assinatura mensal por comércio. O custo por lojista por mês é agregador mais mensagens mais LLM, então o protótipo deve registrar o custo real de cada execução para definir o preço. O retorno mensurável seria margem recuperada ou reajuste evitado pagando a assinatura.
+Modelo de negócio (hipótese): assinatura mensal por comércio. O custo por lojista por mês é mensagens mais LLM (mais um agregador de extrato, se um dia entrar), então o protótipo deve registrar o custo real de cada execução para definir o preço. O retorno mensurável seria margem recuperada ou reajuste evitado pagando a assinatura.
  
 Escala: depois do primeiro tipo de comércio, replicar para outros. O módulo de fornecedores (alerta de reajuste e alternativas) volta como expansão.
  
@@ -130,7 +130,7 @@ A decisão em aberto é qual dado entra primeiro: nota de compra (gestor de marg
 | Margem errada leva a decisão errada | Mostrar nível de confiança, conferir a soma dos itens contra o total da nota e perguntar ao dono quando houver dúvida |
 | Informalidade: parte do público não emite nota nem separa conta PJ | Perguntar nas entrevistas e aceitar foto de recibo e planilha |
 | Certificado digital para NF-e: pode faltar ao pequeno comerciante, e a manifestação é registrada em nome do cliente | Confirmar nas entrevistas, usar foto de nota no MVP e exigir consentimento explícito se usar NF-e |
-| Custo de mensagem, agregador e LLM acima do preço da assinatura | Medir custo por execução e limitar o número de mensagens por dia |
+| Custo de mensagem e LLM acima do preço da assinatura | Medir custo por execução e limitar o número de mensagens por dia |
 | Meta classificar o template diário como marketing, mais caro | Testar a categorização cedo, ainda no protótipo |
 | LGPD e segurança de dados sensíveis | Mínimo de dados, criptografia, logs de acesso e consentimento |
  
@@ -140,8 +140,5 @@ Páginas abertas em 19 de outubro de 2026. Regras e preços da Meta mudam a cada
  
 - [Pricing on the WhatsApp Business Platform (Meta)](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing)
 - [Distribuição de DF-e e manifestação do destinatário (Portal SPED Brasil)](https://portalspedbrasil.com.br/?p=16011)
-- [Visão geral da Pluggy](https://docs.pluggy.ai/pt/docs/overview)
-- [Tutoriais de conexão de contas na Pluggy](https://docs.pluggy.ai/pt/docs/developer-tools/tutorials)
-- [Comentário informal sobre preço da Pluggy (TabNews)](https://www.tabnews.com.br/dalmiborba/b9ab022c-fa5e-4cbc-acc9-114056377a20)
  
 A anexar: links das pesquisas do Sebrae (RJ, RS e MT) usadas no levantamento da dor.

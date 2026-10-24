@@ -1,20 +1,20 @@
 # Omnia · Gestor automático para pequenos comércios
 
-Agente de IA que avisa o dono de mercadinho ou conveniência pelo WhatsApp o que importa no negócio: margem, reajuste de fornecedor, giro e gastos fora do padrão. Projeto do hackathon AKCIT Camp.
+Agente de IA que avisa o dono de mercadinho ou conveniência pelo WhatsApp o que importa no negócio: margem, reajuste de fornecedor, giro e ticket médio. Projeto do hackathon AKCIT Camp.
 
 O código calcula, o modelo comunica: nenhum número chega ao dono sem vir de uma função determinística, e um verificador confere cada número antes do envio.
 
 ## Como funciona
 
-1. O dono envia fotos de notas de compra e a planilha de vendas. O extrato da conta PJ entra pelo seed; Open Finance real está fora do escopo (Pluggy só em sandbox, se sobrar tempo).
+1. O dono envia fotos de notas de compra e a planilha de vendas. O extrato bancário, a Pluggy e o Open Finance ficam como implementação futura: o produto não mostra gastos nem saldo.
 2. Um modelo com visão extrai os itens das notas. O código valida somas, CNPJ e data, e grava tudo com origem e confiança.
-3. Funções em TypeScript calculam margem, giro, variação de custo, ticket médio e anomalias.
+3. Funções em TypeScript calculam margem, giro, variação de custo, ticket médio e estoque parado.
 4. O motor de alertas lista candidatos. O agente escolhe até 3 por dia e escreve uma mensagem curta usando só números das ferramentas.
 5. O dono responde no WhatsApp e o agente consulta as métricas ou pergunta o que falta.
 
 ## Stack
 
-TypeScript, NestJS, PostgreSQL (com `pg_trgm`), Redis + BullMQ, Docker Compose, Zod, WhatsApp Cloud API e Pluggy (sandbox).
+TypeScript, NestJS, PostgreSQL (com `pg_trgm`), Redis + BullMQ, Docker Compose, Zod, WhatsApp Cloud API.
 
 ## Roteiro
 

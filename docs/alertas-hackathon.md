@@ -8,7 +8,7 @@ Contexto para o Claude Code. Este projeto é um agente de IA (gestor automático
 - O protótipo deve chegar funcionando antes do evento. No dia só há ajuste fino.
 - Prioridade é o **menor ciclo ponta a ponta**: foto de nota entra, extração, métricas, alerta, agente escreve, verificador confere, mensagem sai.
 - O WhatsApp real é opcional para a regional. Use um **chat web simples** apontando para o mesmo agente se a Cloud API ou o template atrasar. Mantenha o canal atrás de uma interface (`MessageChannel`) para trocar sem mexer no agente.
-- Não construa: integração com PDV, NF-e pela SEFAZ, e-mail semanal, Open Finance real. Pluggy só em sandbox, se sobrar tempo.
+- Não construa: integração com PDV, NF-e pela SEFAZ, e-mail semanal, Open Finance real, extrato bancário e Pluggy (implementação futura, decisão do dono em 24/10/2026: ver #220 e #221).
 
 ## O que a banca avalia no sistema (seção 9.4 do edital)
 

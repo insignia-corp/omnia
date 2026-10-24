@@ -103,7 +103,7 @@ describe("AgenteService", () => {
     expect(exec).toMatchObject({
       resultado: "aprovada",
       iteracoes: 2,
-      versaoPrompt: "sistema-v5",
+      versaoPrompt: "sistema-v6",
       tokensEntrada: 2000,
       tokensSaida: 200,
       custoEstimadoMicrodolares: 2000 * 4 + 200 * 20,
@@ -578,7 +578,7 @@ describe("AgenteService: relatório diário só vale com a escolha registrada (#
       "t2",
     );
 
-  it("escreve sem chamar select_alerts: o loop pede a escolha e só então aprova", async () => {
+  it("escreve sem escolha registrada: o loop pede o resumo de ontem e aprova depois do select_alerts", async () => {
     const { agente, modelo, registro } = criarCom(
       [
         usarFerramenta("list_alert_candidates", {}, "t1"),
@@ -590,7 +590,7 @@ describe("AgenteService: relatório diário só vale com a escolha registrada (#
     );
     const r = await agente.executar(diario);
     expect(r).toMatchObject({ resultado: "aprovada", mensagem: "O arroz subiu 12,05%." });
-    expect(JSON.stringify(modelo.pedidos[2]?.messages)).toContain("select_alerts");
+    expect(JSON.stringify(modelo.pedidos[2]?.messages)).toContain("get_daily_briefing");
     expect(registro.execucoes[0]?.chamadas.map((c) => c.ferramenta)).toEqual([
       "list_alert_candidates",
       "select_alerts",
@@ -609,7 +609,7 @@ describe("AgenteService: relatório diário só vale com a escolha registrada (#
     );
     const r = await agente.executar(diario);
     expect(r).toMatchObject({ resultado: "fallback_erro", mensagem: FALLBACK.erro });
-    expect(registro.execucoes[0]?.erro).toMatch(/select_alerts/);
+    expect(registro.execucoes[0]?.erro).toMatch(/get_daily_briefing ou select_alerts/);
   });
 
   it("sem candidatos, não precisa de select_alerts", async () => {
@@ -643,6 +643,84 @@ describe("AgenteService: relatório diário só vale com a escolha registrada (#
       [candidatos(1), falha],
     );
     expect((await agente.executar(diario)).resultado).toBe("fallback_erro");
+  });
+
+  // Dublê com o contrato combinado de get_daily_briefing (a ferramenta vem de outra frente).
+  const resumoDeOntem = definirFerramenta({
+    nome: "get_daily_briefing",
+    descricao: "Resumo de ontem.",
+    entrada: z.strictObject({ data: z.string().optional() }),
+    efeito: "nenhum",
+    executar: async () => ({
+      data: "2026-10-23",
+      dia_da_semana: "sexta",
+      dia: { faturamento_centavos: 184250, vendas: 112, ticket_medio_centavos: 1645 },
+      mesmos_dias_anteriores: {
+        datas: ["2026-10-16", "2026-10-09", "2026-10-02"],
+        media_faturamento_centavos: 172000,
+        media_vendas: 108,
+        media_ticket_medio_centavos: 1593,
+      },
+      variacao_faturamento_percentual: 7.12,
+      variacao_ticket_percentual: 3.26,
+      mais_vendidos: [{ produto_id: "p1", produto: "Cerveja lata", unidades_7_dias: 172 }],
+      piores: [],
+      atencao: [],
+      periodo: { inicio: "2026-10-17", fim: "2026-10-23" },
+      n_registros: 40,
+      menor_confianca: 1,
+      origens: ["planilha"],
+    }),
+  });
+
+  it("get_daily_briefing bem-sucedido conta como escolha registrada, sem select_alerts", async () => {
+    const { agente, registro } = criarCom(
+      [
+        usarFerramenta("get_daily_briefing", {}, "t1"),
+        texto(
+          "Bom dia! Ontem R$ 1.842,50 em 112 vendas. A média das últimas 3 sextas foi R$ 1.720,00: alta de 7,12%.",
+        ),
+      ],
+      [resumoDeOntem, candidatos(1), escolhe],
+    );
+    const r = await agente.executar(diario);
+    expect(r.resultado).toBe("aprovada");
+    expect(registro.execucoes[0]?.chamadas.map((c) => c.ferramenta)).toEqual(["get_daily_briefing"]);
+  });
+
+  it("a janela que o resultado declara vale como número: 3 datas comparadas e 7 dias da chave", async () => {
+    const { agente } = criarCom(
+      [
+        usarFerramenta("get_daily_briefing", {}, "t1"),
+        texto(
+          "Nas últimas 3 sextas a média foi R$ 1.720,00. Nos últimos 7 dias, a cerveja lata vendeu 172 unidades.",
+        ),
+      ],
+      [resumoDeOntem],
+    );
+    expect((await agente.executar(diario)).resultado).toBe("aprovada");
+  });
+
+  it("número fora do resultado continua bloqueado mesmo com o resumo de ontem", async () => {
+    const { agente } = criarCom(
+      [
+        usarFerramenta("get_daily_briefing", {}, "t1"),
+        texto("Nas últimas 4 sextas a média foi R$ 1.720,00."),
+        texto("Nas últimas 4 sextas a média foi R$ 1.720,00."),
+        texto("Nas últimas 4 sextas a média foi R$ 1.720,00."),
+      ],
+      [resumoDeOntem],
+    );
+    expect((await agente.executar(diario)).resultado).toBe("fallback_verificador");
+  });
+
+  it("sem escolha registrada, a correção pede get_daily_briefing", async () => {
+    const { agente, modelo } = criarCom(
+      [texto("Hoje o arroz subiu."), usarFerramenta("get_daily_briefing", {}, "t1"), texto("Bom dia!")],
+      [resumoDeOntem],
+    );
+    expect((await agente.executar(diario)).resultado).toBe("aprovada");
+    expect(JSON.stringify(modelo.pedidos[1]?.messages)).toContain("Chame get_daily_briefing sem data");
   });
 
   it("outros gatilhos não exigem select_alerts", async () => {

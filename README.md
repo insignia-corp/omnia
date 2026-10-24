@@ -6,7 +6,7 @@ O código calcula, o modelo comunica: nenhum número chega ao dono sem vir de um
 
 ## Como funciona
 
-1. O dono envia fotos de notas de compra e a planilha de vendas. O extrato bancário, a Pluggy e o Open Finance ficam como implementação futura: o produto não mostra gastos nem saldo.
+1. O dono envia fotos de notas de compra e a planilha de vendas. O extrato bancário, a Pluggy e o Open Finance ficam como implementação futura: a #220 tira gastos e saldo do que o dono vê (o código está em PRs próprios).
 2. Um modelo com visão extrai os itens das notas. O código valida somas, CNPJ e data, e grava tudo com origem e confiança.
 3. Funções em TypeScript calculam margem, giro, variação de custo, ticket médio e estoque parado.
 4. O motor de alertas lista candidatos. O agente escolhe até 3 por dia e escreve uma mensagem curta usando só números das ferramentas.

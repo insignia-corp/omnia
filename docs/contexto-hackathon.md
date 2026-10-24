@@ -126,7 +126,7 @@ A decisão em aberto é qual dado entra primeiro: nota de compra (gestor de marg
  
 | Risco | Mitigação |
 | --- | --- |
-| Fricção de onboarding e desconfiança com dado bancário | Conexão feita uma vez, consentimento explícito e entrada inicial só com fotos de nota e planilha, sem banco |
+| Fricção de onboarding e desconfiança com dado bancário | Entrada inicial só com fotos de nota e planilha, sem banco (conexão com consentimento explícito é implementação futura) |
 | Margem errada leva a decisão errada | Mostrar nível de confiança, conferir a soma dos itens contra o total da nota e perguntar ao dono quando houver dúvida |
 | Informalidade: parte do público não emite nota nem separa conta PJ | Perguntar nas entrevistas e aceitar foto de recibo e planilha |
 | Certificado digital para NF-e: pode faltar ao pequeno comerciante, e a manifestação é registrada em nome do cliente | Confirmar nas entrevistas, usar foto de nota no MVP e exigir consentimento explícito se usar NF-e |

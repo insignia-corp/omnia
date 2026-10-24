@@ -46,8 +46,8 @@ O banco é PostgreSQL. Duas regras valem para todas as tabelas: valores em dinhe
 | Entidade | Campos principais |
 | --- | --- |
 | Comerciante | nome, telefone do WhatsApp, tipo de comércio, consentimentos (notas; o de banco é implementação futura) |
-| Conta (implementação futura: a tabela existe, nada a usa no produto) | comerciante, instituição, id da conexão no agregador, status do consentimento |
-| Transação (implementação futura: a tabela existe, nada a usa no produto) | conta, data, valor, entrada ou saída, descrição, categoria |
+| Conta (implementação futura: a tabela existe e a #220 tira o uso dela do que o dono vê) | comerciante, instituição, id da conexão no agregador, status do consentimento |
+| Transação (implementação futura: a tabela existe e a #220 tira o uso dela do que o dono vê) | conta, data, valor, entrada ou saída, descrição, categoria |
 | Produto | comerciante, nome, código de barras ou SKU, unidade, categoria |
 | Fornecedor | comerciante, nome, CNPJ |
 | Documento | comerciante, tipo (foto de nota, NF-e, planilha), arquivo, status da extração, confiança média |
@@ -116,7 +116,7 @@ O motor de alertas apenas lista candidatos com prioridade. Quem decide o que ent
 O código aplica estas regras além da tabela. Os valores iniciais ficam nas constantes `PARAMETROS_*` de [src/metricas](../src/metricas/README.md), e o teste de regressão confere que são os do gabarito.
 
 - Sem custo ou sem venda a margem não sai: a métrica devolve dado ausente, com a pergunta ao dono, nunca uma estimativa.
-- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. O extrato bancário (gastos e saldo) é implementação futura e não aparece para o dono; o que a métrica ainda calcula dele está em `src/metricas/README.md`. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias, e a receita por produto quando cobrem os 7 dias.
+- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. O extrato bancário (gastos e saldo) é implementação futura e sai do que o dono vê (#220); o que a métrica ainda calcula dele está em `src/metricas/README.md`. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias, e a receita por produto quando cobrem os 7 dias.
 - Venda de planilha cuja importação ainda pede revisão do dono (documento fora de `extraido`) entra nas métricas com confiança 0,5, não 1; volta ao valor original quando o documento é resolvido.
 - O custo de cada item de compra vale pela leitura mais recente de `historico_custo`, então a correção do dono prevalece sem apagar a leitura do modelo. O custo mais recente de um produto é o de maior data; o empate desempata pela criação.
 - A variação de custo compara notas diferentes: duas linhas do mesmo produto na mesma nota não são um reajuste.

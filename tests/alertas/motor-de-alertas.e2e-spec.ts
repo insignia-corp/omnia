@@ -139,7 +139,7 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
     it("nenhum dos casos que não devem disparar vira candidato", async () => {
       const gravados = new Set((await linhasDoBanco(vilaNova)).map(chaveDaLinha));
       for (const n of gabarito.alertas_que_nao_devem_disparar) {
-        // Ticket e gasto de outros dias são conferidos em "casos de outros dias", mais abaixo.
+        // O ticket de outros dias é conferido em "casos de outros dias", mais abaixo (o gasto saiu do motor).
         if (n.data) continue;
         expect(gravados.has(chaveDoGabarito(n.tipo, n.produto_id, n.fornecedor_id))).toBe(false);
       }
@@ -340,8 +340,10 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       expect(arroz?.status).toBe("enviado");
     });
 
-    it("casos de outros dias: o motor não gera ticket nem gasto que o gabarito manda não disparar", async () => {
-      const casos = gabarito.alertas_que_nao_devem_disparar.filter((n) => n.data);
+    it("casos de outros dias: o motor não gera o ticket que o gabarito manda não disparar", async () => {
+      const casos = gabarito.alertas_que_nao_devem_disparar.filter(
+        (n) => n.data && n.tipo === "ticket_medio_em_queda",
+      );
       expect(casos.length).toBeGreaterThan(0);
       for (const n of casos) {
         await motor.executar({ comercianteId: vilaNova, dataReferencia: n.data as string });

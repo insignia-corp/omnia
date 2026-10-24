@@ -1,5 +1,5 @@
 /**
- * As sete regras do motor (issue #43), uma por tipo de alerta. Cada uma relê o número que a métrica
+ * As regras do motor (issue #43), uma por tipo de alerta; a de gasto fora do padrão ficou fora do motor (#220). Cada uma relê o número que a métrica
  * já calculou contra o limite do comerciante; o impacto em centavos sai de contas inteiras sobre
  * esses números. Dado ausente não vira candidato nem zero.
  */

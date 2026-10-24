@@ -31,7 +31,7 @@ PRs em issues `regra-inviolável` precisam de teste que prove a regra.
 
 - Congelamento do código: sábado 24/10/2026 às 15h30, tudo no GitHub.
 - Prioridade: menor ciclo ponta a ponta (nota entra, extração, métricas, alerta, agente escreve, verificador confere, mensagem sai). Issues `prioridade:P0` primeiro.
-- Fora do escopo (label `fora-do-escopo-regional`, não fazer): PDV, NF-e pela SEFAZ, e-mail semanal, Open Finance real, extrato bancário, Pluggy e Open Finance (implementação futura).
+- Fora do escopo (label `fora-do-escopo-regional`, não fazer): PDV, NF-e pela SEFAZ, e-mail semanal, extrato bancário, Pluggy e Open Finance (implementação futura).
 - WhatsApp é opcional: o canal fica atrás de `MessageChannel`, com chat web como plano B.
 
 ## Convenções

@@ -6,7 +6,7 @@ Margem por produto, variação de custo, maior giro, receita por produto, resumo
 
 | Camada | Arquivos | Regra |
 | --- | --- | --- |
-| Funções puras | `margem-por-produto.ts`, `variacao-de-custo.ts`, `giro.ts`, `receita-por-produto.ts`, `resumo-diario.ts`, `resumo-de-periodo.ts`, `ticket-medio.ts`, `gasto-fora-do-padrao.ts`, `estoque-parado.ts`, `espaco-para-subir-preco.ts` | Recebem registros já lidos e a data de referência. Não leem banco nem relógio. Janelas, limites e desempates ficam aqui, com teste unitário ao lado. Os valores iniciais estão nas constantes `PARAMETROS_*` de cada arquivo. |
+| Funções puras | `margem-por-produto.ts`, `variacao-de-custo.ts`, `giro.ts`, `receita-por-produto.ts`, `resumo-diario.ts`, `resumo-de-periodo.ts`, `serie-de-faturamento.ts`, `ticket-medio.ts`, `gasto-fora-do-padrao.ts`, `estoque-parado.ts`, `espaco-para-subir-preco.ts` | Recebem registros já lidos e a data de referência. Não leem banco nem relógio. Janelas, limites e desempates ficam aqui, com teste unitário ao lado. Os valores iniciais estão nas constantes `PARAMETROS_*` de cada arquivo. |
 | Dados | `repositorio-metricas.ts` | Lê o PostgreSQL, sempre filtrando por `comerciante_id`, e devolve registros somados por dia (`dados-de-metricas.ts`). |
 | Serviço | `metricas.service.ts` | Junta as duas camadas. É o que as ferramentas do agente (#50 a #52) chamam, com o `comerciante_id` da sessão, nunca do modelo. |
 

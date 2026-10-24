@@ -5,6 +5,7 @@ import { FonteDeLimitesPostgres } from "../../alertas/limites-do-comerciante";
 import { RepositorioAlertasPostgres } from "../../alertas/repositorio-alertas";
 import { MetricasService } from "../../metricas/metricas.service";
 import { RepositorioMetricasPostgres } from "../../metricas/repositorio-metricas";
+import { criarGetDailyBriefing } from "./plano-a/get-daily-briefing";
 import { criarGetCostChanges } from "./plano-a/get-cost-changes";
 import { criarGetDailySummary } from "./plano-a/get-daily-summary";
 import { criarGetPeriodSummary } from "./plano-a/get-period-summary";
@@ -23,6 +24,7 @@ export function ferramentasPlanoA({ db }: DependenciasFerramentas): Ferramenta[]
   const metricas = new MetricasService(new RepositorioMetricasPostgres(db));
   return [
     criarGetDailySummary(metricas),
+    criarGetDailyBriefing(metricas, new FonteDeLimitesPostgres(db)),
     criarGetPeriodSummary(metricas),
     criarGetTopProducts(metricas),
     criarGetProductMargin(metricas, db),

@@ -20,6 +20,18 @@ export interface NumeroEsperado {
    * passaria, porque só o valor seria conferido, não o que ele significa.
    */
   contexto?: RegExp;
+  /**
+   * A janela do `contexto` começa no início da linha do número (e não 80 caracteres antes). Só para respostas
+   * em lista, em que o nome do produto abre o item e o percentual vem depois de preços e datas ("- Arroz: custo
+   * de R$ X (compra de ...) para R$ Y, alta de 12,05%"). A janela continua parando no número esperado anterior.
+   */
+  janelaPorLinha?: boolean;
+  /**
+   * Palavras do outro produto, em lista com mais de um: o número é do último produto citado antes dele (ou, sem
+   * nome antes, do primeiro depois dele, na linha dele com `janelaPorLinha`). Se esse for o outro, a atribuição
+   * está trocada e o número não vale.
+   */
+  contextoExcluido?: RegExp;
 }
 
 /** Como o caso é julgado, além de chamar as ferramentas esperadas. */

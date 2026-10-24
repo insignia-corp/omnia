@@ -5,10 +5,11 @@ import type { TipoAlerta } from "../../alertas/tipos";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env";
 import { DB, type Db } from "../../infra/database/database.module";
-import { comerciante, produto } from "../../infra/database/schema";
+import { comerciante, fornecedor, produto } from "../../infra/database/schema";
 import { somarDias } from "../../lib/datas/datas";
 import { MetricasService } from "../../metricas/metricas.service";
 import { dataLocal, RELOGIO, type Relogio } from "../relogio";
+import { fraseDoAviso } from "./frase-do-aviso";
 
 export const ROTULO_ALERTA: Record<TipoAlerta, string> = {
   reajuste_de_custo: "Reajuste de custo",
@@ -47,10 +48,12 @@ export class PainelService {
     const hoje = dataLocal(this.relogio.agora(), this.env.FUSO_HORARIO);
     const ontem = somarDias(hoje, -1);
     const contexto = { comercianteId, dataReferencia: ontem };
-    const [dia, semana, mes, margens, alertas] = await Promise.all([
+    const [dia, semana, mes, serieSemana, serieMes, margens, alertas] = await Promise.all([
       this.metricas.resumoDiario(contexto, ontem),
       this.metricas.resumoDePeriodo(contexto, "semana", ontem),
       this.metricas.resumoDePeriodo(contexto, "mes", ontem),
+      this.metricas.serieDeFaturamento(contexto, "semana", ontem),
+      this.metricas.serieDeFaturamento(contexto, "mes", ontem),
       this.metricas.margensAbaixoDaMeta(contexto),
       this.motor.executar({ comercianteId, dataReferencia: hoje }),
     ]);
@@ -58,6 +61,7 @@ export class PainelService {
     // Cada margem leva a menor confiança e a origem dos dados (regra 4): custo lido de foto duvidosa
     // aparece marcado na página, não como número definitivo.
     const abaixoDaMeta = margens.map(({ valor: m, menor_confianca, origens }) => ({
+      produto_id: m.produto_id,
       produto: m.nome,
       margem_bps: m.margem_bps,
       meta_bps: m.meta_bps,
@@ -68,16 +72,25 @@ export class PainelService {
     }));
 
     const idsProdutos = [...new Set(alertas.candidatos.flatMap((c) => (c.produtoId ? [c.produtoId] : [])))];
-    const nomes = new Map(
+    const idsFornecedores = [
+      ...new Set(alertas.candidatos.flatMap((c) => (c.fornecedorId ? [c.fornecedorId] : []))),
+    ];
+    const [produtos, fornecedores] = await Promise.all([
       idsProdutos.length === 0
         ? []
-        : (
-            await this.db
-              .select({ id: produto.id, nome: produto.nome })
-              .from(produto)
-              .where(and(eq(produto.comercianteId, comercianteId), inArray(produto.id, idsProdutos)))
-          ).map((p) => [p.id, p.nome]),
-    );
+        : this.db
+            .select({ id: produto.id, nome: produto.nome })
+            .from(produto)
+            .where(and(eq(produto.comercianteId, comercianteId), inArray(produto.id, idsProdutos))),
+      idsFornecedores.length === 0
+        ? []
+        : this.db
+            .select({ id: fornecedor.id, nome: fornecedor.nome })
+            .from(fornecedor)
+            .where(and(eq(fornecedor.comercianteId, comercianteId), inArray(fornecedor.id, idsFornecedores))),
+    ]);
+    const nomes = new Map(produtos.map((p) => [p.id, p.nome]));
+    const nomesDeFornecedor = new Map(fornecedores.map((f) => [f.id, f.nome]));
 
     return {
       comercio: dono.nome,
@@ -88,13 +101,27 @@ export class PainelService {
       dia,
       semana,
       mes,
+      /** Faturamento dia a dia para os gráficos; dia sem vendas importadas vem nulo (lacuna, não zero). */
+      serie_semana: serieSemana.valor,
+      serie_mes: serieMes.valor,
       margens_abaixo_da_meta: abaixoDaMeta,
-      avisos: alertas.candidatos.map((c) => ({
-        tipo: c.tipo,
-        rotulo: ROTULO_ALERTA[c.tipo],
-        prioridade: c.prioridade,
-        produto: c.produtoId ? (nomes.get(c.produtoId) ?? null) : null,
-      })),
+      avisos: alertas.candidatos.map((c) => {
+        const nome = c.produtoId ? (nomes.get(c.produtoId) ?? null) : null;
+        return {
+          tipo: c.tipo,
+          rotulo: ROTULO_ALERTA[c.tipo],
+          prioridade: c.prioridade,
+          produto_id: c.produtoId,
+          produto: nome,
+          frase: fraseDoAviso({
+            tipo: c.tipo,
+            rotulo: ROTULO_ALERTA[c.tipo],
+            produto: nome,
+            fornecedor: c.fornecedorId ? (nomesDeFornecedor.get(c.fornecedorId) ?? null) : null,
+            metricasApoio: c.metricasApoio,
+          }),
+        };
+      }),
     };
   }
 }

@@ -25,6 +25,7 @@ import {
   type TipoPeriodo,
 } from "./resumo-de-periodo";
 import { DIAS_DE_COMPARACAO_DO_RESUMO, calcularResumoDiario, type ResumoDiario } from "./resumo-diario";
+import { calcularSerieDeFaturamento, type FaturamentoDoDia } from "./serie-de-faturamento";
 import { DIAS_DE_HISTORICO_DO_TICKET, calcularTicketMedio, type TicketMedio } from "./ticket-medio";
 import { calcularVariacoesDeCusto, type VariacaoDeCusto } from "./variacao-de-custo";
 
@@ -201,6 +202,21 @@ export class MetricasService {
       movimentos,
       intervaloDeMovimentos: intervaloComumDeMovimentos(ate, contas, intervalosPorConta),
     });
+  }
+
+  /** Faturamento dia a dia da semana ou do mês que termina na data, para os gráficos do painel. */
+  async serieDeFaturamento(
+    contexto: ContextoMetricas,
+    tipo: TipoPeriodo,
+    ate: string = contexto.dataReferencia,
+  ): Promise<ResultadoMetrica<FaturamentoDoDia[]>> {
+    const { comercianteId } = contexto;
+    const { atual } = periodosDoResumo(tipo, ate);
+    const [vendas, intervaloDeVendas] = await Promise.all([
+      this.dados.vendasPorDia(comercianteId, atual.inicio, ate),
+      this.dados.intervaloDeVendas(comercianteId),
+    ]);
+    return calcularSerieDeFaturamento({ tipo, ate, vendas, intervaloDeVendas });
   }
 
   /** Ticket médio de um dia contra a média dos 28 anteriores (a data de referência, se não for indicada outra). */

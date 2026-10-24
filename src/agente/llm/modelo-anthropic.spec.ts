@@ -82,4 +82,11 @@ describe("ModeloAnthropic: falhas da API", () => {
     await modelo.gerar(pedido);
     expect(f.corpos.map((c) => (c.output_config as { effort: string }).effort)).toEqual(["low", "medium"]);
   });
+
+  it("cache em dois pontos: no fim do prompt de sistema e no fim da conversa", async () => {
+    const f = fetchRoteirizado([json(200, mensagemOk)]);
+    await new ModeloAnthropic(env, f.fn).gerar(pedido);
+    expect(f.corpos[0]!.system).toEqual([{ type: "text", text: "s", cache_control: { type: "ephemeral" } }]);
+    expect(f.corpos[0]!.cache_control).toEqual({ type: "ephemeral" });
+  });
 });

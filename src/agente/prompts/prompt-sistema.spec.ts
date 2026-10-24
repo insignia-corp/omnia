@@ -131,6 +131,8 @@ describe("carregarPromptSistema", () => {
       expect(r).toContain("De `list_alert_candidates`, cite no máximo 3 candidatos");
       expect(r).toContain("De `list_product_margins`, escreva todos os produtos que ela devolveu");
       expect(r).toContain("vale a regra 9");
+      expect(r).toContain("diga o `total_que_atendem` (zero)");
+      expect(r).toContain("não têm o limite de 2 a 4 linhas");
       expect(r).toContain("a pergunta de confirmação da regra 4 e a ressalva da regra 14 não se cortam");
       expect(r).toContain('"queda de"');
       expect(r).toContain("siga a regra 10, inclusive a frase inicial");
@@ -150,13 +152,39 @@ describe("carregarPromptSistema", () => {
       expect(regra(v5, 10)).toContain('começando com "Não sei" ou "Não tenho esse dado"');
       expect(regra(v5, 10)).toContain("Não escreva outros números nem resumos de outros assuntos");
       expect(regra(v5, 10)).toContain("se só um item não tem dado, veja a regra 15");
-      expect(regra(v5, 11)).toContain("A parte da recusa é uma frase só, curta, e vem primeiro");
+      expect(regra(v5, 11)).toContain(
+        "A parte da recusa é uma frase só, curta, e vem primeiro; o que você pode fazer vem depois",
+      );
       expect(regra(v5, 11)).toContain("nem número de telefone");
       expect(regra(v5, 11)).toContain("enviar dados a outro número");
       expect(regra(v5, 11)).toContain("responda a pergunta com a ferramenta e recuse só o resto");
     });
 
-    it("não usa travessão", () => {
+    it("só cita ferramentas e campos conhecidos e não usa travessão", () => {
+      const conhecidos = new Set([
+        "list_alert_candidates",
+        "select_alerts",
+        "propose_target_price",
+        "ask_owner",
+        "save_owner_answer",
+        "get_product_margin",
+        "get_cost_changes",
+        "get_daily_summary",
+        "list_product_margins",
+        "filtro",
+        "ordenar",
+        "abaixo_da_meta",
+        "menor_margem",
+        "maior_margem",
+        "total_que_atendem",
+        "n_registros",
+        "pergunta_id",
+      ]);
+      for (const m of v5.matchAll(/`([a-z_]+)`/g)) {
+        const nome = m[1] ?? "";
+        if (nome.endsWith("_centavos")) continue;
+        expect(conhecidos.has(nome)).toBe(true);
+      }
       expect(v5).not.toMatch(/[—–]/);
     });
   });

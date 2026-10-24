@@ -99,7 +99,7 @@ npm run dev
 - [Fluxo do agente](docs/agent-flow.md): inputs, lógica e outputs do agente
 - [Especificação dos agentes](docs/especificacao-agentes.md): Extrator, Analista, orquestrador, ferramentas, falhas e avaliação
 - [Decisões](docs/decisoes/): ORM, modelo de linguagem, arquitetura do agente
-- [AGENTS.md](AGENTS.md): regras invioláveis, roteamento e convenções do projeto (o `CLAUDE.md` só o importa)
+- [AGENTS.md](AGENTS.md): regras invioláveis, roteamento e convenções do projeto (o `CLAUDE.md` o importa e acrescenta só os comandos do Claude Code)
 
 ## Equipe
 

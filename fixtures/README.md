@@ -28,7 +28,7 @@ Data de referência dos gabaritos: **2026-10-19** (segunda). Janela de dados: 20
 
 `npm run seed:demo` (ou `npm run db:seed` com o banco já migrado) carrega estes arquivos em PostgreSQL para dois comerciantes. Para repetir a demo sem apagar outros comerciantes, use `npm run demo:reset`. Ver [docs/modelo-de-dados.md](../docs/modelo-de-dados.md#seed).
 
-As 18 notas de `notas/` entram no seed do Mercadinho Vila Nova com o hash do arquivo (a Conveniência Esquina 24h recebe só um recorte: 12 produtos e os últimos 14 dias). Reenviar uma delas (pela tela do `/whatsapp`, que envia por `POST /chat/notas`, ou por `POST /documentos/notas`) é `duplicado`: não extrai de novo, e a conversa mostra a leitura guardada. Para ver a extração ao vivo, use uma foto fora do seed (até uma cópia com um byte a mais no fim já tem outro hash).
+As 18 notas de `notas/` entram no seed do Mercadinho Vila Nova com o hash do arquivo (a Conveniência Esquina 24h recebe só um recorte, descrito em [docs/modelo-de-dados.md](../docs/modelo-de-dados.md#seed)). Reenviar uma delas (pela tela do `/whatsapp`, que envia por `POST /chat/notas`, ou por `POST /documentos/notas`) é `duplicado`: não extrai de novo, e a conversa mostra a leitura guardada. Para ver a extração ao vivo, use uma foto fora do seed (até uma cópia com um byte a mais no fim já tem outro hash).
 
 ## Convenções
 

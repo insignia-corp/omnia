@@ -36,7 +36,7 @@ Prazo duro: congelamento sábado 24/10/2026 às 15h30. MVP = menor ciclo ponta a
 
 Hoje `AgenteModule` cria `new RegistroFerramentas([])` e `AppModule` é compartilhado. Para ninguém editar o mesmo arquivo, o plano B faz um PR mínimo e o mescla primeiro:
 
-- `src/agente/ferramentas/catalogo.ts`, que junta `ferramentas-plano-a.ts`, `ferramentas-plano-b.ts` e `ferramentas-plano-c.ts` (cada um exporta a lista de ferramentas do plano; a do plano C segue vazia) e passa o resultado ao `RegistroFerramentas`.
+- `src/agente/ferramentas/catalogo.ts`, que junta `ferramentas-plano-a.ts`, `ferramentas-plano-b.ts` e `ferramentas-plano-c.ts` (cada um exporta uma função que devolve a lista de ferramentas do plano; a do plano C segue devolvendo uma lista vazia) e passa o resultado ao `RegistroFerramentas`.
 - Módulos vazios `MetricasModule`, `AlertasModule`, `CanalModule`, `AvaliacaoModule` já importados no `AppModule`.
 
 Depois disso, cada plano só edita arquivos seus. Os planos A e C não esperam: desenvolvem e testam na pasta deles e só encaixam no catálogo no passo final de cada issue.

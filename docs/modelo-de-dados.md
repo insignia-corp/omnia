@@ -6,7 +6,7 @@ Dono do fato: `src/infra/database/schema.ts` (Drizzle). Migrações em `drizzle/
 
 | Regra | Como o banco garante |
 | --- | --- |
-| Dinheiro em centavos inteiros | Colunas `bigint` com sufixo `_centavos` (o custo estimado das chamadas ao modelo é `custo_estimado_microdolares`, em micro-dólares). Nenhum `float` para dinheiro; a única `numeric` é `limite_alerta.valor`, que guarda o limite (em centavos quando ele é monetário) |
+| Dinheiro em centavos inteiros | Colunas `bigint` com sufixo `_centavos` (o custo estimado das chamadas ao modelo é `custo_estimado_microdolares`, em micro-dólares). Nenhum `float` para dinheiro; a única `numeric` monetária é `limite_alerta.valor`, que guarda o limite (em centavos quando ele é monetário) |
 | `comerciante_id` em toda tabela com dado do lojista | Coluna `NOT NULL` com índice e chave estrangeira para `comerciante` |
 | Isolamento entre lojistas | Tabela filha aponta para a mãe por chave composta `(id, comerciante_id)`. O banco recusa um item de venda do lojista A ligado à venda do lojista B |
 | Origem e confiança em todo dado extraído ou informado | Colunas `origem` (`foto_nota`, `nfe`, `planilha`, `banco`, `dono`) e `confianca` (0 a 1, com `CHECK`) |
@@ -79,7 +79,7 @@ Toda tabela, exceto `comerciante`, também aponta para `comerciante` (omitido no
 `UPDATE` em `historico_custo`, `historico_preco_meta`, `limite_alerta` e `vinculo_descricao_produto` sempre falha. `DELETE` só passa em dois casos:
 
 1. Em cascata, como na exclusão do lojista (LGPD): o gatilho deixa passar o `DELETE` que roda dentro de outro gatilho (`pg_trigger_depth() > 1`).
-2. Quando a transação declara `SET LOCAL omnia.exclusao_autorizada = 'on'`, que hoje só o seed usa; a rotina de retenção (`RETENCAO_MESES` em `src/config/env.ts`) ainda não existe no código.
+2. Quando a transação declara `SET LOCAL omnia.exclusao_autorizada = 'on'`, que hoje só o seed e os testes e2e usam; a rotina de retenção (`RETENCAO_MESES` em `src/config/env.ts`) ainda não existe no código.
 
 Isso protege o ativo próprio do projeto (edital, seção 9.4): custo por produto, fornecedor e data, e vínculos confirmados pelo dono.
 

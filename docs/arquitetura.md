@@ -90,4 +90,4 @@ Roxo: módulo com modelo de linguagem. Verde: código determinístico. Cinza: ca
 
 ## Estado
 
-PostgreSQL guarda dados do lojista, histórico de custo, execuções do agente e confirmações pendentes. Redis e BullMQ guardam filas e jobs (com `jobId` contra duplicata). A idempotência da regra inviolável 9 (alertas e mensagens, no máximo uma proativa por dia) fica em índices únicos do PostgreSQL. Nenhum estado fica em memória do processo (regra inviolável 11).
+PostgreSQL guarda dados do lojista, histórico de custo, execuções do agente e confirmações pendentes. Redis e BullMQ guardam filas e jobs (com `jobId` contra duplicata). A idempotência da regra inviolável 9 vem do `jobId` dos jobs no BullMQ e, para alertas e mensagens (no máximo uma proativa por dia), de índices únicos do PostgreSQL. Nenhum estado fica em memória do processo (regra inviolável 11).

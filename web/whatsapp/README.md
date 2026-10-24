@@ -4,7 +4,7 @@ Tela de conversa com o Omnia que imita o WhatsApp Web, para o pitch. Não usa a 
 
 ## Rodar
 
-Com o backend (dados reais do banco): o Nest serve a pasta em `/whatsapp`, sem build, no `npm run dev`, no `npm run build` e na imagem Docker (o Dockerfile copia a pasta).
+Com o backend (dados reais do banco): o Nest serve a pasta em `/whatsapp`, sem build, no `npm run dev`, no `npm run build` e na imagem Docker (o Dockerfile copia os arquivos `.html`, `.css` e `.js` da pasta).
 
 ```bash
 npm run seed:demo
@@ -22,7 +22,7 @@ python3 -m http.server 5180 --bind 127.0.0.1 --directory web/whatsapp
 
 Parâmetros de URL: `?modo=api` ou `?modo=demo` (sem o parâmetro, tenta o backend e cai na demonstração se ele não responder), `?comerciante=<id>` (dono no modo api; sem ele, o comerciante do seed da demo), `?painel=<url>` (botão "Abrir painel" do modo demonstração; no api o link vem do backend), `?escala=1.4` (tamanho da letra), `?tema=claro`.
 
-No menu de três pontos: receber o resumo das 7h (no máximo 1 proativa por dia; no api é o mesmo serviço do job diário), aumentar e diminuir a letra, trocar o tema e limpar a conversa (no api limpa só a tela: o histórico nunca é apagado e volta ao recarregar). Arrastar uma foto para a conversa também envia.
+No menu de três pontos: receber o resumo das 7h (no máximo 1 proativa por dia; no api é o mesmo serviço do job diário), aumentar e diminuir a letra, trocar o tema e limpar a conversa (no api limpa só a tela: o histórico nunca é apagado e volta ao recarregar). Arrastar uma foto para a conversa abre a prévia; o envio sai pelo botão de enviar.
 
 Testes sem navegador: `npm run test:web` (regras da Meta, formatação de centavos e bps, se toda resposta e todo botão do modo demonstração respeitam as regras, e o transporte do backend com `fetch` falso). As rotas do backend têm e2e em `tests/canal/whatsapp.e2e-spec.ts`.
 
@@ -42,11 +42,11 @@ Testes sem navegador: `npm run test:web` (regras da Meta, formatação de centav
 
 ## Contrato do transporte
 
-A tela só conhece a interface `Transporte` (`tipos.js`): `historico()`, `enviar(mensagem, arquivo?)`, `aoEvento(ouvinte)` e, opcional, `reiniciar()` e `simularProativa()`. A demonstração e o backend são dois transportes com a mesma interface.
+A tela só conhece a interface `Transporte` (`tipos.js`): `historico()`, `enviar(mensagem, arquivo?)`, `aoEvento(ouvinte)` e, opcional, `reiniciar()` (declarado em `tipos.js`). O transporte de demonstração e o do backend também expõem `simularProativa()`, fora da interface (ver o JSDoc de `transporte-demo.js` e `transporte-api.js`). A demonstração e o backend são dois transportes com a mesma interface.
 
 No modo api (`transporte-api.js`), o comerciante vem de `GET /whatsapp/sessao` (o `?comerciante=` ou o do seed), nunca do texto, e vai em `X-Comerciante-Id` (provisório, `src/comerciante/sessao.ts`). Texto, botão e linha de lista vão no formato do webhook para `POST /chat/mensagens`; foto e XML da NF-e vão para `POST /chat/notas` com o id da mensagem e a legenda; o histórico, os tiques e o "digitando" vêm de `GET /chat/mensagens?formato=whatsapp`; a foto de uma mensagem antiga é baixada de `GET /chat/notas/:documento/arquivo`; o resumo das 7h é `POST /chat/proativa`. Detalhe das rotas em `src/canal/README.md`.
 
-Mensagens no formato da Cloud API, para o canal real reaproveitar o desenho:
+Mensagens no formato da Cloud API, para o canal real reaproveitar o desenho (no backend a saída do agente tem `text`, `interactive` e `template`, e foto e XML do dono entram por `POST /chat/notas`):
 
 - Do agente (`direcao: "saida"`): o corpo de `POST /{phone-number-id}/messages`. Tipos `text`, `image`, `document`, `interactive` (`button`, `list`, `cta_url`) e `template`.
 - Do dono (`direcao: "entrada"`): o objeto `messages[]` do webhook. Tipos `text`, `image`, `document`, `interactive` (`button_reply`, `list_reply`) e `button` (toque em botão de modelo). Resposta a uma mensagem leva `context.id`.
@@ -55,4 +55,4 @@ Eventos que o transporte emite: `{ tipo: "mensagem", mensagem }`, `{ tipo: "stat
 
 ## Regras da Meta conferidas
 
-`regras-meta.js` é o dono dos números (o backend confere os mesmos em `src/canal/whatsapp/regras-meta.ts` antes de gravar): texto até 4096 caracteres, legenda até 1024, corpo interativo até 1024, cabeçalho e rodapé até 60, de 1 a 3 botões de resposta com título até 20, lista com até 10 linhas no total (título até 24, descrição até 72, texto do botão até 20), botão de link com texto até 20, foto JPEG ou PNG até 5 MB, documento até 100 MB (aqui só o XML da NF-e, que é o que o backend lê), e janela de 24 h: sem mensagem do dono nas últimas 24 h, o agente só pode mandar modelo. Mensagem do agente que viola uma regra aparece como aviso tracejado em vermelho no lugar da bolha (o canal real receberia erro da Meta).
+`regras-meta.js` é o dono dos números (o backend confere em `src/canal/whatsapp/regras-meta.ts`, antes de gravar, as regras de texto, botão, lista e legenda; os limites de foto e de documento e os tipos de arquivo só o front confere, e no upload real valem `UPLOAD_MAX_BYTES` e o 415 para tipo errado): texto até 4096 caracteres, legenda até 1024, corpo interativo até 1024, cabeçalho e rodapé até 60, de 1 a 3 botões de resposta com título até 20, lista com até 10 linhas no total (título até 24, descrição até 72, texto do botão até 20), botão de link com texto até 20, foto JPEG ou PNG até 5 MB, documento até 100 MB (aqui só o XML da NF-e, que é o que o backend lê), e janela de 24 h: sem mensagem do dono nas últimas 24 h, o agente só pode mandar modelo. Mensagem do agente que viola uma regra aparece como aviso tracejado em vermelho no lugar da bolha (o canal real receberia erro da Meta).

@@ -1,6 +1,6 @@
 # Como contribuir
 
-Leia antes o [CLAUDE.md](CLAUDE.md) (regras invioláveis) e o [guia de desenvolvimento](docs/guia-desenvolvimento.md).
+Leia antes o [AGENTS.md](AGENTS.md) (regras invioláveis) e o [guia de desenvolvimento](docs/guia-desenvolvimento.md).
 
 ## Organização do trabalho
 
@@ -34,7 +34,7 @@ PRs em issues com `regra-inviolável` precisam de teste que prove a regra.
 npm run lint && npm run typecheck && npm test && npm run test:e2e
 ```
 
-A CI roda os mesmos passos, mais a varredura de segredos e o build da imagem.
+A CI roda os mesmos passos, mais `npx prettier --check .`, a conferência de migrações do Drizzle contra `schema.ts`, `npm run build`, a varredura de segredos e o build da imagem.
 
 ## Prefixos de commit
 

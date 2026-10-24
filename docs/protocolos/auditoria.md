@@ -14,6 +14,6 @@ Para qualquer agente, depois de editar código ou docs e antes de abrir PR. Trab
    - número chegando ao dono sem passar pelo verificador;
    - travessão em texto ou mensagem.
 4. **Cobertura**: issue com `regra-inviolável` exige teste que prove a regra.
-5. **Portões**: `npm run lint && npm run typecheck && npm test` (mais `npm run test:e2e` se tocou banco, fila ou HTTP). Falha de ambiente (dependência ausente): `npm ci` e repetir. Não afirme verde sem ter visto verde.
+5. **Portões**: `npm run lint && npx prettier --check . && npm run typecheck && npm test` (mais `npm run test:e2e` se tocou banco, fila ou HTTP, e `npx drizzle-kit check` se tocou `schema.ts`; a CI também roda `npm run build`). Falha de ambiente (dependência ausente): `npm ci` e repetir. Não afirme verde sem ter visto verde.
 6. **Corrigir e commitar**: aplique as correções, repita os portões e commite em branch `feature/*`, nunca em `develop` ou `main`. Sem push.
 7. **Relatório**: achados (arquivo:linha, regra, o que foi feito) e resultado dos portões. Sem achados: uma linha.

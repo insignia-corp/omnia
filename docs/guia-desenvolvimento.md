@@ -127,23 +127,25 @@ O código aplica estas regras além da tabela. Os valores iniciais ficam nas con
  
 ## O agente
  
-O agente é um modelo de linguagem com chamada de ferramentas (tool use), rodando em um loop: recebe o gatilho, chama ferramentas, lê os resultados e produz a mensagem. No MVP todas as ferramentas são de leitura, exceto as que perguntam ao dono e gravam a resposta dele.
+O agente é um modelo de linguagem com chamada de ferramentas (tool use), rodando em um loop: recebe o gatilho, chama ferramentas, lê os resultados e produz a mensagem. No MVP as ferramentas são de leitura, exceto as que perguntam ao dono, gravam a resposta dele e propõem o preço-meta. Nenhuma altera configuração ou dinheiro sem o "sim" do dono; `ask_owner` grava a pergunta e `list_alert_candidates` só acrescenta candidatos de alerta.
  
 | Ferramenta | Entrada | Saída | Efeito |
 | --- | --- | --- | --- |
 | `get_daily_summary` | data | Faturamento, gastos, saldo e comparação com dias anteriores | Nenhum |
 | `get_period_summary` | semana ou mês, último dia | Faturamento, cupons, ticket, gastos e saldo do período, comparado com o período anterior | Nenhum |
 | `get_top_products` | critério (volume, alta do giro ou receita) | Ranking de produtos dos últimos 7 dias até ontem | Nenhum |
-| `get_product_margin` | produto (e o produto_id do candidato escolhido, opcional), período | Margem, custo, preço, preço que leva à meta e confiança | Nenhum |
+| `get_product_margin` | produto (e o produto_id do candidato escolhido, opcional) | Margem, custo, preço, preço que leva à meta e confiança | Nenhum |
 | `list_product_margins` | filtro, ordenar, limite | Margens dos produtos sem precisar do nome, com o total que atende ao filtro e a meta usada | Nenhum |
-| `get_cost_changes` | período | Reajustes por produto e fornecedor | Nenhum |
-| `list_alert_candidates` | data | Candidatos a alerta com prioridade e métricas de apoio | Nenhum |
-| `ask_owner` | campo, produto, fornecedor (quando há mais de um) | Registra a pergunta pendente e devolve `pergunta_id` e o texto, sem valor de exemplo; o envio é do canal | Grava a pergunta |
-| `save_owner_answer` | campo, valor como o dono escreveu, pergunta (só se houver mais de uma pendente) | O código lê o valor em centavos e grava linha nova do histórico, com origem "dono" e confiança 1, ligada ao fornecedor da pergunta | Escreve no banco, só depois de o dono confirmar |
+| `get_cost_changes` | filtro (todos, acima do limite ou recentes) | Reajustes por produto e fornecedor | Nenhum |
+| `list_alert_candidates` | nenhuma (a data vem da sessão) | Candidatos a alerta com prioridade e métricas de apoio | Só acrescenta candidatos de alerta |
+| `select_alerts` | alertas escolhidos (id do candidato e justificativa curta, até 3) | Os dados de cada alerta escolhido, conferidos contra os candidatos do comerciante da sessão | Nenhum |
+| `ask_owner` | campo, produto_id, fornecedor_id (quando há mais de um) | Registra a pergunta pendente e devolve `pergunta_id` e o texto, sem valor de exemplo; o envio é do canal | Grava a pergunta |
+| `save_owner_answer` | campo, `valor_informado` como o dono escreveu, `pergunta_id` (só se houver mais de uma pendente) | O código lê o valor em centavos e grava linha nova do histórico, com origem "dono" e confiança 1, ligada ao fornecedor da pergunta | Escreve no banco, só depois de o dono confirmar |
+| `propose_target_price` | produto_id, `preco_meta_centavos` | A pergunta de confirmação para o dono; o sistema registra o preço-meta só quando ele responde sim | Escreve a configuração, só depois do "sim" |
  
-A execução diária segue este roteiro: o job dispara, o agente chama `list_alert_candidates`, escolhe até 3 alertas, busca o detalhe de cada um, escreve a mensagem e a devolve. O verificador confere os números e só então o canal envia e registra o custo (`send_message` não é ferramenta: ver `docs/especificacao-agentes.md` seção 4).
+A execução diária segue este roteiro: o job dispara, o agente chama `list_alert_candidates`, escolhe até 3 alertas e registra a escolha com `select_alerts`, escreve a mensagem só com o que ela devolveu e a devolve. O verificador confere os números e só então o canal envia e registra o custo (`send_message` não é ferramenta: ver `docs/especificacao-agentes.md` seção 4).
  
-Esboço do prompt de sistema:
+Esboço inicial do prompt de sistema (o prompt em uso e dono das regras é `src/agente/prompts/sistema-v5.md`):
  
 ```text
 Você é o assistente do dono de {nome_do_comercio}. Fale em português simples, curto e direto, sem jargão.
@@ -156,15 +158,15 @@ Regras:
 6. Se a pergunta não puder ser respondida com as ferramentas, diga que não sabe.
 ```
  
-O prompt sozinho não garante nada, então adicione um verificador em código antes do envio. Ele extrai todos os números da mensagem e confere se cada um aparece nos resultados das ferramentas daquela execução. Se algum não aparecer, a mensagem é bloqueada e o agente gera de novo. Esse verificador é a prova técnica de que o modelo não inventa número, e vale mostrá-lo na demo. O que vale como número nos resultados das ferramentas (centavos, percentual, identificadores ignorados) está no cabeçalho de `src/lib/verificador-numeros/verificador-numeros.ts`.
+O prompt sozinho não garante nada, então adicione um verificador em código antes do envio. Ele extrai todos os números da mensagem e confere se cada um aparece nos resultados das ferramentas daquela execução. Se algum não aparecer, a mensagem é bloqueada e o agente gera de novo, até o limite de `AGENTE_MAX_REGERACOES`; esgotado, o agente devolve a mensagem de fallback, sem número; no chat, texto livre sem proposta pendente vira o menu de opções (#192). Esse verificador é a prova técnica de que o modelo não inventa número, e vale mostrá-lo na demo. O que vale como número nos resultados das ferramentas (centavos, percentual, identificadores ignorados) está no cabeçalho de `src/lib/verificador-numeros/verificador-numeros.ts`.
  
 ## WhatsApp e jobs
  
-O canal é a WhatsApp Cloud API: um webhook recebe as mensagens do dono e a API envia as respostas. Os jobs ficam no BullMQ com Redis:
+O canal previsto é a WhatsApp Cloud API: um webhook recebe as mensagens do dono e a API envia as respostas. Hoje o canal ativo é o chat web (`CANAL=web`, o padrão): `CANAL=whatsapp` ainda não está implementado (#61 e #62). O que é real e o que é simulado está em `src/canal/README.md`. Os jobs ficam no BullMQ com Redis:
  
-- Relatório diário, no horário que o dono escolher.
+- Relatório diário, em um horário do sistema (`RELATORIO_DIARIO_CRON` e `FUSO_HORARIO`, no `.env`).
 - Verificação de reajuste logo após cada nota processada.
-- Resumo semanal por e-mail.
+- Resumo semanal por e-mail (fora do escopo desta entrega, ver `AGENTS.md`).
  
 Cada job usa chave de idempotência (comerciante mais data) para nunca enviar o mesmo relatório duas vezes, e o sistema envia no máximo uma mensagem proativa por dia, com horário de silêncio.
  

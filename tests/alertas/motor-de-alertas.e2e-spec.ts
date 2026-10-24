@@ -10,6 +10,7 @@ import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
 import { semear } from "../../src/infra/database/seed/semear";
+import { somarDias } from "../../src/lib/datas/datas";
 import { MetricasService } from "../../src/metricas/metricas.service";
 import { RepositorioMetricasPostgres } from "../../src/metricas/repositorio-metricas";
 
@@ -168,7 +169,8 @@ describe("motor de alertas contra o gabarito (e2e)", () => {
       const guardada = escolhidos.map((c) => c.metricasApoio.menor_confianca);
       expect(guardada.every((v) => typeof v === "number")).toBe(true);
       const saida = await criarSelectAlerts(db).executar(
-        { comercianteId: vilaNova, nomeComercio: "Vila Nova", dataReferencia: REF },
+        // A sessão roda no dia seguinte: select_alerts aceita os candidatos de ontem.
+        { comercianteId: vilaNova, nomeComercio: "Vila Nova", dataReferencia: somarDias(REF, 1) },
         { alertas: escolhidos.map((c) => ({ alerta_id: c.id, justificativa: "teste" })) },
       );
       expect(saida.menor_confianca).toBe(Math.min(...(guardada as number[])));

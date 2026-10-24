@@ -3,6 +3,7 @@ import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
 import { DB, type Db } from "../infra/database/database.module";
 import { MetricasModule } from "../metricas/metricas.module";
+import { somarDias } from "../lib/datas/datas";
 import { MetricasService } from "../metricas/metricas.service";
 import { CicloDoAlerta } from "./ciclo-do-alerta";
 import { criarHoje } from "./jobs/hoje";
@@ -39,8 +40,11 @@ import {
     {
       provide: VerificadorDeReajuste,
       inject: [DB, MotorDeAlertas, ENV],
-      useFactory: (db: Db, motor: MotorDeAlertas, env: Env) =>
-        new VerificadorDeReajuste(db, motor, criarHoje(env)),
+      useFactory: (db: Db, motor: MotorDeAlertas, env: Env) => {
+        const hoje = criarHoje(env);
+        // Os avisos são do último dia completo (ontem), o mesmo dia que list_alert_candidates e o painel leem.
+        return new VerificadorDeReajuste(db, motor, () => somarDias(hoje(), -1));
+      },
     },
     { provide: CicloDoAlerta, inject: [DB], useFactory: (db: Db) => new CicloDoAlerta(db) },
     FilaReajuste,

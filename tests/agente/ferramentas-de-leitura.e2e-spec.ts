@@ -116,8 +116,8 @@ describe("ferramentas de leitura do plano A (e2e)", () => {
     );
   });
 
-  it("get_daily_summary devolve os números do gabarito, e o verificador os aceita", async () => {
-    const saida = await chamar(vilaNova, "get_daily_summary", {});
+  it("get_daily_summary sem data resume ontem com os números do gabarito, e o verificador os aceita", async () => {
+    const saida = await chamar({ ...vilaNova, dataReferencia: DIA_DA_EXECUCAO }, "get_daily_summary", {});
     const esperado = gabarito.resumo_diario.referencia;
     expect(saida.valor).toMatchObject({
       data: REF,

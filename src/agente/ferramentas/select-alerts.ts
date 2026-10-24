@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type { Executor } from "../../infra/database/database.module";
 import { alerta } from "../../infra/database/schema";
+import { somarDias } from "../../lib/datas/datas";
 import { definirFerramenta } from "./ferramenta";
 
 /** Teto de alertas por mensagem diária (regra do produto, `docs/alertas-hackathon.md`). */
@@ -46,7 +47,8 @@ export function criarSelectAlerts(db: Executor) {
         .where(
           and(
             eq(alerta.comercianteId, contexto.comercianteId),
-            eq(alerta.dataReferencia, contexto.dataReferencia),
+            // Os candidatos do dia são os de ontem, como list_alert_candidates os gravou.
+            eq(alerta.dataReferencia, somarDias(contexto.dataReferencia, -1)),
             eq(alerta.status, "candidato"),
             inArray(alerta.id, ids),
           ),

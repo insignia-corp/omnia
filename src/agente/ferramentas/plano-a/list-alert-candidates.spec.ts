@@ -9,7 +9,7 @@ import { criarListAlertCandidates, type CandidatosDoDia } from "./list-alert-can
 const contexto: ContextoSessao = {
   comercianteId: randomUUID(),
   nomeComercio: "Mercadinho Teste",
-  dataReferencia: "2026-10-19",
+  dataReferencia: "2026-10-20",
 };
 
 const alerta = (extra: Partial<AlertaGravado> = {}): AlertaGravado => ({
@@ -51,7 +51,7 @@ describe("list_alert_candidates", () => {
     expect(f.entrada.safeParse({}).success).toBe(true);
   });
 
-  it("regra 3: comerciante e data não vêm do modelo, e o motor recebe os da sessão", async () => {
+  it("regra 3: comerciante e data não vêm do modelo, e o motor recebe o comerciante da sessão e o dia anterior à data dela", async () => {
     const { executar, motor } = motorCom({});
     const f = criarListAlertCandidates(motor);
     expect(f.entrada.safeParse({ comerciante_id: randomUUID() }).success).toBe(false);
@@ -69,7 +69,7 @@ describe("list_alert_candidates", () => {
     expect(executar).toHaveBeenCalledTimes(1);
     expect(executar).toHaveBeenCalledWith({
       comercianteId: contexto.comercianteId,
-      dataReferencia: contexto.dataReferencia,
+      dataReferencia: "2026-10-19",
     });
   });
 

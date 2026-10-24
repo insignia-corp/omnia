@@ -135,7 +135,8 @@ export class RelatorioDiarioService {
   ): Promise<ResultadoRelatorio> {
     const [resumo, alertas] = await Promise.all([
       this.metricas.resumoDiario(contexto, somarDias(job.data, -1)),
-      this.motor.executar({ comercianteId: job.comercianteId, dataReferencia: job.data }),
+      // Os avisos de ontem, os mesmos que o agente vê em list_alert_candidates.
+      this.motor.executar({ comercianteId: job.comercianteId, dataReferencia: somarDias(job.data, -1) }),
     ]);
     const template = modeloResumoDiario(resumo, contexto.nomeComercio, alertas.candidatos.length);
     if (!template) {

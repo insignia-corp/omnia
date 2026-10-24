@@ -19,7 +19,9 @@ import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
 
+/** Dia dos candidatos; a sessão roda no dia seguinte, porque os avisos olham ontem, o último dia completo. */
 const DATA = "2026-10-19";
+const DIA_DA_EXECUCAO = "2026-10-20";
 
 function resposta(stop_reason: BetaStopReason, content: unknown[]): BetaMessage {
   return {
@@ -66,7 +68,7 @@ describe("loop do agente com banco real (e2e)", () => {
   const contexto = (comercianteId: string) => ({
     comercianteId,
     nomeComercio: "Mercadinho E2E",
-    dataReferencia: DATA,
+    dataReferencia: DIA_DA_EXECUCAO,
   });
 
   /** Dublê do list_alert_candidates (plano A): lê a tabela alerta do comerciante da sessão. */

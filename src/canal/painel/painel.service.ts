@@ -24,7 +24,7 @@ export const ROTULO_ALERTA: Record<TipoAlerta, string> = {
 /**
  * Números do painel do dono (issue #182), destino do botão "Abrir painel". Tudo sai das mesmas
  * funções determinísticas que as ferramentas do agente usam (regra inviolável 1), para o dia anterior
- * (o último dia fechado), a semana e o mês até ele; os avisos são os candidatos do motor de hoje. Dado
+ * (o último dia fechado), a semana e o mês até ele; os avisos são os candidatos do motor de ontem. Dado
  * ausente vai como veio, para a página dizer "sem dado" em vez de zero.
  */
 @Injectable()
@@ -55,7 +55,8 @@ export class PainelService {
       this.metricas.serieDeFaturamento(contexto, "semana", ontem),
       this.metricas.serieDeFaturamento(contexto, "mes", ontem),
       this.metricas.margensAbaixoDaMeta(contexto),
-      this.motor.executar({ comercianteId, dataReferencia: hoje }),
+      // Os mesmos avisos que o agente vê em list_alert_candidates: os de ontem, o último dia completo.
+      this.motor.executar({ comercianteId, dataReferencia: ontem }),
     ]);
 
     // Cada margem leva a menor confiança e a origem dos dados (regra 4): custo lido de foto duvidosa

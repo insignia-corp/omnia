@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { MetricasService } from "../../../metricas/metricas.service";
 import type { ContextoSessao } from "../ferramenta";
+import { criarGetDailySummary } from "./get-daily-summary";
 import { criarGetPeriodSummary } from "./get-period-summary";
 import { criarGetTopProducts } from "./get-top-products";
 
 /**
  * Período padrão das ferramentas do agente: a data de referência ainda não tem vendas completas, então
- * as janelas terminam ontem, como no painel. `get_daily_summary` sem data segue usando a data de referência: o modelo passa o dia pedido.
+ * as janelas e o resumo do dia sem data terminam ontem, como no painel.
  */
 const contexto: ContextoSessao = {
   comercianteId: randomUUID(),
@@ -18,6 +19,7 @@ const ausente = { ausente: true as const, codigo: "cobertura_insuficiente", moti
 const servico = () => {
   const mock = {
     resumoDePeriodo: jest.fn(async () => ausente),
+    resumoDiario: jest.fn(async () => ausente),
     giro: jest.fn(async () => ausente),
     receitaPorProduto: jest.fn(async () => ausente),
   };
@@ -25,6 +27,15 @@ const servico = () => {
 };
 
 describe("período padrão das ferramentas do agente", () => {
+  it("get_daily_summary sem data resume ontem; com data, o dia pedido", async () => {
+    const { mock, metricas } = servico();
+    const ferramenta = criarGetDailySummary(metricas);
+    await ferramenta.executar(contexto, {});
+    await ferramenta.executar(contexto, { data: "2026-10-15" });
+    expect(mock.resumoDiario).toHaveBeenNthCalledWith(1, contexto, "2026-10-19");
+    expect(mock.resumoDiario).toHaveBeenNthCalledWith(2, contexto, "2026-10-15");
+  });
+
   it("get_period_summary sem `ate` termina ontem, para a semana e para o mês", async () => {
     const { mock, metricas } = servico();
     const ferramenta = criarGetPeriodSummary(metricas);

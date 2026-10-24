@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { MotorDeAlertas } from "../../../alertas/motor-de-alertas";
 import type { MotivoAusente } from "../../../alertas/regra";
 import type { TipoAlerta } from "../../../alertas/tipos";
+import { somarDias } from "../../../lib/datas/datas";
 import { definirFerramenta } from "../ferramenta";
 
 export interface CandidatoParaAgente {
@@ -32,8 +33,8 @@ const confiancaDe = (metricasApoio: Record<string, unknown>): number | null =>
   typeof metricasApoio.menor_confianca === "number" ? metricasApoio.menor_confianca : null;
 
 /**
- * Candidatos a alerta do dia (issue #52). Roda o motor de alertas para o comerciante da sessão e a
- * data de referência da execução, e devolve os candidatos para o agente escolher até 3 em
+ * Candidatos a alerta do dia (issue #52). Roda o motor de alertas para o comerciante da sessão e o
+ * dia anterior à data de referência da execução (o último dia completo), e devolve os candidatos para o agente escolher até 3 em
  * `select_alerts`. Nada vem do modelo: a ferramenta não tem entrada, então o modelo não escolhe
  * comerciante nem data. O motor só acrescenta linhas `candidato` derivadas das métricas e é
  * idempotente (comerciante, tipo, chave e data), sem efeito sobre dinheiro nem sobre configuração
@@ -43,7 +44,7 @@ export function criarListAlertCandidates(motor: MotorDeAlertas) {
   return definirFerramenta({
     nome: "list_alert_candidates",
     descricao:
-      "Lista os candidatos a alerta do dia, do mais ao menos importante, com tipo, prioridade (1 a 3) e as " +
+      "Lista os candidatos a alerta do dia, calculados sobre ontem (o último dia com vendas e extrato completos), do mais ao menos importante, com tipo, prioridade (1 a 3) e as " +
       "métricas de apoio de cada um (valores, impacto em centavos, confiança e fonte). Chame primeiro no relatório " +
       "diário e depois escolha até 3 com select_alerts, usando o alerta_id de cada candidato. Lista vazia " +
       "(candidatos: []) é um resultado válido: não há o que avisar hoje, e então não chame select_alerts. " +
@@ -52,10 +53,10 @@ export function criarListAlertCandidates(motor: MotorDeAlertas) {
     entrada: z.strictObject({}),
     efeito: "nenhum",
     async executar(contexto): Promise<CandidatosDoDia> {
-      const resultado = await motor.executar({
-        comercianteId: contexto.comercianteId,
-        dataReferencia: contexto.dataReferencia,
-      });
+      // Os avisos olham ontem, o último dia com vendas e extrato completos: na data de referência as regras de
+      // ticket, gasto e estoque parado ficariam sem dado.
+      const dia = somarDias(contexto.dataReferencia, -1);
+      const resultado = await motor.executar({ comercianteId: contexto.comercianteId, dataReferencia: dia });
       const candidatos: CandidatoParaAgente[] = resultado.candidatos.map((c) => ({
         alerta_id: c.id,
         tipo: c.tipo,
@@ -67,7 +68,7 @@ export function criarListAlertCandidates(motor: MotorDeAlertas) {
       }));
       const confiancas = candidatos.flatMap((c) => confiancaDe(c.metricas_apoio) ?? []);
       return {
-        data: contexto.dataReferencia,
+        data: dia,
         candidatos,
         n_registros: candidatos.length,
         menor_confianca: confiancas.length === 0 ? null : Math.min(...confiancas),

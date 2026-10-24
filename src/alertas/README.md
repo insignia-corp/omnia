@@ -2,6 +2,8 @@
 
 Motor de regras que gera candidatos a alerta com prioridade. Issues: #43 a #46.
 
+**Dia dos avisos** (#211): quem chama o motor passa ontem, o último dia com vendas e extrato completos, e não a data de hoje, em que ticket, gasto e estoque parado ficariam sem dado. Vale para `list_alert_candidates` e `select_alerts`, o painel, o modelo `resumo_diario` e o job de reajuste depois da nota, para todos lerem as mesmas linhas da tabela `alerta`. O motor em si recebe a data que lhe passam.
+
 Quem decide o que vai na mensagem do dia é o agente (`select_alerts`, no máximo 3). O motor só lista candidatos na tabela `alerta` com status `candidato`; os números de cada alerta vêm das métricas de [src/metricas](../metricas/README.md); o motor só soma o impacto em reais, com contas inteiras sobre eles.
 
 ## Regras (#43)
@@ -69,7 +71,7 @@ Os status de `alerta` são `candidato`, `enviado`, `descartado` e `obsoleto` (mi
 
 ## Job de reajuste após cada nota (#45)
 
-Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-nota` chama o gancho `APOS_EXTRACAO`, que enfileira o job `reajuste-pos-nota` (`jobs/fila-reajuste.ts`). O job (`jobs/verificar-reajuste.ts`) pega os produtos dos itens da nota, sempre com o `comerciante_id` do job, e roda no motor só a regra de reajuste restrita a eles, com a data de hoje. O filtro é por produto: se o mesmo produto já tiver uma compra mais recente do mesmo fornecedor, o candidato gravado é o dessa compra (a chave leva o id dela), que pode não ser a da nota recém-processada.
+Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-nota` chama o gancho `APOS_EXTRACAO`, que enfileira o job `reajuste-pos-nota` (`jobs/fila-reajuste.ts`). O job (`jobs/verificar-reajuste.ts`) pega os produtos dos itens da nota, sempre com o `comerciante_id` do job, e roda no motor só a regra de reajuste restrita a eles, no dia dos avisos (ontem). Compra com data de hoje entra nos avisos de amanhã. O filtro é por produto: se o mesmo produto já tiver uma compra mais recente do mesmo fornecedor, o candidato gravado é o dessa compra (a chave leva o id dela), que pode não ser a da nota recém-processada.
 
 - Idempotência: o `jobId` é comerciante + documento. A unique de `alerta` só segura a repetição no mesmo dia; por isso o job grava com `semRepetirGravados`, que não grava de novo um reajuste (tipo e chave) já existente em qualquer data. O motor diário não usa isso: o candidato de ontem que não foi enviado precisa voltar a ser candidato de hoje.
 - O job só grava o candidato. O envio fica no relatório diário, que respeita no máximo 1 mensagem proativa por dia.

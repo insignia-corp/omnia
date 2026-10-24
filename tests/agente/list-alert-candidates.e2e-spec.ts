@@ -9,6 +9,7 @@ import { RegistroFerramentas } from "../../src/agente/ferramentas/registro-ferra
 import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
 import * as schema from "../../src/infra/database/schema";
+import { somarDias } from "../../src/lib/datas/datas";
 import { semear } from "../../src/infra/database/seed/semear";
 import { NumerosAutorizados, verificarNumeros } from "../../src/lib/verificador-numeros/verificador-numeros";
 
@@ -30,6 +31,8 @@ const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf
   alertas_esperados: AlertaGabarito[];
 };
 const REF = gabarito.parametros.data_referencia;
+/** A sessão roda no dia seguinte ao gabarito: os avisos olham ontem, o último dia completo. */
+const DIA_DA_EXECUCAO = somarDias(REF, 1);
 
 describe("list_alert_candidates contra o gabarito (e2e)", () => {
   const url = carregarEnv().DATABASE_URL;
@@ -65,7 +68,7 @@ describe("list_alert_candidates contra o gabarito (e2e)", () => {
     const contextoDe = (nome: string): ContextoSessao => {
       const linha = resumo.find((r) => r.comerciante === nome);
       if (!linha) throw new Error(`Comerciante ${nome} não está no seed`);
-      return { comercianteId: linha.comercianteId, nomeComercio: nome, dataReferencia: REF };
+      return { comercianteId: linha.comercianteId, nomeComercio: nome, dataReferencia: DIA_DA_EXECUCAO };
     };
     vilaNova = contextoDe("Mercadinho Vila Nova");
     esquina = contextoDe("Conveniência Esquina 24h");

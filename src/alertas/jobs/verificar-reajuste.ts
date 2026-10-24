@@ -25,7 +25,7 @@ export class VerificadorDeReajuste {
   constructor(
     private readonly db: Executor,
     private readonly motor: MotorDeAlertas,
-    /** Data de hoje (AAAA-MM-DD): o reajuste só vale para compra recente em relação a ela. */
+    /** Dia dos avisos (AAAA-MM-DD; o módulo passa ontem): o reajuste só vale para compra recente em relação a ele. */
     private readonly hoje: () => string,
   ) {}
 

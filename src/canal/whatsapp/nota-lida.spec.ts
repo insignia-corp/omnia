@@ -1,4 +1,4 @@
-import { formatarQuantidade, MAX_ITENS_NA_MENSAGEM, textoNotaLida, type NotaParaMensagem } from "./nota-lida";
+import { avisoDeCusto, percentualDeBpsTexto, textoNotaLida, type NotaParaMensagem } from "./nota-lida";
 
 const nota16: NotaParaMensagem = {
   fornecedor: "Distribuidora Aurora Alimentos",
@@ -25,29 +25,38 @@ const nota16: NotaParaMensagem = {
       valorTotalCentavos: 750,
     },
   ],
+  avisosDeCusto: [],
   emRevisao: false,
   perguntasPendentes: 0,
   repetida: false,
 };
 
 describe("textoNotaLida", () => {
-  it("lista os itens e o total da nota 16 do gabarito, conferindo a soma", () => {
+  it("todos os custos iguais: só confirma, sem listar itens", () => {
     expect(textoNotaLida(nota16)).toBe(
+      "Nota da Distribuidora Aurora Alimentos recebida: 3 itens, total R$ 473,70. Tudo certo com os preços.",
+    );
+  });
+
+  it("custo diferente: uma linha de atenção por item, sem dizer que está tudo certo", () => {
+    const cafe = avisoDeCusto("Café torrado 500g", 1690, 1870)!;
+    const acucar = avisoDeCusto("Açúcar refinado 1kg", 309, 299)!;
+    expect(textoNotaLida({ ...nota16, avisosDeCusto: [cafe, acucar] })).toBe(
       [
-        "Li a nota da *Distribuidora Aurora Alimentos*, de 16/10:",
-        "",
-        "• ARROZ BCO T1 5KG: 16 x R$ 27,90 = R$ 446,40",
-        "• FARINHA TRIGO 1KG: 6 x R$ 3,30 = R$ 19,80",
-        "• SAL REFINADO 1KG: 6 x R$ 1,25 = R$ 7,50",
-        "",
-        "*Total: R$ 473,70* (confere com a soma dos itens)",
+        "Nota da Distribuidora Aurora Alimentos recebida: 3 itens, total R$ 473,70.",
+        "Atenção: Café torrado 500g, a última compra foi por R$ 16,90 e agora veio por R$ 18,70 (alta de 10,65%).",
+        "Atenção: Açúcar refinado 1kg, a última compra foi por R$ 3,09 e agora veio por R$ 2,99 (queda de 3,24%).",
       ].join("\n"),
     );
   });
 
+  it("um item só fica no singular", () => {
+    expect(textoNotaLida({ ...nota16, itens: [nota16.itens[0]!] })).toContain("recebida: 1 item, total");
+  });
+
   it("soma que não fecha aparece, sem esconder o total da nota", () => {
     expect(textoNotaLida({ ...nota16, somaItensCentavos: 47000 })).toContain(
-      "*Total: R$ 473,70*, mas a soma dos itens dá R$ 470,00",
+      "Tudo certo com os preços.\n\nA soma dos itens dá R$ 470,00, diferente do total da nota.",
     );
   });
 
@@ -65,24 +74,27 @@ describe("textoNotaLida", () => {
   it("nota repetida diz que não contou de novo", () => {
     expect(textoNotaLida({ ...nota16, repetida: true })).toMatch(/^Esta nota já estava no seu histórico/);
   });
-
-  it("nota longa mostra os primeiros itens e conta o resto", () => {
-    const itens = Array.from({ length: MAX_ITENS_NA_MENSAGEM + 3 }, (_, i) => ({
-      ...nota16.itens[0]!,
-      descricao: `ITEM ${i}`,
-    }));
-    const t = textoNotaLida({ ...nota16, itens });
-    expect(t).toContain(`ITEM ${MAX_ITENS_NA_MENSAGEM - 1}:`);
-    expect(t).not.toContain(`ITEM ${MAX_ITENS_NA_MENSAGEM}:`);
-    expect(t).toContain("• e mais 3 itens");
-  });
 });
 
-describe("formatarQuantidade", () => {
-  it.each([
-    ["16.000", "16"],
-    ["1.500", "1,5"],
-    ["0.125", "0,125"],
-    ["12", "12"],
-  ])("%s vira %s", (q, esperado) => expect(formatarQuantidade(q)).toBe(esperado));
+describe("avisoDeCusto", () => {
+  it("alta do café de R$ 16,90 para R$ 18,70 é 10,65%, em pontos-base inteiros", () => {
+    expect(avisoDeCusto("Café", 1690, 1870)).toEqual({
+      produto: "Café",
+      anteriorCentavos: 1690,
+      atualCentavos: 1870,
+      variacaoBps: 1065,
+    });
+  });
+
+  it("custo igual ou anterior zero não gera aviso", () => {
+    expect(avisoDeCusto("Café", 1690, 1690)).toBeNull();
+    expect(avisoDeCusto("Café", 0, 1690)).toBeNull();
+  });
+
+  it("queda tem sinal negativo e o texto do percentual não leva sinal", () => {
+    expect(avisoDeCusto("Café", 1000, 995)!.variacaoBps).toBe(-50);
+    expect(percentualDeBpsTexto(-50)).toBe("0,50");
+    expect(percentualDeBpsTexto(1065)).toBe("10,65");
+    expect(percentualDeBpsTexto(1000)).toBe("10,00");
+  });
 });

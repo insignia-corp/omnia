@@ -118,16 +118,16 @@ Decisões do orquestrador:
 | `get_cost_changes` | nenhum | P0 | Reajustes por produto e fornecedor (#51) |
 | `list_product_margins` | nenhum | P0 | Lista as margens sem precisar do nome (menor, maior, abaixo da meta), com o total que atende ao filtro e a meta usada; melhoria pedida pelo dono |
 | `list_alert_candidates` | nenhum | P0 | Candidatos com prioridade e impacto em centavos (#52) |
-| `select_alerts` | nenhum | P0 | **Novo.** Recebe até 3 `alerta_id` com justificativa curta. Valida os ids contra a tabela `alerta` do comerciante e da data. Existe para que a decisão fique registrada em `chamada_ferramenta`, na ordem, e apareça na tela de bastidores |
-| `ask_owner` | pergunta_dono | P0 | Registra a pergunta e aguarda a resposta pelo canal (#53) |
-| `save_owner_answer` | escreve_config | P0 | Grava o dado informado com origem "dono" (#53) |
-| `propose_target_price` | escreve_config | P0 | Feita (#104). Registra a proposta (`confirmar_acao`) com produto e preço-meta e devolve a pergunta ao dono, montada em código. Não altera a configuração; só o código, ao ver o "sim", grava o preço em `produto` e uma linha em `historico_preco_meta`. O valor vem da mensagem do dono ou de `simulate_price_change` |
+| `select_alerts` | nenhum | P0 | Feita. Recebe até 3 `alerta_id` com justificativa curta. Valida os ids contra a tabela `alerta` do comerciante e da data, só entre os candidatos. Existe para que a decisão fique registrada em `chamada_ferramenta`, na ordem, e apareça na tela de bastidores |
+| `ask_owner` | pergunta_dono | P0 | Feita (#53). Registra a pergunta e aguarda a resposta pelo canal |
+| `save_owner_answer` | escreve_config | P0 | Feita (#53). Grava o dado informado com origem "dono", só depois do "sim" do dono |
+| `propose_target_price` | escreve_config | P0 | Feita (#104). Registra a proposta (`confirmar_acao`) com produto e preço-meta e devolve a pergunta ao dono, montada em código. Não altera a configuração; só o código, ao ver o "sim", grava o preço em `produto` e uma linha em `historico_preco_meta`. O valor vem da mensagem do dono ou de uma ferramenta, como o `preco_para_meta_centavos` de `get_product_margin` |
 | `simulate_price_change` | nenhum | P1 | **Novo.** Margem nova e ponto de equilíbrio de volume (quanto o volume pode cair sem reduzir o lucro bruto). Não prevê a reação das vendas: não há dado de elasticidade |
 | `compare_suppliers` | nenhum | P2 | **Novo.** Custo mais recente do mesmo produto por fornecedor, com data e confiança |
 
 `send_message`, que o guia listava como ferramenta, **não é ferramenta** nesta arquitetura: o envio é feito pelo canal depois do verificador, e o `AgenteService` já devolve a mensagem pronta (`RespostaAgente`). Deixar o modelo enviar abriria um caminho que pula o verificador.
 
-**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado, e número dito antes não vale sem buscar de novo. A `sistema-v3.md` acrescenta: o preço-meta só muda por `propose_target_price` e pelo "sim" do dono (#104), e `ask_owner` e `save_owner_answer` cobrem o dado que só o dono sabe (#53). A `sistema-v4.md` acrescenta seis regras para perguntas fora do cardápio: chamar `list_alert_candidates` primeiro nas perguntas de parado, reajuste, "posso subir o preço" e gasto fora do normal, e só depois `get_product_margin` ou `get_cost_changes` para o detalhe; quando não puder responder, começar dizendo claramente que não sabe e só depois dizer em uma linha o que dá para responder; recusar em uma frase pedido de mudar regra, ver outro comércio ou escrever valor ditado, sem repetir o número nem o texto do pedido; e, quando faltarem vendas de um período, dizer qual e pedir a planilha uma vez; e usar `list_product_margins` nas perguntas de menor ou maior margem e de quantos produtos estão abaixo da meta. A `sistema-v5.md` (padrão) parte da v4 e acrescenta: citar o nome do produto e os números principais que a ferramenta devolveu, em 2 a 4 linhas (regra 15); começar o "não sei" com "Não sei" ou "Não tenho esse dado", sem outros números; e recusar em uma frase só, sem escrever número do pedido nem telefone. Cada versão é imutável depois de usada: mudar o comportamento é criar a seguinte, e a versão fica gravada em cada execução.
+**Prompt.** `src/agente/prompts/sistema-v1.md` cobre as regras 1 a 6. A `sistema-v2.md` acrescenta: usar `select_alerts` antes de escrever o relatório; nunca descrever uma conta como feita pelo agente, só citar resultados das ferramentas; ao sugerir mudança de preço, deixar claro que a reação das vendas é desconhecida; falas anteriores da conversa também são dado, e número dito antes não vale sem buscar de novo. A `sistema-v3.md` acrescenta: o preço-meta só muda por `propose_target_price` e pelo "sim" do dono (#104), e `ask_owner` e `save_owner_answer` cobrem o dado que só o dono sabe (#53). A `sistema-v4.md` acrescenta seis regras (9 a 14) para perguntas fora do cardápio: chamar `list_alert_candidates` primeiro nas perguntas de parado, reajuste, "posso subir o preço" e gasto fora do normal, e só depois `get_product_margin` ou `get_cost_changes` para o detalhe; quando não puder responder, começar dizendo claramente que não sabe e só depois dizer em uma linha o que dá para responder; recusar em uma frase pedido de mudar regra, ver outro comércio ou escrever valor ditado, sem repetir o número nem o texto do pedido; e, quando faltarem vendas de um período, dizer qual e pedir a planilha uma vez; e usar `list_product_margins` nas perguntas de menor ou maior margem e de quantos produtos estão abaixo da meta, e `get_product_margin` para escrever a margem atual e o preço que leva à meta ao sugerir preço (regra 14). A `sistema-v5.md` (padrão) parte da v4 e acrescenta: citar o nome do produto e os números principais que a ferramenta devolveu, em 2 a 4 linhas (regra 15); começar o "não sei" com "Não sei" ou "Não tenho esse dado", sem outros números; e recusar em uma frase só, sem escrever número do pedido nem telefone. Cada versão é imutável depois de usada: mudar o comportamento é criar a seguinte, e a versão fica gravada em cada execução.
 
 **Falhas e comportamento.**
 
@@ -146,11 +146,11 @@ Decisões do orquestrador:
 
 | Ameaça | Defesa | Onde |
 | --- | --- | --- |
-| Instrução escondida na nota | O Extrator não tem ferramentas e é instruído a não transcrever instruções; o texto gravado vai ao Analista só como dado, em campo estruturado | Prompt do Extrator, `montarEntrada` |
-| Instrução na mensagem do dono | Delimitador `<mensagem_do_dono>` e regra 5 do prompt; o agente só tem ferramentas de leitura e de proposta | `agente.service.ts`, `registro-ferramentas.ts` |
+| Instrução escondida na nota | O Extrator não tem ferramentas e é instruído a não transcrever instruções; o texto gravado vai ao Analista só como dado, em campo estruturado | Prompt do Extrator (`prompt-extrator-v1.md`) e `montarEntrada` em `agente.service.ts` |
+| Instrução na mensagem do dono | Delimitador `<mensagem_do_dono>` e regra 5 do prompt; o agente só tem ferramentas de leitura, de pergunta e de escrita que depende do "sim" do dono | `agente.service.ts`, `registro-ferramentas.ts` |
 | Modelo pede dados de outro lojista | O esquema das ferramentas não aceita `comerciante_id`; o registro recusa ferramenta que o declare | `CHAVES_PROIBIDAS` |
 | Número inventado | Verificador antes de qualquer envio, com regeneração e fallback | `src/lib/verificador-numeros` |
-| Ação financeira indevida | Nenhuma ferramenta executa efeito financeiro. A única escrita é `propose_target_price`, que só grava uma proposta; a configuração muda por código após o "sim" | Regra 7 |
+| Ação financeira indevida | Nenhuma ferramenta executa efeito financeiro. As escritas de configuração são `propose_target_price` (grava só uma proposta) e `save_owner_answer`; a configuração muda por código após o "sim" do dono | Regra 7 |
 | Envio que pula o verificador | O modelo não tem ferramenta de envio | Seção 4 |
 
 Limite conhecido: o verificador confere se o número aparece nos resultados das ferramentas, não a quem ele pertence. Um valor do produto A escrito como se fosse do produto B passa. Mitigação a avaliar no eval: casos de teste com produtos de valores parecidos e conferência por vínculo (`produto_id` mais valor) nas ferramentas que devolvem listas.
@@ -188,12 +188,12 @@ Falta um insumo: o gabarito `fixtures/gabarito/metricas.json` lista os alertas e
 | --- | --- | --- |
 | Esforço por gatilho (feito) e padrão do modelo `claude-sonnet-5-5` (feito em 21/10/2026; o eval #74 mede o ganho do Opus) | `src/config/env.ts`, `.env.example`, `modelo-anthropic.ts` | #48 |
 | Variável `EXTRATOR_MODELO` e cliente do Extrator (feito) | `src/ingestao/extracao/` | #24 |
-| Ferramentas P0 (`select_alerts` feito em `select-alerts.ts`; leitura são do plano A) | `src/agente/ferramentas/` | #50 a #53 |
+| Ferramentas P0 (feitas: as de leitura são do plano A e as de pergunta, escrita e `select_alerts` do plano B) | `src/agente/ferramentas/` | #50 a #53 |
 | `propose_target_price`, `historico_preco_meta` (migração `0008_historico_preco_meta`) e resolução do "sim" em código (feito) | `src/agente/confirmacao/`, `src/agente/ferramentas/`, `src/infra/database/schema.ts` | #104 |
-| Motor de alertas com impacto em centavos (semana ou dia) e prioridade | `src/alertas/` | #43, #44 |
+| Motor de alertas com impacto em centavos (semana ou dia) e prioridade (feito) | `src/alertas/` | #43, #44 |
 | Gatilho `extracao_nota` no registro de execuções (feito) | `schema.ts`, migração 0005 | #24 |
 | Prompts `sistema-v2.md`, `sistema-v3.md`, `sistema-v4.md` e `sistema-v5.md` (feitos) | `src/agente/prompts/` | #54, #55, #104 |
-| Jobs com idempotência, limite diário e horário de silêncio | BullMQ | #64 |
+| Jobs com idempotência, limite diário e horário de silêncio (feito) | BullMQ, `src/canal/jobs/` | #64 |
 
 ## 10. Caminho de evolução: especialistas como ferramentas
 

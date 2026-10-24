@@ -60,7 +60,7 @@ npm run eval:custo -- --lojistas 100 --agregador-usd-mes 460 --mensagem-usd 0.00
 
 - O uso mensal vem da especificação dos agentes (seção 4): 30 relatórios, 10 perguntas e 14 notas por mês (`--relatorios`, `--perguntas`, `--notas`). Mensagens enviadas por mês = relatórios + perguntas.
 - Mensagem do canal e agregador **não têm cotação no repositório**: sem `--mensagem-usd` e `--agregador-usd-mes` ficam fora do total e o relatório lista o que falta. `--lojistas` divide a mensalidade do agregador. Valores em dólares, convertidos a micro-dólares inteiros sem ponto flutuante.
-- Custo indisponível (modelo sem preço em `PRECOS`) não vira zero na rodada real: o total do LLM sai "indisponível".
+- Custo indisponível (modelo sem preço em `PRECOS`) nunca vira zero: o total do LLM sai "indisponível".
 - Meta de tempo: pergunta do dono com p95 em até 20 s (especificação, seção 8). A CLI sai com 1 se não for atingida e com 2 em erro de uso.
 - Os casos `d01` a `d05` (categoria `medicao`, o relatório diário repetido) medem o relatório diário, que é o gatilho que mais pesa no custo. `list_alert_candidates` e `select_alerts` já existem no catálogo, mas os casos ainda usam dublês das duas com candidatos do gabarito, **também no modo real** (`dubleNoModoReal`): o modelo é o real, o dado é do gabarito. Trocar pelas ferramentas reais é decisão pendente: nesse caso, apague `ferramentasFalsas` e `dubleNoModoReal` dos casos. O caso não julga a escolha dos alertas (falta o top 3 aceitável no gabarito): passa com mensagem aprovada pelo verificador.
 - O prompt padrão do harness agora é o do agente em produção (`v5`).

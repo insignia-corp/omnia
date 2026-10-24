@@ -8,7 +8,7 @@ Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto c
 - **Analista** (o loop abaixo): escolhe os alertas, responde perguntas e escreve a mensagem, com o verificador no fim.
 - **Orquestrador**: código (BullMQ e PostgreSQL), não um agente. Decide ordem, limites, idempotência e resolve a confirmação "sim" do dono sem modelo.
 
-Há ainda um terceiro uso de modelo, fora do loop: o sugestor de vínculo entre a descrição da nota e o produto (`src/ingestao/vinculo/sugestor-vinculo.ts`, gatilho registrado `vinculo_produto`, modelo `VINCULO_MODELO`). Como o `extracao_nota` do Extrator, ele fica no registro de execuções fora da tabela de gatilhos do Analista abaixo.
+Há ainda um terceiro uso de modelo, fora do loop: o sugestor de vínculo entre a descrição da nota e o produto (`src/ingestao/vinculo/sugestor-vinculo.ts`, gatilho registrado `vinculo_produto`, modelo `VINCULO_MODELO`, ativo quando há `ANTHROPIC_API_KEY`). Como o `extracao_nota` do Extrator, ele fica no registro de execuções fora da tabela de gatilhos do Analista abaixo.
 
 Canal: hoje só o chat web está implementado (`CANAL=web`, o padrão). A WhatsApp Cloud API real ainda não existe (`CANAL=whatsapp` lança erro, #61 e #62), e o front `web/whatsapp` simula a conversa. O que é real e o que é simulado está em `src/canal/README.md`.
 

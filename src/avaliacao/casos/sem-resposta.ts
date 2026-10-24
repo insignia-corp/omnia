@@ -47,7 +47,7 @@ const POR_ID: Record<string, Roteirizado> = {
       "Só conheço os seus custos e os seus preços.",
   },
   q38: {
-    padraoNaoSei: /n[ãa]o (?:tenho|h[áa]|existe)[\s\S]*(?:cadastro|clientes)/i,
+    padraoNaoSei: /n[ãa]o (?:tenho|h[áa]|existe)[^.]*(?:cadastro|dados|registros?)[^.]*clientes?/i,
     resposta: "Não há cadastro de clientes nos dados, então não sei qual cliente compra mais aqui.",
   },
   q39: {

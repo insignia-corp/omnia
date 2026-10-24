@@ -2,7 +2,7 @@
 
 Motor de regras que gera candidatos a alerta com prioridade. Issues: #43 a #46.
 
-Quem decide o que vai na mensagem do dia é o agente (`select_alerts`, no máximo 3). O motor só lista candidatos: grava linhas `candidato` na tabela `alerta`, estado derivado das métricas, de acréscimo e sem confirmação do dono, por isso `list_alert_candidates` tem efeito `nenhum` (exceção à regra 7, descrita em `src/agente/ferramentas/ferramenta.ts`); os números de cada alerta vêm das métricas de [src/metricas](../metricas/README.md); o motor só soma o impacto em reais, com contas inteiras sobre eles.
+Quem decide o que vai na mensagem do dia é o agente (`select_alerts`, no máximo 3). O motor só lista candidatos: grava e atualiza linhas da tabela `alerta` (`candidato`, e `obsoleto` quando o dado muda), estado derivado das métricas, idempotente e sem confirmação do dono, por isso `list_alert_candidates` tem efeito `nenhum` (exceção à regra 7, descrita em `src/agente/ferramentas/ferramenta.ts`); os números de cada alerta vêm das métricas de [src/metricas](../metricas/README.md); o motor só soma o impacto em reais, com contas inteiras sobre eles.
 
 ## Regras (#43)
 

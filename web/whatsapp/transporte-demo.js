@@ -32,8 +32,6 @@ const D = {
     faturamento: 122151,
     cupons: 78,
     ticket: 1566,
-    gastos: 101534,
-    saldo: 20617,
     media7: 175072,
     variacaoBps: -3023,
   },
@@ -42,14 +40,12 @@ const D = {
     faturamento: 1170942,
     anterior: 1193945,
     cupons: 447,
-    gastos: 290059,
   },
   mes: {
     rotulo: "01/10 a 19/10",
     faturamento: 3165305,
     anterior: 3029588,
     cupons: 1159,
-    gastos: 1243621,
   },
   arroz: {
     nome: "Arroz branco tipo 1 5kg",
@@ -114,7 +110,7 @@ function menu(corpo) {
               {
                 id: "resumo_dia",
                 title: "Resumo do dia",
-                description: "Vendas, gastos e saldo do último dia",
+                description: "Vendas e ticket médio do último dia",
               },
               {
                 id: "resumo_semana",
@@ -134,7 +130,7 @@ function menu(corpo) {
               {
                 id: "avisos",
                 title: "Avisos de hoje",
-                description: "Reajustes, margens e gastos fora do padrão",
+                description: "Reajustes, margens e estoque parado",
               },
               {
                 id: "margens",
@@ -164,8 +160,6 @@ function resumoDia() {
       `💰 Faturamento: *${reais(d.faturamento)}* em ${d.cupons} vendas`,
       `${comparacao(d.variacaoBps, "da média dos 7 dias anteriores")} (${reais(d.media7)})`,
       `🧾 Ticket médio: ${reais(d.ticket)}`,
-      `💸 Gastos: ${reais(d.gastos)}`,
-      `✅ Saldo do dia: *${reais(d.saldo)}*`,
     ].join("\n"),
     [
       ["resumo_semana", "Resumo da semana"],
@@ -184,8 +178,6 @@ function resumoPeriodo(p, titulo, referencia, proximo) {
       `💰 Faturamento: *${reais(p.faturamento)}* em ${p.cupons.toLocaleString("pt-BR")} vendas`,
       `${comparacao(variacaoBps(p.faturamento, p.anterior), referencia)} (${reais(p.anterior)})`,
       `🧾 Ticket médio: ${reais(ticket(p.faturamento, p.cupons))}`,
-      `💸 Gastos: ${reais(p.gastos)}`,
-      `✅ Saldo do período: *${reais(p.faturamento - p.gastos)}*`,
     ].join("\n"),
     [proximo, ["avisos", "Ver avisos"], ["menu", "Menu"]],
     { footer: { text: RODAPE } },
@@ -196,13 +188,11 @@ function avisos() {
   const a = D.arroz;
   return botoes(
     [
-      "Separei 3 avisos para hoje:",
+      "Separei 2 avisos para hoje:",
       "",
       `1️⃣ *${a.nome} subiu ${porcento(a.variacaoBps)}* na ${D.nota.fornecedor} (${reais(a.custoAnterior)} para ${reais(a.custoAtual)}, nota de ${D.nota.data}). A margem dele caiu para ${porcento(a.margemBps)}, abaixo da sua meta de ${porcento(D.metaBps)}.`,
       "",
-      `2️⃣ *Gastos de ${D.dia.data} fora do padrão*: ${reais(D.dia.gastos)}, bem acima do normal para um dia.`,
-      "",
-      "3️⃣ *Vinagre de álcool 750ml está parado há 41 dias*. Uma promoção pode ajudar a girar esse estoque.",
+      "2️⃣ *Vinagre de álcool 750ml está parado há 41 dias*. Uma promoção pode ajudar a girar esse estoque.",
     ].join("\n"),
     [
       ["sugerir_preco", "Sugerir preço"],
@@ -275,7 +265,7 @@ function painel(url) {
     interactive: {
       type: "cta_url",
       header: { type: "text", text: "Painel do Omnia" },
-      body: { text: "Seus números completos, com gráficos de vendas, margens e gastos. O link é só seu." },
+      body: { text: "Seus números completos, com gráficos de vendas e margens. O link é só seu." },
       footer: { text: RODAPE },
       action: { name: "cta_url", parameters: { display_text: "Abrir painel", url } },
     },
@@ -434,7 +424,7 @@ export function responder(m, config, estado = {}) {
     case "sem_lucro":
       return [
         texto(
-          "Ainda não consigo dizer o seu lucro: faltam o custo de todos os produtos e as despesas confirmadas. Se você me mandar as notas de compra que faltam, eu passo a calcular. Enquanto isso, posso te mostrar faturamento, gastos e margem dos produtos que já conheço.",
+          "Ainda não consigo dizer o seu lucro: faltam o custo de todos os produtos. Se você me mandar as notas de compra que faltam, eu passo a calcular. Enquanto isso, posso te mostrar faturamento, ticket médio e margem dos produtos que já conheço.",
         ),
       ];
     case "sem_previsao":

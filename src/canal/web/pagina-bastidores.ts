@@ -254,7 +254,7 @@ const ICONES = {
 };
 const ICONE_DO_TIPO = {
   reajuste_de_custo: "alta", margem_abaixo_da_meta: "barras", espaco_para_subir_preco: "etiqueta",
-  giro_em_alta: "alta", estoque_parado: "caixa", ticket_medio_em_queda: "baixa", gasto_fora_do_padrao: "alerta",
+  giro_em_alta: "alta", estoque_parado: "caixa", ticket_medio_em_queda: "baixa",
 };
 function icone(nome, tamanho, traco) {
   const s = document.createElementNS(SVG_NS, "svg");

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, NotFoundException, type OnModuleInit } from "@nestjs/common";
-import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { carregarHistorico } from "../agente/conversa/historico";
 import { ENV } from "../config/config.module";
 import type { Env } from "../config/env";
@@ -9,8 +9,10 @@ import {
   compra,
   documento,
   fornecedor,
+  historicoCusto,
   itemDeCompra,
   perguntaDono,
+  produto,
 } from "../infra/database/schema";
 import { FilaExtracao } from "../ingestao/fila/fila-extracao";
 import { ErroPergunta, responderPergunta } from "../ingestao/revisao/responder-pergunta";
@@ -21,7 +23,13 @@ import { PORTA_AGENTE, type PortaAgente } from "./porta-agente";
 import { dataLocal, RELOGIO, type Relogio } from "./relogio";
 import { lerEntrada, type EntradaLida, type EntradaWhatsapp } from "./whatsapp/entrada";
 import type { SaidaWhatsapp } from "./whatsapp/formato";
-import { MAX_PERGUNTAS_NA_CONVERSA, textoNotaLida, type NotaParaMensagem } from "./whatsapp/nota-lida";
+import {
+  avisoDeCusto,
+  MAX_PERGUNTAS_NA_CONVERSA,
+  textoNotaLida,
+  type AvisoDeCusto,
+  type NotaParaMensagem,
+} from "./whatsapp/nota-lida";
 import {
   lerAcaoDaPergunta,
   perguntaParaSaida,
@@ -467,6 +475,79 @@ export class ConversaService implements OnModuleInit {
     return this.caixa.buscarPorChave(comercianteId, chave);
   }
 
+  /**
+   * Para cada item da nota ligado a um produto, compara o custo gravado com o da compra anterior do
+   * mesmo produto (qualquer fornecedor; data anterior, ou a mesma data gravada antes). Só lê
+   * `historico_custo`: a gravação da ingestão não muda (regra 10).
+   */
+  private async avisosDeCusto(
+    comercianteId: string,
+    compraId: string,
+    idsItens: string[],
+  ): Promise<AvisoDeCusto[]> {
+    if (!idsItens.length) return [];
+    const atuais = await this.db
+      .select({
+        produtoId: historicoCusto.produtoId,
+        nome: produto.nome,
+        data: historicoCusto.data,
+        criadoEm: historicoCusto.criadoEm,
+        custo: historicoCusto.custoUnitarioCentavos,
+        ordem: itemDeCompra.ordem,
+      })
+      .from(historicoCusto)
+      .innerJoin(
+        itemDeCompra,
+        and(
+          eq(itemDeCompra.id, historicoCusto.itemDeCompraId),
+          eq(itemDeCompra.comercianteId, historicoCusto.comercianteId),
+        ),
+      )
+      .innerJoin(
+        produto,
+        and(
+          eq(produto.id, historicoCusto.produtoId),
+          eq(produto.comercianteId, historicoCusto.comercianteId),
+        ),
+      )
+      .where(
+        and(
+          eq(historicoCusto.comercianteId, comercianteId),
+          inArray(historicoCusto.itemDeCompraId, idsItens),
+        ),
+      )
+      .orderBy(asc(itemDeCompra.ordem));
+    const avisos: AvisoDeCusto[] = [];
+    for (const a of atuais) {
+      const [anterior] = await this.db
+        .select({ custo: historicoCusto.custoUnitarioCentavos })
+        .from(historicoCusto)
+        .innerJoin(
+          itemDeCompra,
+          and(
+            eq(itemDeCompra.id, historicoCusto.itemDeCompraId),
+            eq(itemDeCompra.comercianteId, historicoCusto.comercianteId),
+          ),
+        )
+        .where(
+          and(
+            eq(historicoCusto.comercianteId, comercianteId),
+            eq(historicoCusto.produtoId, a.produtoId),
+            ne(itemDeCompra.compraId, compraId),
+            or(
+              lt(historicoCusto.data, a.data),
+              and(eq(historicoCusto.data, a.data), lt(historicoCusto.criadoEm, a.criadoEm)),
+            ),
+          ),
+        )
+        .orderBy(desc(historicoCusto.data), desc(historicoCusto.criadoEm), desc(historicoCusto.id))
+        .limit(1);
+      const aviso = anterior && avisoDeCusto(a.nome, Number(anterior.custo), Number(a.custo));
+      if (aviso) avisos.push(aviso);
+    }
+    return avisos;
+  }
+
   private async notaParaMensagem(
     comercianteId: string,
     documentoId: string,
@@ -506,6 +587,7 @@ export class ConversaService implements OnModuleInit {
       .where(and(eq(itemDeCompra.comercianteId, comercianteId), eq(itemDeCompra.compraId, c.id)))
       .orderBy(asc(itemDeCompra.ordem));
     const idsItens = itens.map((i) => i.id);
+    const avisosDeCusto = await this.avisosDeCusto(comercianteId, c.id, idsItens);
     const perguntas = await this.db
       .select({
         id: perguntaDono.id,
@@ -532,6 +614,7 @@ export class ConversaService implements OnModuleInit {
         totalCentavos: Number(c.total),
         somaItensCentavos: Number(c.soma),
         emRevisao,
+        avisosDeCusto,
         itens: itens.map((i) => ({
           descricao: i.descricao,
           quantidade: String(i.quantidade),

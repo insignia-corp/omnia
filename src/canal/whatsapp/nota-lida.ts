@@ -1,9 +1,35 @@
 /**
  * Mensagem de "nota lida" (issue #182), montada pelo código a partir da compra gravada: os números
- * são os que a ingestão conferiu em código (somas, quantidade x unitário), formatados sem modelo
+ * são os que a ingestão conferiu em código (somas, quantidade x unitário) e a comparação do custo com a
+ * compra anterior do produto, formatados sem modelo
  * (regra inviolável 1). O texto da nota entra só como descrição de item, nunca como instrução (regra 6).
  */
 import { centavos, formatarBRL } from "../../lib/dinheiro/dinheiro";
+import { razaoEmBps } from "../../metricas/pontos-base";
+
+/** Item ligado a um produto cujo custo mudou contra a compra anterior (qualquer fornecedor). */
+export interface AvisoDeCusto {
+  produto: string;
+  anteriorCentavos: number;
+  atualCentavos: number;
+  /** Variação em pontos-base inteiros: positiva na alta, negativa na queda. */
+  variacaoBps: number;
+}
+
+/**
+ * Compara o custo unitário da nota com o da compra anterior do mesmo produto, em centavos inteiros.
+ * Custo igual, ou anterior zero (sem base de comparação), não gera aviso.
+ */
+export function avisoDeCusto(
+  produto: string,
+  anteriorCentavos: number,
+  atualCentavos: number,
+): AvisoDeCusto | null {
+  if (anteriorCentavos === atualCentavos) return null;
+  const variacaoBps = razaoEmBps(atualCentavos - anteriorCentavos, anteriorCentavos);
+  if (variacaoBps === null) return null;
+  return { produto, anteriorCentavos, atualCentavos, variacaoBps };
+}
 
 export interface NotaParaMensagem {
   fornecedor: string;
@@ -17,6 +43,8 @@ export interface NotaParaMensagem {
     valorUnitarioCentavos: number;
     valorTotalCentavos: number;
   }[];
+  /** Itens com custo diferente da compra anterior do produto; vazio quando tudo igual ou sem compra anterior. */
+  avisosDeCusto: AvisoDeCusto[];
   /** A nota ficou em revisão (item duvidoso ou dúvida da nota inteira). */
   emRevisao: boolean;
   /** Quantas perguntas sobre esta nota esperam o dono. */
@@ -25,8 +53,6 @@ export interface NotaParaMensagem {
   repetida: boolean;
 }
 
-/** Itens listados na mensagem; o resto vira "e mais N itens", para caber no WhatsApp. */
-export const MAX_ITENS_NA_MENSAGEM = 12;
 /** Perguntas da nota mandadas logo depois da leitura; as outras ficam pendentes, sem inundar a conversa. */
 export const MAX_PERGUNTAS_NA_CONVERSA = 3;
 
@@ -34,34 +60,35 @@ const reais = (c: number) => formatarBRL(centavos(c));
 /** "2026-10-16" vira "16/10". */
 export const diaMes = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
 
-/** "16.000" vira "16"; "1.500" vira "1,5". A quantidade vem do banco como texto (`numeric`). */
-export function formatarQuantidade(q: string): string {
-  const [inteiro = "0", fracao = ""] = q.split(".");
-  const casas = fracao.replace(/0+$/, "");
-  return casas ? `${inteiro},${casas}` : inteiro;
+/** Pontos-base como texto para o dono, só com inteiros: 1065 vira "10,65". */
+export function percentualDeBpsTexto(bps: number): string {
+  const absoluto = Math.abs(bps);
+  return `${Math.floor(absoluto / 100)},${String(absoluto % 100).padStart(2, "0")}`;
 }
 
 export function textoNotaLida(n: NotaParaMensagem): string {
   const linhas: string[] = [];
-  linhas.push(
-    n.repetida
-      ? `Esta nota já estava no seu histórico, então não contei de novo. É a da *${n.fornecedor}*, de ${diaMes(n.data)}:`
-      : `Li a nota da *${n.fornecedor}*, de ${diaMes(n.data)}:`,
-  );
-  linhas.push("");
-  for (const i of n.itens.slice(0, MAX_ITENS_NA_MENSAGEM)) {
+  if (n.repetida) {
     linhas.push(
-      `• ${i.descricao}: ${formatarQuantidade(i.quantidade)} x ${reais(i.valorUnitarioCentavos)} = ${reais(i.valorTotalCentavos)}`,
+      `Esta nota já estava no seu histórico, então não contei de novo. É a da ${n.fornecedor}, de ${diaMes(n.data)}.`,
     );
+    linhas.push("");
   }
-  const restantes = n.itens.length - MAX_ITENS_NA_MENSAGEM;
-  if (restantes > 0) linhas.push(`• e mais ${restantes} ${restantes === 1 ? "item" : "itens"}`);
-  linhas.push("");
-  linhas.push(
-    n.somaItensCentavos === n.totalCentavos
-      ? `*Total: ${reais(n.totalCentavos)}* (confere com a soma dos itens)`
-      : `*Total: ${reais(n.totalCentavos)}*, mas a soma dos itens dá ${reais(n.somaItensCentavos)}`,
-  );
+  const recebida = `Nota da ${n.fornecedor} recebida: ${n.itens.length} ${n.itens.length === 1 ? "item" : "itens"}, total ${reais(n.totalCentavos)}.`;
+  if (n.avisosDeCusto.length === 0) {
+    linhas.push(`${recebida} Tudo certo com os preços.`);
+  } else {
+    linhas.push(recebida);
+    for (const a of n.avisosDeCusto) {
+      linhas.push(
+        `Atenção: ${a.produto}, a última compra foi por ${reais(a.anteriorCentavos)} e agora veio por ${reais(a.atualCentavos)} (${a.variacaoBps > 0 ? "alta" : "queda"} de ${percentualDeBpsTexto(a.variacaoBps)}%).`,
+      );
+    }
+  }
+  if (n.somaItensCentavos !== n.totalCentavos) {
+    linhas.push("");
+    linhas.push(`A soma dos itens dá ${reais(n.somaItensCentavos)}, diferente do total da nota.`);
+  }
   if (n.perguntasPendentes > 0) {
     linhas.push("");
     linhas.push(

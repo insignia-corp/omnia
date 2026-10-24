@@ -1,6 +1,7 @@
 import type { BotaoResposta, SaidaWhatsapp } from "./formato";
 import { conferirSaida, LIMITES_META } from "./regras-meta";
 import {
+  atalhoDoTexto,
   BOTOES_CONFIRMACAO,
   BOTOES_NOTA,
   BOTOES_RELATORIO,
@@ -140,6 +141,24 @@ describe("ehSaudacao", () => {
     "%j vai ao agente",
     (t) => expect(ehSaudacao(t)).toBe(false),
   );
+});
+
+describe("atalhoDoTexto", () => {
+  it.each(["quero abrir o menu", "Abre o menu, por favor", "me mostra as opções", "oi"])(
+    "%j abre o menu",
+    (t) => expect(atalhoDoTexto(t)).toBe("menu"),
+  );
+
+  it.each(["quero abrir o painel", "Abrir painel", "me manda o link do painel", "cadê o dashboard?"])(
+    "%j abre o painel",
+    (t) => expect(atalhoDoTexto(t)).toBe("painel"),
+  );
+
+  it.each([
+    "menu de margens",
+    "quanto vendi ontem?",
+    "o que aparece no painel sobre a margem do arroz que comprei semana passada?",
+  ])("%j vai ao agente", (t) => expect(atalhoDoTexto(t)).toBeNull());
 });
 
 describe("garantirRegras", () => {

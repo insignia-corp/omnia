@@ -9,6 +9,7 @@ import { Pool } from "pg";
 import request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { MODELO_LINGUAGEM } from "../../src/agente/llm/modelo-linguagem";
+import { BastidoresService } from "../../src/canal/bastidores/bastidores.service";
 import type { PainelBastidores } from "../../src/canal/bastidores/tipos";
 import { carregarEnv } from "../../src/config/env";
 import { migrar } from "../../src/infra/database/migrar";
@@ -38,6 +39,7 @@ describe("bastidores (e2e)", () => {
   let db: ReturnType<typeof drizzle<typeof schema>>;
   let a = "";
   let b = "";
+  let c = "";
   let execucaoId = "";
 
   const servidor = () => app.getHttpServer() as Parameters<typeof request>[0];
@@ -53,10 +55,11 @@ describe("bastidores (e2e)", () => {
     db = drizzle(pool, { schema });
     const criados = await db
       .insert(schema.comerciante)
-      .values([{ nome: "E2E Bastidores A" }, { nome: "E2E Bastidores B" }])
+      .values([{ nome: "E2E Bastidores A" }, { nome: "E2E Bastidores B" }, { nome: "E2E Bastidores C" }])
       .returning({ id: schema.comerciante.id });
     a = criados[0]!.id;
     b = criados[1]!.id;
+    c = criados[2]!.id;
 
     // Uma execução com duas chamadas de ferramenta e um bloqueio do verificador, como o registro grava.
     const [exec] = await db
@@ -123,7 +126,7 @@ describe("bastidores (e2e)", () => {
 
   afterAll(async () => {
     await app?.close();
-    await db.delete(schema.comerciante).where(inArray(schema.comerciante.id, [a, b]));
+    await db.delete(schema.comerciante).where(inArray(schema.comerciante.id, [a, b, c]));
     await pool.end();
     rmSync(dirArquivos, { recursive: true, force: true });
   });
@@ -191,6 +194,85 @@ describe("bastidores (e2e)", () => {
       .update(schema.alerta)
       .set({ metricasApoio: linha!.metricasApoio })
       .where(and(eq(schema.alerta.comercianteId, a), eq(schema.alerta.chave, "arroz")));
+  });
+
+  it("traz o nome do comércio da sessão e o limite de confiança", async () => {
+    const p = await painel(a);
+    expect(p.comerciante.nome).toBe("E2E Bastidores A");
+    expect(p.limite_confianca).toBe(carregarEnv().LIMITE_CONFIANCA_ITEM);
+    expect((await painel(b)).comerciante.nome).toBe("E2E Bastidores B");
+  });
+
+  it("soma o dia local no banco, sobre todas as execuções e não só as listadas", async () => {
+    const [agora, outroDia] = [new Date(), new Date(Date.now() - 3 * 24 * 3600 * 1000)];
+    const base = {
+      comercianteId: c,
+      gatilho: "mensagem_dono" as const,
+      entrada: "x",
+      modelo: "m",
+      versaoPrompt: "v",
+      resultado: "aprovada" as const,
+      mensagemFinal: "y",
+      iteracoes: 1,
+      tokensEntrada: 1,
+      tokensSaida: 1,
+    };
+    // 12 de hoje (mais que as 10 que a página recebe), com custo, latência e 2 bloqueios, e uma de 3 dias atrás.
+    await db.insert(schema.execucaoAgente).values([
+      ...Array.from({ length: 12 }, (_, i) => ({
+        ...base,
+        bloqueiosVerificador: i < 2 ? 1 : 0,
+        custoEstimadoMicrodolares: 15_000,
+        latenciaMs: i % 2 === 0 ? 4000 : 4401,
+        criadoEm: agora,
+      })),
+      {
+        ...base,
+        bloqueiosVerificador: 5,
+        custoEstimadoMicrodolares: 9_000_000,
+        latenciaMs: 60_000,
+        criadoEm: outroDia,
+      },
+    ]);
+    const p = await painel(c);
+    expect(p.execucoes).toHaveLength(10);
+    expect(p.resumo_do_dia).toMatchObject({
+      execucoes: 12,
+      bloqueios_verificador: 2,
+      custo_microdolares: 180_000,
+      latencia_media_ms: 4201,
+    });
+    // O dia de A não entra no de C.
+    const doA = (await painel(a)).resumo_do_dia;
+    expect(doA.execucoes).toBe(1);
+    expect(doA.custo_microdolares).toBe(10);
+  });
+
+  it("o dia é o local do FUSO_HORARIO: 02h30 UTC ainda é o dia anterior em São Paulo", async () => {
+    const servico = app.get(BastidoresService);
+    const fuso = carregarEnv().FUSO_HORARIO;
+    expect(fuso).toBe("America/Sao_Paulo");
+    const uma = new Date("2026-10-10T02:30:00Z"); // 09/10 23h30 em São Paulo
+    await db.insert(schema.execucaoAgente).values({
+      comercianteId: c,
+      bloqueiosVerificador: 0,
+      gatilho: "relatorio_diario",
+      entrada: "x",
+      modelo: "m",
+      versaoPrompt: "v",
+      resultado: "aprovada",
+      mensagemFinal: "y",
+      iteracoes: 1,
+      tokensEntrada: 1,
+      tokensSaida: 1,
+      custoEstimadoMicrodolares: 7,
+      latenciaMs: 100,
+      criadoEm: uma,
+    });
+    const noDiaLocal = await servico.resumoDoDia(c, new Date("2026-10-09T15:00:00Z"));
+    expect(noDiaLocal).toMatchObject({ data: "2026-10-09", execucoes: 1, custo_microdolares: 7 });
+    const noDiaUtc = await servico.resumoDoDia(c, new Date("2026-10-10T15:00:00Z"));
+    expect(noDiaUtc).toMatchObject({ data: "2026-10-10", execucoes: 0, latencia_media_ms: null });
   });
 
   it("um comerciante não vê as execuções, nem os alertas do outro", async () => {

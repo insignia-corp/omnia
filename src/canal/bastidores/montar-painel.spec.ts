@@ -1,4 +1,10 @@
-import { abaixoDoLimite, agruparChamadas, versaoDoPainel, type DecisaoAlerta } from "./montar-painel";
+import {
+  abaixoDoLimite,
+  agruparChamadas,
+  resumoDoDiaDe,
+  versaoDoPainel,
+  type DecisaoAlerta,
+} from "./montar-painel";
 
 describe("agruparChamadas", () => {
   it("agrupa por execução e ordena pela ordem da chamada", () => {
@@ -89,5 +95,26 @@ describe("versaoDoPainel", () => {
     const a = { alerta_id: "a", status: "candidato" } as DecisaoAlerta;
     const b = { alerta_id: "b", status: "enviado" } as DecisaoAlerta;
     expect(versaoDoPainel([null], [a, b])).toBe(versaoDoPainel([null], [b, a]));
+  });
+});
+
+describe("resumoDoDiaDe", () => {
+  it("converte o texto que o pg entrega em inteiros", () => {
+    expect(
+      resumoDoDiaDe("2026-10-24", { execucoes: "12", bloqueios: "1", custo: "180000", latencia: "4200" }),
+    ).toEqual({
+      data: "2026-10-24",
+      execucoes: 12,
+      bloqueios_verificador: 1,
+      custo_microdolares: 180_000,
+      latencia_media_ms: 4200,
+    });
+  });
+
+  it("sem execuções no dia tudo é zero e a latência média é nula, não zero", () => {
+    const vazio = resumoDoDiaDe("2026-10-24", { execucoes: "0", bloqueios: "0", custo: "0", latencia: null });
+    expect(vazio).toMatchObject({ execucoes: 0, bloqueios_verificador: 0, custo_microdolares: 0 });
+    expect(vazio.latencia_media_ms).toBeNull();
+    expect(resumoDoDiaDe("2026-10-24", undefined).latencia_media_ms).toBeNull();
   });
 });

@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import type { ChamadaBastidores, DecisaoAlerta, ItemBastidores, PainelBastidores } from "./tipos";
+import type {
+  ChamadaBastidores,
+  DecisaoAlerta,
+  ItemBastidores,
+  PainelBastidores,
+  ResumoDoDia,
+} from "./tipos";
 
 /** Agrupa por execução, mantendo a ordem em que as chamadas aconteceram. */
 export function agruparChamadas<T extends { execucaoId: string; ordem: number }>(
@@ -17,6 +23,26 @@ export function agruparChamadas<T extends { execucaoId: string; ordem: number }>
 /** Item abaixo do limite de confiança é o que a tela destaca (regra de revisão da ingestão). */
 export function abaixoDoLimite(confianca: number, limite: number): boolean {
   return confianca < limite;
+}
+
+/** O que a agregação SQL do dia devolve: o `pg` entrega count, sum e round como texto (bigint e numeric). */
+export interface LinhaResumoDoDia {
+  execucoes: string | number | null;
+  bloqueios: string | number | null;
+  custo: string | number | null;
+  latencia: string | number | null;
+}
+
+/** Transforma a linha agregada em inteiros. Sem execuções no dia a latência média é `null`, não zero. */
+export function resumoDoDiaDe(data: string, linha: LinhaResumoDoDia | undefined): ResumoDoDia {
+  const execucoes = Number(linha?.execucoes ?? 0);
+  return {
+    data,
+    execucoes,
+    bloqueios_verificador: Number(linha?.bloqueios ?? 0),
+    custo_microdolares: Number(linha?.custo ?? 0),
+    latencia_media_ms: execucoes === 0 || linha?.latencia == null ? null : Number(linha.latencia),
+  };
 }
 
 /** JSON com chaves em ordem, para a mesma decisão dar sempre a mesma impressão (jsonb não garante ordem de leitura). */
@@ -49,4 +75,4 @@ export function versaoDoPainel(
   return `${base}.${createHash("sha256").update(JSON.stringify(campos)).digest("hex").slice(0, 16)}`;
 }
 
-export type { ChamadaBastidores, DecisaoAlerta, ItemBastidores, PainelBastidores };
+export type { ChamadaBastidores, DecisaoAlerta, ItemBastidores, PainelBastidores, ResumoDoDia };

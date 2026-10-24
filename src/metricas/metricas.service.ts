@@ -4,7 +4,11 @@
  * um id de produto de outro lojista não é encontrado.
  */
 import { somarDias } from "../lib/datas/datas";
+import { PARAMETROS_ATENCAO, calcularAtencao, type ParametrosAtencao } from "./atencao";
+import { montarBriefingDiario, type BriefingDiario } from "./briefing-diario";
 import { intervaloComumDeMovimentos } from "./dados-de-metricas";
+import { calcularDiaContraMesmosDias, diasDeHistoricoDoDiaContraMesmosDias } from "./dia-contra-mesmos-dias";
+import { DIAS_DE_HISTORICO_DOS_PIORES, calcularMaisVendidos, calcularPiores } from "./movimento-de-produtos";
 import { calcularEspacoParaSubirPreco, type ProdutoComEspacoParaSubirPreco } from "./espaco-para-subir-preco";
 import { calcularEstoqueParado, type ProdutoParado } from "./estoque-parado";
 import {
@@ -261,6 +265,49 @@ export class MetricasService {
       this.dados.ultimasVendasPorProduto(comercianteId, dataReferencia),
     ]);
     return calcularEstoqueParado({ produtos, custos, ultimasVendas, dataReferencia });
+  }
+
+  /**
+   * Resumo diário do pitch (`get_daily_briefing`): o dia contra os mesmos dias da semana anteriores,
+   * mais vendidos e piores dos 7 dias até a data e os produtos que precisam de atenção. O limite de
+   * reajuste é o do comerciante, lido por quem chama (a métrica não depende dos alertas).
+   */
+  async briefingDiario(
+    contexto: ContextoMetricas,
+    data: string,
+    parametrosAtencao: ParametrosAtencao = PARAMETROS_ATENCAO,
+  ): Promise<BriefingDiario> {
+    const { comercianteId } = contexto;
+    const naData: ContextoMetricas = { comercianteId, dataReferencia: data };
+    const desde = somarDias(data, -diasDeHistoricoDoDiaContraMesmosDias());
+    const desdeProdutos = somarDias(data, -(DIAS_DE_HISTORICO_DOS_PIORES - 1));
+    const [produtos, vendasPorDia, vendasPorProduto, intervaloDeVendas, ultimasVendas, variacoes, margens] =
+      await Promise.all([
+        this.dados.produtos(comercianteId),
+        this.dados.vendasPorDia(comercianteId, desde, data),
+        this.dados.vendasPorProdutoPorDia(comercianteId, desdeProdutos, data),
+        this.dados.intervaloDeVendas(comercianteId),
+        this.dados.ultimasVendasPorProduto(comercianteId, data),
+        this.variacoesDeCusto(naData),
+        this.margensDosProdutos(naData),
+      ]);
+    const movimento = { produtos, vendas: vendasPorProduto, intervaloDeVendas, data };
+    return montarBriefingDiario({
+      data,
+      diaContraMesmosDias: calcularDiaContraMesmosDias({ data, vendas: vendasPorDia, intervaloDeVendas }),
+      maisVendidos: calcularMaisVendidos(movimento),
+      piores: calcularPiores(movimento),
+      atencao: calcularAtencao(
+        {
+          data,
+          produtos,
+          variacoesDeCusto: variacoes,
+          margens: margens.map((m) => m.resultado),
+          ultimasVendas,
+        },
+        parametrosAtencao,
+      ),
+    });
   }
 
   /** Produtos de giro alto com margem abaixo da meta. */

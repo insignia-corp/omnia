@@ -1,5 +1,5 @@
 /**
- * As sete regras do motor (issue #43), uma por tipo de alerta. Cada uma relê o número que a métrica
+ * As regras do motor (issue #43), uma por tipo de alerta; a de gasto fora do padrão ficou fora do motor (#220). Cada uma relê o número que a métrica
  * já calculou contra o limite do comerciante; o impacto em centavos sai de contas inteiras sobre
  * esses números. Dado ausente não vira candidato nem zero.
  */
@@ -391,6 +391,10 @@ export const regraGastoForaDoPadrao: RegraDeAlerta = {
   },
 };
 
+/**
+ * As regras que o motor roda. A de gasto fora do padrão (`regraGastoForaDoPadrao`) fica fora: o extrato
+ * bancário saiu do produto (futuro). A função e o teste dela continuam no código.
+ */
 export const REGRAS_DE_ALERTA: readonly RegraDeAlerta[] = [
   regraReajusteDeCusto,
   regraMargemAbaixoDaMeta,
@@ -398,5 +402,4 @@ export const REGRAS_DE_ALERTA: readonly RegraDeAlerta[] = [
   regraGiroEmAlta,
   regraEstoqueParado,
   regraTicketMedioEmQueda,
-  regraGastoForaDoPadrao,
 ];

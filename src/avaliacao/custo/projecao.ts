@@ -13,7 +13,7 @@ export interface PremissasMensais {
   custoPorMensagemMicrodolares: number | null;
   /** Mensagens enviadas por mês (o relatório diário, mais as respostas às perguntas). */
   mensagensPorMes: number;
-  /** Mensalidade do agregador (Open Finance), em micro-dólares, dividida entre os lojistas. Sem valor: não cotado. */
+  /** Mensalidade do agregador de extrato (implementação futura: sem Open Finance no produto atual), em micro-dólares, dividida entre os lojistas. Sem valor: não cotado. */
   agregadorMensalMicrodolares: number | null;
   lojistas: number;
 }

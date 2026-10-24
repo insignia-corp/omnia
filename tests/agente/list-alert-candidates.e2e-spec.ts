@@ -31,6 +31,9 @@ const gabarito = JSON.parse(readFileSync("fixtures/gabarito/metricas.json", "utf
   alertas_esperados: AlertaGabarito[];
 };
 const REF = gabarito.parametros.data_referencia;
+/** A regra de gasto fora do padrão saiu do motor (extrato bancário é trabalho futuro): o teste a tira do gabarito. */
+const alertasEsperados = gabarito.alertas_esperados.filter((a) => a.tipo !== "gasto_fora_do_padrao");
+const QUANTOS = alertasEsperados.length;
 /** A sessão roda no dia seguinte ao gabarito: os avisos olham ontem, o último dia completo. */
 const DIA_DA_EXECUCAO = somarDias(REF, 1);
 
@@ -93,16 +96,14 @@ describe("list_alert_candidates contra o gabarito (e2e)", () => {
     expect(registro.nomes).toContain("list_alert_candidates");
   });
 
-  it("devolve os 16 candidatos do gabarito, com os números nas métricas de apoio", async () => {
+  it("devolve os 15 candidatos do gabarito (sem o gasto fora do padrão), com os números nas métricas de apoio", async () => {
     const saida = await listar(vilaNova);
-    const esperados = gabarito.alertas_esperados.map((a) =>
-      chaveDoGabarito(a.tipo, a.produto_id, a.fornecedor_id),
-    );
-    expect(esperados).toHaveLength(16);
+    const esperados = alertasEsperados.map((a) => chaveDoGabarito(a.tipo, a.produto_id, a.fornecedor_id));
+    expect(esperados).toHaveLength(15);
     expect(saida.candidatos.map(chaveDoCandidato).sort()).toEqual([...esperados].sort());
-    expect(saida.n_registros).toBe(16);
+    expect(saida.n_registros).toBe(QUANTOS);
     expect(saida.data).toBe(REF);
-    for (const esperado of gabarito.alertas_esperados) {
+    for (const esperado of alertasEsperados) {
       const chave = chaveDoGabarito(esperado.tipo, esperado.produto_id, esperado.fornecedor_id);
       const candidato = saida.candidatos.find((c) => chaveDoCandidato(c) === chave);
       expect(candidato?.metricas_apoio).toMatchObject(esperado.metricas);
@@ -119,7 +120,7 @@ describe("list_alert_candidates contra o gabarito (e2e)", () => {
     const antes = await listar(vilaNova);
     const depois = await listar(vilaNova);
     expect(depois.candidatos.map((c) => c.alerta_id)).toEqual(antes.candidatos.map((c) => c.alerta_id));
-    expect(await linhasDoBanco(vilaNova.comercianteId)).toHaveLength(16);
+    expect(await linhasDoBanco(vilaNova.comercianteId)).toHaveLength(QUANTOS);
   });
 
   it("os ids devolvidos servem ao select_alerts do mesmo comerciante, e não ao de outro", async () => {

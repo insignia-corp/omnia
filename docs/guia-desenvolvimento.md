@@ -45,9 +45,9 @@ O banco é PostgreSQL. Duas regras valem para todas as tabelas: valores em dinhe
  
 | Entidade | Campos principais |
 | --- | --- |
-| Comerciante | nome, telefone do WhatsApp, tipo de comércio, consentimentos (banco, notas) |
-| Conta | comerciante, instituição, id da conexão no agregador, status do consentimento |
-| Transação | conta, data, valor, entrada ou saída, descrição, categoria |
+| Comerciante | nome, telefone do WhatsApp, tipo de comércio, consentimentos (notas; o de banco é implementação futura) |
+| Conta (implementação futura: a tabela existe e a #220 tira o uso dela do que o dono vê) | comerciante, instituição, id da conexão no agregador, status do consentimento |
+| Transação (implementação futura: a tabela existe e a #220 tira o uso dela do que o dono vê) | conta, data, valor, entrada ou saída, descrição, categoria |
 | Produto | comerciante, nome, código de barras ou SKU, unidade, categoria |
 | Fornecedor | comerciante, nome, CNPJ |
 | Documento | comerciante, tipo (foto de nota, NF-e, planilha), arquivo, status da extração, confiança média |
@@ -107,7 +107,7 @@ Cada métrica é uma função pura em TypeScript, com testes unitários, que dev
 | Espaço para subir preço | Giro alto combinado com margem abaixo da meta | As duas condições juntas |
 | Estoque parado | Dias sem venda de um produto que já foi comprado | Mais de 30 dias sem venda |
 | Ticket médio | Faturamento do dia / número de vendas | Queda relevante contra a média dos últimos 28 dias |
-| Gasto fora do padrão | Desvio robusto: (valor do dia - mediana dos últimos 60 dias) / desvio absoluto mediano | Desvio acima de 3 |
+| Gasto fora do padrão (implementação futura: a função existe, mas a regra não roda no motor, porque depende do extrato bancário) | Desvio robusto: (valor do dia - mediana dos últimos 60 dias) / desvio absoluto mediano | Desvio acima de 3 |
  
 A margem usa o custo da compra mais recente porque é o que a reposição vai custar. Sem dado de estoque, o giro vira um ranking de quantidade vendida; estoque parado só funciona com PDV ou planilha de estoque.
  
@@ -116,7 +116,7 @@ O motor de alertas apenas lista candidatos com prioridade. Quem decide o que ent
 O código aplica estas regras além da tabela. Os valores iniciais ficam nas constantes `PARAMETROS_*` de [src/metricas](../src/metricas/README.md), e o teste de regressão confere que são os do gabarito.
 
 - Sem custo ou sem venda a margem não sai: a métrica devolve dado ausente, com a pergunta ao dono, nunca uma estimativa.
-- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio, gasto fora do padrão) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. No resumo, o extrato tem o próprio intervalo: sem extrato para o dia, `gastos_centavos` e `saldo_do_dia_centavos` são dado ausente. A cobertura vale por conta (conta ativa sem extrato no dia, ou sem transação e sem sincronização, também deixa o dia ausente): regra e limitação em `src/metricas/README.md`. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias, e a receita por produto quando cobrem os 7 dias.
+- Dia sem dado não é zero. As métricas de dia (resumo, ticket médio) conhecem o intervalo importado: dentro dele, dia sem lançamento vale zero; fora dele, devolvem dado ausente. Um buraco no meio do intervalo conta como dia sem venda. O extrato bancário (gastos e saldo) é implementação futura e sai do que o dono vê (#220); o que a métrica ainda calcula dele está em `src/metricas/README.md`. O giro só sai quando as vendas cobrem as janelas de 7 e de 28 dias, e a receita por produto quando cobrem os 7 dias.
 - Venda de planilha cuja importação ainda pede revisão do dono (documento fora de `extraido`) entra nas métricas com confiança 0,5, não 1; volta ao valor original quando o documento é resolvido.
 - O custo de cada item de compra vale pela leitura mais recente de `historico_custo`, então a correção do dono prevalece sem apagar a leitura do modelo. O custo mais recente de um produto é o de maior data; o empate desempata pela criação.
 - A variação de custo compara notas diferentes: duas linhas do mesmo produto na mesma nota não são um reajuste.
@@ -131,8 +131,8 @@ O agente é um modelo de linguagem com chamada de ferramentas (tool use), rodand
  
 | Ferramenta | Entrada | Saída | Efeito |
 | --- | --- | --- | --- |
-| `get_daily_summary` | data | Faturamento, gastos, saldo e comparação com dias anteriores | Nenhum |
-| `get_period_summary` | semana ou mês, último dia | Faturamento, cupons, ticket, gastos e saldo do período, comparado com o período anterior | Nenhum |
+| `get_daily_summary` | data | Faturamento, cupons, ticket médio e comparação com dias anteriores | Nenhum |
+| `get_period_summary` | semana ou mês, último dia | Faturamento, cupons e ticket do período, comparado com o período anterior | Nenhum |
 | `get_top_products` | critério (volume, alta do giro ou receita) | Ranking de produtos dos últimos 7 dias até ontem | Nenhum |
 | `get_product_margin` | produto (e o produto_id do candidato escolhido, opcional) | Margem, custo, preço, preço que leva à meta e confiança | Nenhum |
 | `list_product_margins` | filtro, ordenar, limite | Margens dos produtos sem precisar do nome, com o total que atende ao filtro e a meta usada | Nenhum |
@@ -172,7 +172,7 @@ Cada job usa chave de idempotência (comerciante mais data) para nunca enviar o 
  
 A regra da [Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing) para mensagens fora da janela de atendimento de 24 horas é que só templates podem ser enviados. Isso desenha o fluxo:
  
-1. O relatório diário sai como template aprovado, curto e com variáveis (faturamento, gastos, principal alerta), e termina convidando o dono a responder.
+1. O relatório diário sai como template aprovado, curto e com variáveis (faturamento, principal alerta), e termina convidando o dono a responder.
 2. Quando o dono responde, a janela abre e o agente conversa em texto livre, com as ferramentas e o verificador de números.
 3. Cada mensagem enviada grava categoria e custo estimado na tabela Mensagem.
  
@@ -198,9 +198,9 @@ As metas são pontos de partida e devem ser ajustadas depois dos primeiros resul
  
 ## Segurança e LGPD
  
-O sistema lida com dado bancário e fiscal, então este é o mínimo técnico para o MVP. Não é parecer jurídico: valide a base legal e a política de privacidade com um profissional antes de operar com lojistas reais.
+O sistema lida com dado fiscal (e dado bancário, quando o extrato entrar como implementação futura), então este é o mínimo técnico para o MVP. Não é parecer jurídico: valide a base legal e a política de privacidade com um profissional antes de operar com lojistas reais.
  
-- Consentimento explícito e registrado: o que foi autorizado, quando e como revogar. Na Pluggy, o dono autoriza pelo widget de conexão e o sistema guarda só o identificador da conexão, não credenciais bancárias.
+- Consentimento explícito e registrado: o que foi autorizado, quando e como revogar. Quando o extrato bancário entrar (implementação futura), o sistema guarda só o identificador da conexão, nunca credenciais bancárias.
 - Mínimo de dados: guarde apenas o que alimenta as métricas.
 - Criptografia em trânsito e em repouso, e segredos fora do código (variáveis de ambiente ou cofre).
 - Isolamento entre lojistas: teste automatizado provando que o lojista A não lê dados do lojista B.
@@ -211,7 +211,7 @@ O sistema lida com dado bancário e fiscal, então este é o mínimo técnico pa
  
 ## Demo do hackathon
  
-Use dados fixos, para a demo dar sempre o mesmo resultado: um mercadinho real anonimizado ou fictício, 30 dias de vendas, 10 a 20 notas de compra com um reajuste plantado (um produto que sobe de custo entre duas compras do mesmo fornecedor) e a conta bancária do sandbox da Pluggy.
+Use dados fixos, para a demo dar sempre o mesmo resultado: um mercadinho real anonimizado ou fictício, 30 dias de vendas, 10 a 20 notas de compra com um reajuste plantado (um produto que sobe de custo entre duas compras do mesmo fornecedor).
  
 Roteiro de 1 minuto para o pitch, em que cada passo mostra uma parte do fluxo do agente:
  
@@ -231,7 +231,6 @@ Plano B: grave a demo completa, ensaie o roteiro 3 vezes e tenha o resultado do 
 Páginas abertas em 19 de outubro de 2026. As regras da Meta mudam a cada trimestre, então reconfirme antes de construir o canal.
  
 - [Pricing on the WhatsApp Business Platform (Meta)](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing)
-- [Visão geral da Pluggy](https://docs.pluggy.ai/pt/docs/overview)
 - [Distribuição de DF-e e manifestação do destinatário (Portal SPED Brasil)](https://portalspedbrasil.com.br/?p=16011)
  
 Os limites das métricas, as metas de avaliação e o limite de confiança são valores iniciais propostos neste guia, não vêm de fonte externa.

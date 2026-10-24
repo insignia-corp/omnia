@@ -1,0 +1,292 @@
+[
+  {
+    "chave": "cerveja",
+    "nome": "Cerveja pilsen lata 350ml",
+    "descricao": "CERVEJA PILSEN LT 350ML",
+    "preco_centavos": 399,
+    "custo_centavos": 269,
+    "unidades_semana": 630,
+    "codigo_barras": "2990000000019",
+    "produto_id": "b49f7012-5f74-5f68-b9b2-33526c9649ae"
+  },
+  {
+    "chave": "leite",
+    "nome": "Leite integral 1L",
+    "descricao": "LEITE INTEGRAL 1L",
+    "preco_centavos": 499,
+    "custo_centavos": 349,
+    "unidades_semana": 490,
+    "codigo_barras": "2990000000026",
+    "produto_id": "50d6a803-5f70-54c1-b527-50fdad818875"
+  },
+  {
+    "chave": "agua",
+    "nome": "Água mineral 1,5L",
+    "descricao": "AGUA MINERAL 1,5L",
+    "preco_centavos": 249,
+    "custo_centavos": 159,
+    "unidades_semana": 420,
+    "codigo_barras": "2990000000033",
+    "produto_id": "afbd41c4-1806-5615-87b1-3a9eb1a19adb"
+  },
+  {
+    "chave": "arroz",
+    "nome": "Arroz tipo 1 5kg",
+    "descricao": "ARROZ TIPO 1 5KG",
+    "preco_centavos": 2990,
+    "custo_centavos": 2290,
+    "unidades_semana": 105,
+    "codigo_barras": "2990000000040",
+    "produto_id": "2fa56030-ab52-57df-bb5d-c44e6cc69d19"
+  },
+  {
+    "chave": "cafe",
+    "nome": "Café torrado 500g",
+    "descricao": "CAFE TORRADO 500G",
+    "preco_centavos": 2490,
+    "custo_centavos": 1690,
+    "unidades_semana": 70,
+    "codigo_barras": "2990000000057",
+    "produto_id": "2981b7b4-a282-54f9-aa0a-8f2998517839"
+  },
+  {
+    "chave": "feijao",
+    "nome": "Feijão carioca 1kg",
+    "descricao": "FEIJAO CARIOCA 1KG",
+    "preco_centavos": 899,
+    "custo_centavos": 629,
+    "unidades_semana": 140,
+    "codigo_barras": "2990000000064",
+    "produto_id": "73426f9d-2df8-5d48-8590-f1959dc6ef7d"
+  },
+  {
+    "chave": "macarrao",
+    "nome": "Macarrão espaguete 500g",
+    "descricao": "MACARRAO ESPAGUETE 500G",
+    "preco_centavos": 499,
+    "custo_centavos": 339,
+    "unidades_semana": 140,
+    "codigo_barras": "2990000000071",
+    "produto_id": "147d99ae-f805-5964-bccc-3e711464b192"
+  },
+  {
+    "chave": "acucar",
+    "nome": "Açúcar refinado 1kg",
+    "descricao": "ACUCAR REFINADO 1KG",
+    "preco_centavos": 449,
+    "custo_centavos": 309,
+    "unidades_semana": 140,
+    "codigo_barras": "2990000000088",
+    "produto_id": "06ec0bc7-bb84-5c82-b824-b4d0aab62697"
+  },
+  {
+    "chave": "oleo",
+    "nome": "Óleo de soja 900ml",
+    "descricao": "OLEO DE SOJA 900ML",
+    "preco_centavos": 749,
+    "custo_centavos": 620,
+    "unidades_semana": 154,
+    "codigo_barras": "2990000000095",
+    "produto_id": "183b52c5-839f-57d4-9fdc-7dc8149d929b"
+  },
+  {
+    "chave": "achocolatado",
+    "nome": "Achocolatado 400g",
+    "descricao": "ACHOCOLATADO 400G",
+    "preco_centavos": 899,
+    "custo_centavos": 619,
+    "unidades_semana": 56,
+    "codigo_barras": "2990000000101",
+    "produto_id": "0408ad86-a151-5351-b22b-62fd67a8ffb5"
+  },
+  {
+    "chave": "sabao",
+    "nome": "Sabão em pó 1,6kg",
+    "descricao": "SABAO EM PO 1,6KG",
+    "preco_centavos": 1990,
+    "custo_centavos": 1349,
+    "unidades_semana": 35,
+    "codigo_barras": "2990000000118",
+    "produto_id": "1d97fda4-fd23-554f-bf10-0fbc14d8a6e6"
+  },
+  {
+    "chave": "biscoito",
+    "nome": "Biscoito recheado 130g",
+    "descricao": "BISCOITO RECHEADO 130G",
+    "preco_centavos": 299,
+    "custo_centavos": 199,
+    "unidades_semana": 105,
+    "codigo_barras": "2990000000125",
+    "produto_id": "c832fbe5-79c7-52e1-8130-6d251b164732"
+  },
+  {
+    "chave": "vinagre",
+    "nome": "Vinagre de álcool 750ml",
+    "descricao": "VINAGRE ALCOOL 750ML",
+    "preco_centavos": 299,
+    "custo_centavos": 199,
+    "unidades_semana": 21,
+    "codigo_barras": "2990000000132",
+    "produto_id": "0bb072e1-486a-5e2d-9128-db99136621dc"
+  },
+  {
+    "chave": "farinha",
+    "nome": "Farinha de trigo 1kg",
+    "descricao": "FARINHA TRIGO 1KG",
+    "preco_centavos": 549,
+    "custo_centavos": 369,
+    "unidades_semana": 56,
+    "codigo_barras": "2990000000149",
+    "produto_id": "e9be4fb2-c8d8-5d08-ae67-dc04511f28fd"
+  },
+  {
+    "chave": "sal",
+    "nome": "Sal refinado 1kg",
+    "descricao": "SAL REFINADO 1KG",
+    "preco_centavos": 249,
+    "custo_centavos": 169,
+    "unidades_semana": 49,
+    "codigo_barras": "2990000000156",
+    "produto_id": "1b8758ce-dc7d-50ec-bd6f-e66cf020cd13"
+  },
+  {
+    "chave": "mandioca",
+    "nome": "Farinha de mandioca 500g",
+    "descricao": "FARINHA MANDIOCA 500G",
+    "preco_centavos": 699,
+    "custo_centavos": 489,
+    "unidades_semana": 35,
+    "codigo_barras": "2990000000163",
+    "produto_id": "d6b830f1-8f5a-50b2-b05d-e3d496a97190"
+  },
+  {
+    "chave": "molho",
+    "nome": "Molho de tomate 300g",
+    "descricao": "MOLHO TOMATE 300G",
+    "preco_centavos": 249,
+    "custo_centavos": 169,
+    "unidades_semana": 98,
+    "codigo_barras": "2990000000170",
+    "produto_id": "84a0b5fb-e6f4-5d6a-bbb3-4f30519c3082"
+  },
+  {
+    "chave": "sardinha",
+    "nome": "Sardinha em lata 125g",
+    "descricao": "SARDINHA LATA 125G",
+    "preco_centavos": 649,
+    "custo_centavos": 449,
+    "unidades_semana": 42,
+    "codigo_barras": "2990000000187",
+    "produto_id": "f43f5402-1e2a-52c1-bc7c-3553beafe002"
+  },
+  {
+    "chave": "milho",
+    "nome": "Milho verde 170g",
+    "descricao": "MILHO VERDE 170G",
+    "preco_centavos": 399,
+    "custo_centavos": 279,
+    "unidades_semana": 42,
+    "codigo_barras": "2990000000194",
+    "produto_id": "fb19fb21-7f95-5e12-b237-ac6da5116109"
+  },
+  {
+    "chave": "manteiga",
+    "nome": "Manteiga 200g",
+    "descricao": "MANTEIGA 200G",
+    "preco_centavos": 1290,
+    "custo_centavos": 899,
+    "unidades_semana": 35,
+    "codigo_barras": "2990000000200",
+    "produto_id": "2e8f7f00-c727-549c-b19b-1cd82c62b880"
+  },
+  {
+    "chave": "margarina",
+    "nome": "Margarina 500g",
+    "descricao": "MARGARINA 500G",
+    "preco_centavos": 649,
+    "custo_centavos": 449,
+    "unidades_semana": 56,
+    "codigo_barras": "2990000000217",
+    "produto_id": "9ffd3beb-101e-529b-a527-7a2d1872e987"
+  },
+  {
+    "chave": "ovos",
+    "nome": "Ovos brancos dúzia",
+    "descricao": "OVOS BRANCOS DZ",
+    "preco_centavos": 1299,
+    "custo_centavos": 899,
+    "unidades_semana": 70,
+    "codigo_barras": "2990000000224",
+    "produto_id": "17da80c3-9366-5bb3-a62a-47a178724dce"
+  },
+  {
+    "chave": "refrigerante",
+    "nome": "Refrigerante cola 2L",
+    "descricao": "REFRIGERANTE COLA 2L",
+    "preco_centavos": 899,
+    "custo_centavos": 629,
+    "unidades_semana": 105,
+    "codigo_barras": "2990000000231",
+    "produto_id": "86369239-6c39-56f3-8f1e-9b7169d914ca"
+  },
+  {
+    "chave": "detergente",
+    "nome": "Detergente neutro 500ml",
+    "descricao": "DETERGENTE 500ML",
+    "preco_centavos": 249,
+    "custo_centavos": 169,
+    "unidades_semana": 70,
+    "codigo_barras": "2990000000248",
+    "produto_id": "58f2b226-55ca-5b4c-8b85-a2029f2f401d"
+  },
+  {
+    "chave": "sabonete",
+    "nome": "Sabonete 85g",
+    "descricao": "SABONETE 85G",
+    "preco_centavos": 299,
+    "custo_centavos": 199,
+    "unidades_semana": 56,
+    "codigo_barras": "2990000000255",
+    "produto_id": "eda91ecf-dca4-5ffb-8002-6b92332baff4"
+  },
+  {
+    "chave": "papel",
+    "nome": "Papel higiênico 12 rolos",
+    "descricao": "PAPEL HIGIENICO 12RL",
+    "preco_centavos": 1490,
+    "custo_centavos": 1039,
+    "unidades_semana": 35,
+    "codigo_barras": "2990000000262",
+    "produto_id": "42c690ee-e503-51af-8e0a-9de6e7e52be2"
+  },
+  {
+    "chave": "creme",
+    "nome": "Creme dental 90g",
+    "descricao": "CREME DENTAL 90G",
+    "preco_centavos": 599,
+    "custo_centavos": 419,
+    "unidades_semana": 35,
+    "codigo_barras": "2990000000279",
+    "produto_id": "5d79e130-1096-5851-96f3-f7ced437dcb5"
+  },
+  {
+    "chave": "sanitaria",
+    "nome": "Água sanitária 1L",
+    "descricao": "AGUA SANITARIA 1L",
+    "preco_centavos": 449,
+    "custo_centavos": 309,
+    "unidades_semana": 49,
+    "codigo_barras": "2990000000286",
+    "produto_id": "33a9dc91-b560-5372-8e47-f321afd70eb6"
+  },
+  {
+    "chave": "pao",
+    "nome": "Pão de forma 450g",
+    "descricao": "PAO DE FORMA 450G",
+    "preco_centavos": 749,
+    "custo_centavos": 519,
+    "unidades_semana": 70,
+    "codigo_barras": "2990000000293",
+    "produto_id": "cb9a7f98-5210-5524-82d2-1e1817692ffc"
+  }
+]

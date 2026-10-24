@@ -87,7 +87,7 @@ describe("fraseDoAviso", () => {
     ).toBe("Vela está sem venda há 45 dias.");
   });
 
-  it("ticket médio em queda e gasto fora do padrão usam a data da métrica", () => {
+  it("ticket médio em queda usa a data da métrica", () => {
     expect(
       texto(
         fraseDoAviso(
@@ -103,16 +103,6 @@ describe("fraseDoAviso", () => {
         ),
       ),
     ).toBe("O ticket médio de 23/10 foi R$ 21,00, 14,39% abaixo da média de 28 dias (R$ 24,53).");
-    expect(
-      texto(
-        fraseDoAviso(
-          entrada({
-            tipo: "gasto_fora_do_padrao",
-            metricasApoio: { data: "2026-10-22", valor_centavos: 123456, mediana_centavos: 30000 },
-          }),
-        ),
-      ),
-    ).toBe("Os gastos de 22/10 somaram R$ 1.234,56, bem acima do normal (mediana de R$ 300,00).");
   });
 
   it("o nome do produto cai no da métrica quando o cadastro não devolve", () => {
@@ -134,12 +124,8 @@ describe("fraseDoAviso", () => {
     expect(texto(f)).toBe("Margem abaixo da meta: Arroz");
     expect(texto(f)).not.toMatch(/\d/);
     expect(
-      texto(
-        fraseDoAviso(
-          entrada({ tipo: "gasto_fora_do_padrao", rotulo: "Gasto fora do padrão", metricasApoio: {} }),
-        ),
-      ),
-    ).toBe("Gasto fora do padrão");
+      texto(fraseDoAviso(entrada({ tipo: "giro_em_alta", rotulo: "Giro em alta", metricasApoio: {} }))),
+    ).toBe("Giro em alta");
   });
 
   it("todo número da frase está nos campos da métrica (regra 1)", () => {

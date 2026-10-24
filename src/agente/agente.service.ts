@@ -165,7 +165,7 @@ export class AgenteService {
     // Perguntas de confirmação montadas em código nesta execução: o dono aprova exatamente esse texto.
     const propostas: string[] = [];
     let correcoesProposta = 0;
-    // Relatório diário: a escolha dos alertas tem de ficar registrada por select_alerts (ou não haver candidato).
+    // Relatório diário: a escolha tem de ficar registrada por get_daily_briefing ou select_alerts (ou não haver candidato).
     let correcoesSelecao = 0;
     const prazo = this.limites.maxMs === undefined ? null : new Prazo(this.limites.maxMs);
     const comPrazo = <T>(operacao: Promise<T>) => (prazo ? prazo.correr(operacao) : operacao);
@@ -235,15 +235,14 @@ export class AgenteService {
         if (pedido.gatilho === "relatorio_diario" && !escolhaRegistrada(chamadas)) {
           // Aprovar aqui deixaria o relatório sem escolha nem justificativa registradas, e o prompt sozinho não garante.
           if (++correcoesSelecao > this.limites.maxRegeracoes) {
-            erro = "Relatório diário sem escolha registrada por select_alerts";
+            erro = "Relatório diário sem escolha registrada por get_daily_briefing ou select_alerts";
             break;
           }
           messages.push({
             role: "user",
             content:
-              "[sistema] O relatório diário só vale depois de registrar a escolha dos alertas. Chame list_alert_candidates " +
-              "e depois select_alerts com até 3 alertas e uma justificativa curta para cada. Se não houver candidato, " +
-              "diga que hoje não há nada que exija atenção.",
+              "[sistema] O relatório diário só vale com os números do resumo de ontem. Chame get_daily_briefing sem data " +
+              "e escreva o relatório só com o que ele devolver, no formato combinado.",
           });
           continue;
         }
@@ -404,6 +403,7 @@ export class AgenteService {
         return { type: "tool_result", tool_use_id: p.id, content: r.erro, is_error: true };
       }
       autorizados.adicionarFonte(r.saida);
+      for (const n of numerosDeJanela(r.saida)) autorizados.adicionar(n);
       return { type: "tool_result", tool_use_id: p.id, content: JSON.stringify(r.saida) };
     });
   }
@@ -426,18 +426,39 @@ function montarHistorico(historico: TurnoConversa[]): BetaMessageParam[] {
     );
 }
 
-/** Há um `select_alerts` bem-sucedido, ou `list_alert_candidates` informou que não há candidato. */
+/**
+ * Há um `get_daily_briefing` ou um `select_alerts` bem-sucedido, ou `list_alert_candidates` informou que não há
+ * candidato. O resumo de ontem já traz os produtos que precisam de atenção, escolhidos em código.
+ */
 function escolhaRegistrada(chamadas: ChamadaRegistrada[]): boolean {
   return chamadas.some(
     (c) =>
       c.erro === null &&
-      (c.ferramenta === "select_alerts" ||
+      (c.ferramenta === "get_daily_briefing" ||
+        c.ferramenta === "select_alerts" ||
         (c.ferramenta === "list_alert_candidates" &&
           typeof c.saida === "object" &&
           c.saida !== null &&
           "n_registros" in c.saida &&
           c.saida.n_registros === 0)),
   );
+}
+
+/**
+ * Tamanhos de janela que a própria ferramenta declara: o número da chave (`unidades_7_dias` vale 7) e a quantidade
+ * de datas comparadas (`datas` com 3 dias vale 3). São contagens do resultado, feitas em código, para o agente poder
+ * dizer "últimos 7 dias" e "últimas 3 sextas" sem que o verificador barre a frase (regra inviolável 8).
+ */
+function numerosDeJanela(saida: unknown, chave = ""): number[] {
+  const daChave = [...chave.matchAll(/_(\d+)_dias/g)].map((m) => Number(m[1]));
+  if (Array.isArray(saida)) {
+    const internos = saida.flatMap((item) => numerosDeJanela(item));
+    return chave === "datas" ? [...daChave, saida.length, ...internos] : [...daChave, ...internos];
+  }
+  if (saida !== null && typeof saida === "object") {
+    return [...daChave, ...Object.entries(saida).flatMap(([k, v]) => numerosDeJanela(v, k))];
+  }
+  return daChave;
 }
 
 function montarEntrada({ gatilho, entrada, contexto }: PedidoAgente): string {
@@ -447,7 +468,7 @@ function montarEntrada({ gatilho, entrada, contexto }: PedidoAgente): string {
     case "mensagem_dono":
       return `${data}\nO dono escreveu:\n<mensagem_do_dono>\n${seguro}\n</mensagem_do_dono>`;
     case "relatorio_diario":
-      return `${data}\nGere o relatório diário curto do comércio, com no máximo 3 alertas.\n<conteudo_de_documento>\n${seguro}\n</conteudo_de_documento>`;
+      return `${data}\nGere o relatório diário do comércio no formato combinado.\n<conteudo_de_documento>\n${seguro}\n</conteudo_de_documento>`;
     case "nota_processada":
       return `${data}\nUma nota de compra acabou de ser processada. Verifique se há algo que o dono precisa saber.\n<conteudo_de_documento>\n${seguro}\n</conteudo_de_documento>`;
   }

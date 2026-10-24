@@ -1,0 +1,243 @@
+{
+  "fornecedor": {
+    "nome": "Distribuidora São Jorge",
+    "cnpj": "82736491000106"
+  },
+  "data_emissao": "2026-09-01",
+  "itens": [
+    {
+      "descricao": "CERVEJA PILSEN LT 350ML",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 269,
+      "valor_total_centavos": 6456,
+      "confianca": 1
+    },
+    {
+      "descricao": "LEITE INTEGRAL 1L",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 349,
+      "valor_total_centavos": 8376,
+      "confianca": 1
+    },
+    {
+      "descricao": "AGUA MINERAL 1,5L",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 159,
+      "valor_total_centavos": 3816,
+      "confianca": 1
+    },
+    {
+      "descricao": "ARROZ TIPO 1 5KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 2290,
+      "valor_total_centavos": 54960,
+      "confianca": 1
+    },
+    {
+      "descricao": "CAFE TORRADO 500G",
+      "quantidade": 12,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1690,
+      "valor_total_centavos": 20280,
+      "confianca": 1
+    },
+    {
+      "descricao": "FEIJAO CARIOCA 1KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 629,
+      "valor_total_centavos": 15096,
+      "confianca": 1
+    },
+    {
+      "descricao": "MACARRAO ESPAGUETE 500G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 339,
+      "valor_total_centavos": 8136,
+      "confianca": 1
+    },
+    {
+      "descricao": "ACUCAR REFINADO 1KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 309,
+      "valor_total_centavos": 7416,
+      "confianca": 1
+    },
+    {
+      "descricao": "OLEO DE SOJA 900ML",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 620,
+      "valor_total_centavos": 14880,
+      "confianca": 1
+    },
+    {
+      "descricao": "ACHOCOLATADO 400G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 619,
+      "valor_total_centavos": 14856,
+      "confianca": 1
+    },
+    {
+      "descricao": "SABAO EM PO 1,6KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1349,
+      "valor_total_centavos": 32376,
+      "confianca": 1
+    },
+    {
+      "descricao": "BISCOITO RECHEADO 130G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 199,
+      "valor_total_centavos": 4776,
+      "confianca": 1
+    },
+    {
+      "descricao": "VINAGRE ALCOOL 750ML",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 199,
+      "valor_total_centavos": 4776,
+      "confianca": 1
+    },
+    {
+      "descricao": "FARINHA TRIGO 1KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 369,
+      "valor_total_centavos": 8856,
+      "confianca": 1
+    },
+    {
+      "descricao": "SAL REFINADO 1KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 169,
+      "valor_total_centavos": 4056,
+      "confianca": 1
+    },
+    {
+      "descricao": "FARINHA MANDIOCA 500G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 489,
+      "valor_total_centavos": 11736,
+      "confianca": 1
+    },
+    {
+      "descricao": "MOLHO TOMATE 300G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 169,
+      "valor_total_centavos": 4056,
+      "confianca": 1
+    },
+    {
+      "descricao": "SARDINHA LATA 125G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 449,
+      "valor_total_centavos": 10776,
+      "confianca": 1
+    },
+    {
+      "descricao": "MILHO VERDE 170G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 279,
+      "valor_total_centavos": 6696,
+      "confianca": 1
+    },
+    {
+      "descricao": "MANTEIGA 200G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 899,
+      "valor_total_centavos": 21576,
+      "confianca": 1
+    },
+    {
+      "descricao": "MARGARINA 500G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 449,
+      "valor_total_centavos": 10776,
+      "confianca": 1
+    },
+    {
+      "descricao": "OVOS BRANCOS DZ",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 899,
+      "valor_total_centavos": 21576,
+      "confianca": 1
+    },
+    {
+      "descricao": "REFRIGERANTE COLA 2L",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 629,
+      "valor_total_centavos": 15096,
+      "confianca": 1
+    },
+    {
+      "descricao": "DETERGENTE 500ML",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 169,
+      "valor_total_centavos": 4056,
+      "confianca": 1
+    },
+    {
+      "descricao": "SABONETE 85G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 199,
+      "valor_total_centavos": 4776,
+      "confianca": 1
+    },
+    {
+      "descricao": "PAPEL HIGIENICO 12RL",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 1039,
+      "valor_total_centavos": 24936,
+      "confianca": 1
+    },
+    {
+      "descricao": "CREME DENTAL 90G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 419,
+      "valor_total_centavos": 10056,
+      "confianca": 1
+    },
+    {
+      "descricao": "AGUA SANITARIA 1L",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 309,
+      "valor_total_centavos": 7416,
+      "confianca": 1
+    },
+    {
+      "descricao": "PAO DE FORMA 450G",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 519,
+      "valor_total_centavos": 12456,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 375096,
+  "confianca_documento": 1
+}

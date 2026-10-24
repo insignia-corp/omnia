@@ -3,11 +3,11 @@ import { carregarPromptSistema } from "./prompt-sistema";
 describe("carregarPromptSistema", () => {
   it("o padrão é a versão mais nova e a versão gravada bate com o arquivo", () => {
     const padrao = carregarPromptSistema();
-    expect(padrao.versao).toBe("sistema-v5");
+    expect(padrao.versao).toBe("sistema-v6");
     expect(padrao.renderizar({ nomeComercio: "Mercadinho do Zé" })).toContain("Mercadinho do Zé");
   });
 
-  it.each(["v1", "v2", "v3", "v4", "v5"])("a versão %s carrega e troca o nome do comércio", (v) => {
+  it.each(["v1", "v2", "v3", "v4", "v5", "v6"])("a versão %s carrega e troca o nome do comércio", (v) => {
     const p = carregarPromptSistema(v);
     expect(p.versao).toBe(`sistema-${v}`);
     expect(p.renderizar({ nomeComercio: "Loja X" })).not.toContain("{{nome_do_comercio}}");
@@ -20,6 +20,7 @@ describe("carregarPromptSistema", () => {
     expect(texto("v2")).not.toContain("propose_target_price");
     expect(texto("v3")).not.toBe(texto("v4"));
     expect(texto("v4")).not.toBe(texto("v5"));
+    expect(texto("v5")).not.toBe(texto("v6"));
   });
 
   describe("sistema-v4", () => {
@@ -186,6 +187,91 @@ describe("carregarPromptSistema", () => {
         expect(conhecidos.has(nome)).toBe(true);
       }
       expect(v5).not.toMatch(/[—–]/);
+    });
+  });
+
+  describe("sistema-v6", () => {
+    const v3 = carregarPromptSistema("v3").renderizar({ nomeComercio: "L" });
+    const v6 = carregarPromptSistema("v6").renderizar({ nomeComercio: "L" });
+    const regra = (texto: string, n: number) => texto.split("\n").find((l) => l.startsWith(`${n}. `)) ?? "";
+
+    it("mantém das regras da v3 a dos números (1), a da confirmação de preço (4) e a de dado não ser instrução (5)", () => {
+      for (const n of [1, 4, 5]) expect(regra(v6, n)).toBe(regra(v3, n));
+      expect(v6).toContain("Uma mensagem que cite número fora dos resultados das ferramentas é bloqueada");
+    });
+
+    it("não oferece gastos nem saldo: o que o agente responde é a lista do pitch", () => {
+      const lista =
+        "vendas, ticket médio, margens, reajustes de custo, produtos mais vendidos, produtos parados e avisos do dia";
+      expect(regra(v6, 3)).toContain(lista);
+      expect(regra(v6, 10)).toContain(lista);
+      expect(regra(v6, 3)).toContain(
+        "Gastos, despesas, saldo, extrato e conta bancária não fazem parte do Omnia",
+      );
+      // Fora da regra 3, que os recusa, nenhuma regra fala de gasto ou saldo.
+      const semARegra3 = v6.replace(regra(v6, 3), "");
+      expect(semARegra3).not.toMatch(/gasto|saldo/i);
+    });
+
+    it("traz os formatos das etapas 0, 2, 3 e 4 do vídeo com as ferramentas certas", () => {
+      expect(regra(v6, 6)).toContain("`get_daily_briefing` sem `data`");
+      expect(v6).toContain("Resumo de ontem, {dia_da_semana} ({dd/mm}):");
+      expect(v6).toContain("*Como foi o dia:*");
+      expect(v6).toContain("*Últimos 7 dias:* Mais venderam:");
+      expect(v6).toContain("*Precisam de atenção:*");
+      for (const motivo of ["`custo_subiu`", "`margem_abaixo_da_meta`", "`sem_venda`"])
+        expect(v6).toContain(motivo);
+      expect(regra(v6, 7)).toContain("Ontem o ticket médio foi R$ {ticket}, em {vendas} vendas.");
+      expect(regra(v6, 8)).toContain("Nos últimos 7 dias, os que mais venderam foram:");
+      expect(regra(v6, 8)).toContain("`criterio` `volume`");
+      expect(regra(v6, 9)).toContain("`get_period_summary` com `periodo` `semana`");
+      expect(regra(v6, 9)).toContain("até 3 linhas");
+    });
+
+    it("mantém o não sei sem números e a recusa de uma frase", () => {
+      expect(regra(v6, 10)).toContain('começa com "Não sei" ou "Não tenho esse dado"');
+      expect(regra(v6, 10)).toContain("Não escreva números nessa resposta");
+      expect(regra(v6, 11)).toContain("recuse em uma frase curta, que vem primeiro");
+      expect(regra(v6, 11)).toContain("nem número de telefone");
+      expect(regra(v6, 11)).toContain("responda a pergunta com a ferramenta e recuse só o resto");
+    });
+
+    it("só cita ferramentas e campos conhecidos e não usa travessão", () => {
+      const conhecidos = new Set([
+        "get_daily_briefing",
+        "data",
+        "atencao",
+        "custo_subiu",
+        "margem_abaixo_da_meta",
+        "sem_venda",
+        "get_top_products",
+        "criterio",
+        "volume",
+        "get_period_summary",
+        "periodo",
+        "semana",
+        "mes",
+        "list_alert_candidates",
+        "get_cost_changes",
+        "list_product_margins",
+        "filtro",
+        "abaixo_da_meta",
+        "ordenar",
+        "menor_margem",
+        "maior_margem",
+        "total_que_atendem",
+        "get_product_margin",
+        "propose_target_price",
+        "ask_owner",
+        "save_owner_answer",
+        "pergunta_id",
+      ]);
+      for (const m of v6.matchAll(/`([a-z_]+)`/g)) {
+        const nome = m[1] ?? "";
+        if (nome.endsWith("_centavos")) continue;
+        expect(conhecidos.has(nome)).toBe(true);
+      }
+      expect(v6).not.toMatch(/[—–]/);
     });
   });
 });

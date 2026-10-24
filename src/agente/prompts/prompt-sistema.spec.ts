@@ -3,15 +3,18 @@ import { carregarPromptSistema } from "./prompt-sistema";
 describe("carregarPromptSistema", () => {
   it("o padrão é a versão mais nova e a versão gravada bate com o arquivo", () => {
     const padrao = carregarPromptSistema();
-    expect(padrao.versao).toBe("sistema-v6");
+    expect(padrao.versao).toBe("sistema-v7");
     expect(padrao.renderizar({ nomeComercio: "Mercadinho do Zé" })).toContain("Mercadinho do Zé");
   });
 
-  it.each(["v1", "v2", "v3", "v4", "v5", "v6"])("a versão %s carrega e troca o nome do comércio", (v) => {
-    const p = carregarPromptSistema(v);
-    expect(p.versao).toBe(`sistema-${v}`);
-    expect(p.renderizar({ nomeComercio: "Loja X" })).not.toContain("{{nome_do_comercio}}");
-  });
+  it.each(["v1", "v2", "v3", "v4", "v5", "v6", "v7"])(
+    "a versão %s carrega e troca o nome do comércio",
+    (v) => {
+      const p = carregarPromptSistema(v);
+      expect(p.versao).toBe(`sistema-${v}`);
+      expect(p.renderizar({ nomeComercio: "Loja X" })).not.toContain("{{nome_do_comercio}}");
+    },
+  );
 
   it("versões diferentes têm comportamento diferente: editar uma versão em uso exige criar a seguinte", () => {
     const texto = (v: string) => carregarPromptSistema(v).renderizar({ nomeComercio: "L" });
@@ -21,6 +24,7 @@ describe("carregarPromptSistema", () => {
     expect(texto("v3")).not.toBe(texto("v4"));
     expect(texto("v4")).not.toBe(texto("v5"));
     expect(texto("v5")).not.toBe(texto("v6"));
+    expect(texto("v6")).not.toBe(texto("v7"));
   });
 
   describe("sistema-v4", () => {
@@ -272,6 +276,56 @@ describe("carregarPromptSistema", () => {
         expect(conhecidos.has(nome)).toBe(true);
       }
       expect(v6).not.toMatch(/[—–]/);
+    });
+  });
+
+  describe("sistema-v7", () => {
+    const v6 = carregarPromptSistema("v6").renderizar({ nomeComercio: "L" });
+    const v7 = carregarPromptSistema("v7").renderizar({ nomeComercio: "L" });
+    const regra = (texto: string, n: number) => texto.split("\n").find((l) => l.startsWith(`${n}. `)) ?? "";
+
+    it("muda só o formato: as regras 1 a 5 e 10 a 14 da v6 ficam iguais", () => {
+      for (const n of [1, 2, 3, 4, 5, 10, 11, 12, 13, 14]) expect(regra(v7, n)).toBe(regra(v6, n));
+      expect(v7.split("\n")[0]).toBe(v6.split("\n")[0]);
+      expect(v7).toContain("Uma mensagem que cite número fora dos resultados das ferramentas é bloqueada");
+    });
+
+    it("relatório diário em blocos com título, linha em branco e uma linha por informação", () => {
+      expect(regra(v7, 6)).toContain("`get_daily_briefing` sem `data`");
+      expect(regra(v7, 6)).toContain("uma linha em branco entre os blocos");
+      const blocos = [
+        "☀️ *Bom dia, {dono}!*\nResumo de ontem, {dia_da_semana} ({dd/mm})\n\n📊 *Como foi o dia*\n",
+        "\n\n🏆 *Mais vendidos nos últimos 7 dias*\n• {produto 1}\n",
+        "\n\n📉 *Mais caíram nos últimos 7 dias*\n• {produto 1}: {variacao_percentual com o sinal}%\n",
+        "\n\n⚠️ *Precisam de atenção*\n",
+      ];
+      for (const b of blocos) expect(v7).toContain(b);
+      for (const motivo of ["`custo_subiu`", "`margem_abaixo_da_meta`", "`sem_venda`"])
+        expect(v7).toContain(motivo);
+      expect(v7).toContain("✅ Nada que precise de atenção hoje.");
+    });
+
+    it("ticket médio, mais vendidos e resumo da semana com título em negrito e itens em linhas", () => {
+      expect(v7).toContain("🧾 *Ticket médio de ontem*\n• Ontem: *R$ {ticket}* em {vendas} vendas\n");
+      expect(regra(v7, 8)).toContain("`criterio` `volume`");
+      expect(regra(v7, 8)).toContain("🏆 *Mais vendidos nos últimos 7 dias*");
+      expect(regra(v7, 8)).toContain("• {produto}: *{unidades}* unidades");
+      expect(regra(v7, 9)).toContain("`get_period_summary` com `periodo` `semana`");
+      expect(v7).toContain("📅 *Semana até ontem*\n• Faturamento: *R$ {faturamento}*");
+      expect(v7).toContain("📅 *Mês até ontem*");
+    });
+
+    it("as outras respostas ganham título e blocos, menos o não sei e a recusa", () => {
+      expect(regra(v7, 15)).toContain('começando com "• "');
+      expect(regra(v7, 16)).toContain("título curto em negrito com um emoji");
+      expect(regra(v7, 16)).toContain("as respostas das regras 10 e 11 ficam sem título");
+    });
+
+    it("não cita ferramenta nova e não usa travessão", () => {
+      const citados = (t: string) => new Set([...t.matchAll(/`([a-z_]+)`/g)].map((m) => m[1]));
+      const daV6 = citados(v6);
+      for (const nome of citados(v7)) expect(daV6.has(nome)).toBe(true);
+      expect(v7).not.toMatch(/[—–]/);
     });
   });
 });

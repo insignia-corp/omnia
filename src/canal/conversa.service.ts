@@ -43,12 +43,12 @@ import {
   type RespostaDaNota,
 } from "./whatsapp/perguntas-da-nota";
 import {
+  atalhoDoTexto,
   BOTOES_CONFIRMACAO,
   BOTOES_NOTA,
   BOTOES_SEGUINTES,
   comBotoes,
   ehAcao,
-  ehSaudacao,
   garantirRegras,
   menu,
   painel,
@@ -216,8 +216,8 @@ export class ConversaService implements OnModuleInit {
     const fixa = (saida: SaidaWhatsapp) => ({ saidas: [saida], execucaoId: null });
     const daNota = lerAcaoDaPergunta(lida.acao);
     if (daNota) return fixa(texto(await this.responderPerguntaDaNota(comercianteId, daNota)));
-    const acao = ehAcao(lida.acao) ? lida.acao : null;
-    if (acao === "menu" || (lida.acao === null && ehSaudacao(lida.texto))) return fixa(menu(nomeComercio));
+    const acao = ehAcao(lida.acao) ? lida.acao : lida.acao === null ? atalhoDoTexto(lida.texto) : null;
+    if (acao === "menu") return fixa(menu(nomeComercio));
     if (acao === "como_nota") return fixa(texto(TEXTO_COMO_NOTA));
     if (acao === "painel") return fixa(painel(`/painel/?comerciante=${comercianteId}`));
     // "Sim, guardar" e "Agora não" só valem com proposta pendente; sem ela, o modelo não precisa rodar.

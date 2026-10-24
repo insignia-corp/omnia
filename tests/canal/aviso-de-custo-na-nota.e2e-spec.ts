@@ -158,8 +158,11 @@ describe("aviso de custo na nota lida (e2e, cliente de visão falso)", () => {
     const texto = await enviarNota(id, "nota-02.jpg", respostaDaNota("2026-10-23", 1870));
     expect(texto).toBe(
       [
-        "Nota da Distribuidora São Jorge recebida: 4 itens, total R$ 530,88.",
-        "Atenção: CAFE TORRADO 500G, a última compra foi por R$ 16,90 e agora veio por R$ 18,70 (alta de 10,65%).",
+        "🧾 *Distribuidora São Jorge*",
+        "4 itens, total *R$ 530,88*",
+        "",
+        "⚠️ *Custo diferente da última compra*",
+        "• *CAFE TORRADO 500G*: de R$ 16,90 para R$ 18,70 (alta de 10,65%)",
       ].join("\n"),
     );
   });
@@ -169,7 +172,9 @@ describe("aviso de custo na nota lida (e2e, cliente de visão falso)", () => {
     await enviarNota(id, "nota-01.jpg", respostaDaNota("2026-10-20", 1690));
     const texto = await enviarNota(id, "nota-02.jpg", respostaDaNota("2026-10-23", 1690));
     expect(texto).toBe(
-      "Nota da Distribuidora São Jorge recebida: 4 itens, total R$ 509,28. Tudo certo com os preços.",
+      ["🧾 *Distribuidora São Jorge*", "4 itens, total *R$ 509,28*", "", "✅ Tudo certo com os preços."].join(
+        "\n",
+      ),
     );
   });
 
@@ -177,6 +182,6 @@ describe("aviso de custo na nota lida (e2e, cliente de visão falso)", () => {
     const id = await novoComerciante("E2E custo sem anterior");
     const texto = await enviarNota(id, "nota-01.jpg", respostaDaNota("2026-10-23", 1870));
     expect(texto).toContain("Tudo certo com os preços.");
-    expect(texto).not.toContain("Atenção");
+    expect(texto).not.toContain("Custo diferente");
   });
 });

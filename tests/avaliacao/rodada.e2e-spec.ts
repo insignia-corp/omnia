@@ -78,7 +78,7 @@ describe("rodada de avaliação com banco real (e2e)", () => {
       ],
     });
 
-    expect(rodada).toMatchObject({ modo: "falso", versaoPrompt: "sistema-v6", comerciante: "E2E Avaliação" });
+    expect(rodada).toMatchObject({ modo: "falso", versaoPrompt: "sistema-v7", comerciante: "E2E Avaliação" });
     expect(rodada.resultados.map((r) => [r.id, r.aprovado])).toEqual([
       ["q01", true],
       ["q33", true],
@@ -96,7 +96,7 @@ describe("rodada de avaliação com banco real (e2e)", () => {
       .where(eq(schema.execucaoAgente.comercianteId, comercianteId));
     expect(linhas).toHaveLength(4);
     for (const l of linhas)
-      expect(l).toMatchObject({ versaoPrompt: "sistema-v6", modelo: "falso-roteirizado" });
+      expect(l).toMatchObject({ versaoPrompt: "sistema-v7", modelo: "falso-roteirizado" });
     const q01 = rodada.resultados.find((r) => r.id === "q01");
     expect(linhas.find((l) => l.id === q01?.execucaoId)?.latenciaMs).toBe(q01?.latenciaMs);
 

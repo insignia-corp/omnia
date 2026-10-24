@@ -47,9 +47,9 @@ export const ehAcao = (id: string | null): id is Acao => id !== null && ACOES.ha
 export const PEDIDO_AO_AGENTE: Partial<Record<Acao, string>> = {
   resumo_dia: "Resumo de ontem: faturamento, número de vendas e ticket médio.",
   resumo_semana:
-    "Resumo da semana: faturamento, vendas e ticket médio dos 7 dias até ontem, e a variação do faturamento contra os 7 dias anteriores, em até 3 linhas.",
+    "Resumo da semana: faturamento, vendas e ticket médio dos 7 dias até ontem, e a variação do faturamento contra os 7 dias anteriores.",
   resumo_mes:
-    "Resumo do mês: faturamento, vendas e ticket médio do dia 1 deste mês até ontem, e a variação do faturamento contra os mesmos dias do mês passado, em até 3 linhas.",
+    "Resumo do mês: faturamento, vendas e ticket médio do dia 1 deste mês até ontem, e a variação do faturamento contra os mesmos dias do mês passado.",
   avisos: "Quais são os avisos de hoje? Use os candidatos a alerta do dia e me diga os mais importantes.",
   margens: "Quais produtos estão com a margem abaixo da minha meta?",
   sugerir_preco:
@@ -104,15 +104,36 @@ export const BOTOES_RELATORIO: BotaoResposta[] = [
   botao("menu", "Menu"),
 ];
 
-/** Saudação ou pedido de menu, sem mais nada: responde com a lista, sem chamar o modelo. */
-export function ehSaudacao(texto: string): boolean {
-  const t = texto
+const normalizar = (texto: string) =>
+  texto
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[!?.,;:\s]+/g, " ")
     .trim();
-  return /^(oi+|ola|opa|e ai|bom dia|boa tarde|boa noite|menu|ajuda|opcoes|inicio|comecar)( omnia)?$/.test(t);
+
+/** Saudação ou pedido de menu, sem mais nada: responde com a lista, sem chamar o modelo. */
+export function ehSaudacao(texto: string): boolean {
+  return /^(oi+|ola|opa|e ai|bom dia|boa tarde|boa noite|menu|ajuda|opcoes|inicio|comecar)( omnia)?$/.test(
+    normalizar(texto),
+  );
+}
+
+/** Frase curta o bastante para ser um pedido de atalho ("quero abrir o painel"), não uma pergunta. */
+const MAX_PALAVRAS_ATALHO = 8;
+
+/**
+ * Pedido escrito de menu ou painel ("quero abrir o menu", "me manda o painel"): abre direto, sem
+ * chamar o modelo, como o toque no botão. Frase longa segue para o agente.
+ */
+export function atalhoDoTexto(texto: string): "menu" | "painel" | null {
+  if (ehSaudacao(texto)) return "menu";
+  const t = normalizar(texto);
+  if (t.split(" ").length > MAX_PALAVRAS_ATALHO) return null;
+  if (/\b(painel|dashboard)\b/.test(t)) return "painel";
+  // O menu só no fim da frase: "menu de margens" é pergunta, segue para o agente.
+  if (/\b(menu|opcoes)( (pra|para) mim| por favor| ai)?$/.test(t)) return "menu";
+  return null;
 }
 
 export const TEXTO_COMO_NOTA =

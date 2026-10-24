@@ -74,14 +74,19 @@ export function textoNotaLida(n: NotaParaMensagem): string {
     );
     linhas.push("");
   }
-  const recebida = `Nota da ${n.fornecedor} recebida: ${n.itens.length} ${n.itens.length === 1 ? "item" : "itens"}, total ${reais(n.totalCentavos)}.`;
+  // Blocos separados por linha em branco, como no WhatsApp: quem e quanto, depois o que mudou.
+  linhas.push(`🧾 *${n.fornecedor}*`);
+  linhas.push(
+    `${n.itens.length} ${n.itens.length === 1 ? "item" : "itens"}, total *${reais(n.totalCentavos)}*`,
+  );
+  linhas.push("");
   if (n.avisosDeCusto.length === 0) {
-    linhas.push(`${recebida} Tudo certo com os preços.`);
+    linhas.push("✅ Tudo certo com os preços.");
   } else {
-    linhas.push(recebida);
+    linhas.push("⚠️ *Custo diferente da última compra*");
     for (const a of n.avisosDeCusto) {
       linhas.push(
-        `Atenção: ${a.produto}, a última compra foi por ${reais(a.anteriorCentavos)} e agora veio por ${reais(a.atualCentavos)} (${a.variacaoBps > 0 ? "alta" : "queda"} de ${percentualDeBpsTexto(a.variacaoBps)}%).`,
+        `• *${a.produto}*: de ${reais(a.anteriorCentavos)} para ${reais(a.atualCentavos)} (${a.variacaoBps > 0 ? "alta" : "queda"} de ${percentualDeBpsTexto(a.variacaoBps)}%)`,
       );
     }
   }

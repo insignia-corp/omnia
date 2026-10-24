@@ -132,11 +132,18 @@ function escritoNaMensagem(mensagem: string, esperado: NumeroEsperado, todos: Nu
       ? mensagem.lastIndexOf("\n", posicao - 1) + 1
       : posicao - JANELA_ANTES;
     const inicio = Math.max(anterior ? anterior.posicao + anterior.texto.length : 0, limiteAntes);
-    if (esperado.contextoExcluido?.test(mensagem.slice(inicio, posicao))) return false;
     const fim = Math.min(
       seguinte ? seguinte.posicao : mensagem.length,
       posicao + texto.length + JANELA_DEPOIS,
     );
+    if (esperado.contextoExcluido) {
+      // Em lista, vale a linha inteira do número: o nome do outro produto nem antes nem depois dele.
+      const fimDaLinha = mensagem.indexOf("\n", posicao);
+      const fimExcluido = esperado.janelaPorLinha && fimDaLinha !== -1 ? Math.min(fim, fimDaLinha) : fim;
+      const trecho =
+        mensagem.slice(inicio, posicao) + " " + mensagem.slice(posicao + texto.length, fimExcluido);
+      if (esperado.contextoExcluido.test(trecho)) return false;
+    }
     return esperado.contexto.test(mensagem.slice(inicio, fim));
   });
 }

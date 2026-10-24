@@ -119,6 +119,8 @@ function mensagemDoGabarito(p: PerguntaAvaliacao): string {
   );
   const partes = p.numeros_esperados.map((n) => `${capitalizar(n.rotulo)}: ${escrever(n)}`);
   const abertura = nomes.length > 0 ? `Produtos: ${nomes.join(", ")}. ` : "";
+  // Em lista por produto (q27), cada produto numa linha, como a resposta real, para a janela por linha valer.
+  if (p.id in LISTA_POR_PRODUTO) return `${abertura}${partes.join(".\n")}.`;
   return `${abertura}${partes.join("; ")}.`;
 }
 

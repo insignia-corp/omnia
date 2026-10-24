@@ -55,7 +55,9 @@ export class WhatsappController {
    */
   @Get("sessao")
   async sessao(@Query("comerciante") informado?: string) {
-    const id = informado ?? COMERCIANTE_DEMO;
+    // Só altera a seleção padrão da demo; o parâmetro explícito continua tendo prioridade.
+    const pitch = process.env.DEMO_COMERCIANTE === "bom-preco";
+    const id = informado ?? (pitch ? uuidDeterministico("bom-preco/comerciante/") : COMERCIANTE_DEMO);
     const [achado] = ehUuid(id)
       ? await this.db
           .select({ id: comerciante.id, nome: comerciante.nome })
@@ -67,7 +69,7 @@ export class WhatsappController {
       throw new NotFoundException(
         informado
           ? "Comerciante não encontrado"
-          : "Sem o comerciante da demo: rode `npm run seed:demo` ou abra com ?comerciante=<id>",
+          : `Sem o comerciante da demo: rode \`npm run seed:${pitch ? "pitch" : "demo"}\` ou abra com ?comerciante=<id>`,
       );
     }
     return { comerciante_id: achado.id, nome: achado.nome };

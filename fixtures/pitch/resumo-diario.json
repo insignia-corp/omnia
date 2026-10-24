@@ -1,0 +1,320 @@
+[
+  {
+    "data": "2026-09-01",
+    "faturamento_centavos": 255166,
+    "vendas": 91,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-02",
+    "faturamento_centavos": 266338,
+    "vendas": 95,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-03",
+    "faturamento_centavos": 288715,
+    "vendas": 103,
+    "ticket_medio_centavos": 2803
+  },
+  {
+    "data": "2026-09-04",
+    "faturamento_centavos": 375690,
+    "vendas": 134,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-05",
+    "faturamento_centavos": 401876,
+    "vendas": 144,
+    "ticket_medio_centavos": 2791
+  },
+  {
+    "data": "2026-09-06",
+    "faturamento_centavos": 289413,
+    "vendas": 103,
+    "ticket_medio_centavos": 2810
+  },
+  {
+    "data": "2026-09-07",
+    "faturamento_centavos": 240949,
+    "vendas": 86,
+    "ticket_medio_centavos": 2802
+  },
+  {
+    "data": "2026-09-08",
+    "faturamento_centavos": 255166,
+    "vendas": 91,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-09",
+    "faturamento_centavos": 266338,
+    "vendas": 95,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-10",
+    "faturamento_centavos": 288715,
+    "vendas": 103,
+    "ticket_medio_centavos": 2803
+  },
+  {
+    "data": "2026-09-11",
+    "faturamento_centavos": 375690,
+    "vendas": 134,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-12",
+    "faturamento_centavos": 401876,
+    "vendas": 144,
+    "ticket_medio_centavos": 2791
+  },
+  {
+    "data": "2026-09-13",
+    "faturamento_centavos": 289413,
+    "vendas": 103,
+    "ticket_medio_centavos": 2810
+  },
+  {
+    "data": "2026-09-14",
+    "faturamento_centavos": 240949,
+    "vendas": 86,
+    "ticket_medio_centavos": 2802
+  },
+  {
+    "data": "2026-09-15",
+    "faturamento_centavos": 255166,
+    "vendas": 91,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-16",
+    "faturamento_centavos": 266338,
+    "vendas": 95,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-17",
+    "faturamento_centavos": 288715,
+    "vendas": 103,
+    "ticket_medio_centavos": 2803
+  },
+  {
+    "data": "2026-09-18",
+    "faturamento_centavos": 375690,
+    "vendas": 134,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-19",
+    "faturamento_centavos": 401876,
+    "vendas": 144,
+    "ticket_medio_centavos": 2791
+  },
+  {
+    "data": "2026-09-20",
+    "faturamento_centavos": 289413,
+    "vendas": 103,
+    "ticket_medio_centavos": 2810
+  },
+  {
+    "data": "2026-09-21",
+    "faturamento_centavos": 240949,
+    "vendas": 86,
+    "ticket_medio_centavos": 2802
+  },
+  {
+    "data": "2026-09-22",
+    "faturamento_centavos": 255166,
+    "vendas": 91,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-23",
+    "faturamento_centavos": 266338,
+    "vendas": 95,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-24",
+    "faturamento_centavos": 288715,
+    "vendas": 103,
+    "ticket_medio_centavos": 2803
+  },
+  {
+    "data": "2026-09-25",
+    "faturamento_centavos": 375690,
+    "vendas": 134,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-26",
+    "faturamento_centavos": 401876,
+    "vendas": 144,
+    "ticket_medio_centavos": 2791
+  },
+  {
+    "data": "2026-09-27",
+    "faturamento_centavos": 289413,
+    "vendas": 103,
+    "ticket_medio_centavos": 2810
+  },
+  {
+    "data": "2026-09-28",
+    "faturamento_centavos": 240949,
+    "vendas": 86,
+    "ticket_medio_centavos": 2802
+  },
+  {
+    "data": "2026-09-29",
+    "faturamento_centavos": 255166,
+    "vendas": 91,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-09-30",
+    "faturamento_centavos": 266338,
+    "vendas": 95,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-10-01",
+    "faturamento_centavos": 288715,
+    "vendas": 103,
+    "ticket_medio_centavos": 2803
+  },
+  {
+    "data": "2026-10-02",
+    "faturamento_centavos": 375690,
+    "vendas": 132,
+    "ticket_medio_centavos": 2846
+  },
+  {
+    "data": "2026-10-03",
+    "faturamento_centavos": 402175,
+    "vendas": 144,
+    "ticket_medio_centavos": 2793
+  },
+  {
+    "data": "2026-10-04",
+    "faturamento_centavos": 289413,
+    "vendas": 103,
+    "ticket_medio_centavos": 2810
+  },
+  {
+    "data": "2026-10-05",
+    "faturamento_centavos": 241248,
+    "vendas": 86,
+    "ticket_medio_centavos": 2805
+  },
+  {
+    "data": "2026-10-06",
+    "faturamento_centavos": 255465,
+    "vendas": 91,
+    "ticket_medio_centavos": 2807
+  },
+  {
+    "data": "2026-10-07",
+    "faturamento_centavos": 266338,
+    "vendas": 95,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-10-08",
+    "faturamento_centavos": 288715,
+    "vendas": 103,
+    "ticket_medio_centavos": 2803
+  },
+  {
+    "data": "2026-10-09",
+    "faturamento_centavos": 374793,
+    "vendas": 132,
+    "ticket_medio_centavos": 2839
+  },
+  {
+    "data": "2026-10-10",
+    "faturamento_centavos": 400680,
+    "vendas": 143,
+    "ticket_medio_centavos": 2802
+  },
+  {
+    "data": "2026-10-11",
+    "faturamento_centavos": 288516,
+    "vendas": 103,
+    "ticket_medio_centavos": 2801
+  },
+  {
+    "data": "2026-10-12",
+    "faturamento_centavos": 240351,
+    "vendas": 86,
+    "ticket_medio_centavos": 2795
+  },
+  {
+    "data": "2026-10-13",
+    "faturamento_centavos": 254568,
+    "vendas": 91,
+    "ticket_medio_centavos": 2797
+  },
+  {
+    "data": "2026-10-14",
+    "faturamento_centavos": 265441,
+    "vendas": 95,
+    "ticket_medio_centavos": 2794
+  },
+  {
+    "data": "2026-10-15",
+    "faturamento_centavos": 287818,
+    "vendas": 103,
+    "ticket_medio_centavos": 2794
+  },
+  {
+    "data": "2026-10-16",
+    "faturamento_centavos": 374793,
+    "vendas": 132,
+    "ticket_medio_centavos": 2839
+  },
+  {
+    "data": "2026-10-17",
+    "faturamento_centavos": 422023,
+    "vendas": 151,
+    "ticket_medio_centavos": 2795
+  },
+  {
+    "data": "2026-10-18",
+    "faturamento_centavos": 294411,
+    "vendas": 105,
+    "ticket_medio_centavos": 2804
+  },
+  {
+    "data": "2026-10-19",
+    "faturamento_centavos": 243452,
+    "vendas": 87,
+    "ticket_medio_centavos": 2798
+  },
+  {
+    "data": "2026-10-20",
+    "faturamento_centavos": 255822,
+    "vendas": 91,
+    "ticket_medio_centavos": 2811
+  },
+  {
+    "data": "2026-10-21",
+    "faturamento_centavos": 277307,
+    "vendas": 99,
+    "ticket_medio_centavos": 2801
+  },
+  {
+    "data": "2026-10-22",
+    "faturamento_centavos": 286986,
+    "vendas": 102,
+    "ticket_medio_centavos": 2814
+  },
+  {
+    "data": "2026-10-23",
+    "faturamento_centavos": 418979,
+    "vendas": 139,
+    "ticket_medio_centavos": 3014
+  }
+]

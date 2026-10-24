@@ -1,0 +1,19 @@
+{
+  "fornecedor": {
+    "nome": "Distribuidora São Jorge",
+    "cnpj": "82736491000106"
+  },
+  "data_emissao": "2026-10-20",
+  "itens": [
+    {
+      "descricao": "ARROZ TIPO 1 5KG",
+      "quantidade": 24,
+      "unidade": "UN",
+      "valor_unitario_centavos": 2540,
+      "valor_total_centavos": 60960,
+      "confianca": 1
+    }
+  ],
+  "total_centavos": 60960,
+  "confianca_documento": 1
+}

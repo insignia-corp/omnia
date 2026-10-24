@@ -61,7 +61,6 @@ const TIPOS_ALERTA = {
   giro_em_alta: "Giro em alta",
   estoque_parado: "Estoque parado",
   ticket_medio_em_queda: "Ticket médio em queda",
-  gasto_fora_do_padrao: "Gasto fora do padrão",
 };
 const rotuloTipoAlerta = (t) => TIPOS_ALERTA[t] || t;
 

@@ -11,14 +11,13 @@ import { MetricasService } from "../../metricas/metricas.service";
 import { dataLocal, RELOGIO, type Relogio } from "../relogio";
 import { fraseDoAviso } from "./frase-do-aviso";
 
-export const ROTULO_ALERTA: Record<TipoAlerta, string> = {
+export const ROTULO_ALERTA: Partial<Record<TipoAlerta, string>> = {
   reajuste_de_custo: "Reajuste de custo",
   margem_abaixo_da_meta: "Margem abaixo da meta",
   espaco_para_subir_preco: "Espaço para subir preço",
   giro_em_alta: "Giro em alta",
   estoque_parado: "Estoque parado",
   ticket_medio_em_queda: "Ticket médio em queda",
-  gasto_fora_do_padrao: "Gasto fora do padrão",
 };
 
 /**
@@ -110,13 +109,13 @@ export class PainelService {
         const nome = c.produtoId ? (nomes.get(c.produtoId) ?? null) : null;
         return {
           tipo: c.tipo,
-          rotulo: ROTULO_ALERTA[c.tipo],
+          rotulo: ROTULO_ALERTA[c.tipo] ?? c.tipo,
           prioridade: c.prioridade,
           produto_id: c.produtoId,
           produto: nome,
           frase: fraseDoAviso({
             tipo: c.tipo,
-            rotulo: ROTULO_ALERTA[c.tipo],
+            rotulo: ROTULO_ALERTA[c.tipo] ?? c.tipo,
             produto: nome,
             fornecedor: c.fornecedorId ? (nomesDeFornecedor.get(c.fornecedorId) ?? null) : null,
             metricasApoio: c.metricasApoio,

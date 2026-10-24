@@ -110,17 +110,8 @@ function fraseDoTipo(e: EntradaFraseDoAviso, produto: string | null): TrechoDaFr
         t(` abaixo da média de 28 dias (${reais(media!)}).`),
       ];
     }
-    case "gasto_fora_do_padrao": {
-      const data = dataIso(m, "data");
-      const valor = inteiro(m, "valor_centavos");
-      const mediana = inteiro(m, "mediana_centavos");
-      if (algumNulo(data, valor, mediana)) return null;
-      return [
-        t(`Os gastos de ${diaMes(data!)} somaram `),
-        forte(reais(valor!)),
-        t(`, bem acima do normal (mediana de ${reais(mediana!)}).`),
-      ];
-    }
+    default:
+      return null;
   }
 }
 

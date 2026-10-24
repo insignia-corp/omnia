@@ -633,14 +633,13 @@ describe("WhatsApp simulado integrado (e2e, issue #182)", () => {
       const d = (await request(servidor()).get("/painel/dados").set(como(c)).expect(200)).body as {
         comercio: string;
         ate: string;
-        dia: { valor: { faturamento_centavos: number; gastos_centavos: unknown } };
+        dia: { valor: { faturamento_centavos: number } };
         semana: { ausente?: boolean; codigo?: string };
         avisos: unknown[];
       };
       expect(d.comercio).toBe("E2E WhatsApp painel dados");
       expect(d.ate).toBe("2026-10-19");
       expect(d.dia.valor.faturamento_centavos).toBe(12345);
-      expect(d.dia.valor.gastos_centavos).toMatchObject({ ausente: true });
       expect(d.semana).toMatchObject({ ausente: true, codigo: "periodo_sem_dados" });
       expect(Array.isArray(d.avisos)).toBe(true);
       expect((d as unknown as { limite_confianca: number }).limite_confianca).toBeGreaterThan(0);

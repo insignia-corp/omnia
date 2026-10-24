@@ -168,7 +168,6 @@ const CAIXA = [["path", { d: "M12 2.5l8.5 4.75v9.5L12 21.5l-8.5-4.75v-9.5z" }], 
 const ICONES = {
   margem_abaixo_da_meta: ALERTA,
   reajuste_de_custo: ATENCAO,
-  gasto_fora_do_padrao: ATENCAO,
   ticket_medio_em_queda: DESCENDO,
   giro_em_alta: SUBINDO,
   espaco_para_subir_preco: SUBINDO,
@@ -255,8 +254,7 @@ function cartaoDia(r) {
   cabecalho(s, "Ontem", ausente(r) ? "" : dm(r.valor.data));
   if (ausente(r)) { s.append(el("p", "ausente", r.motivo)); return; }
   const v = r.valor;
-  const saldo = ausente(v.saldo_do_dia_centavos) ? "sem dado" : reais(v.saldo_do_dia_centavos);
-  const partes = [inteiro(v.cupons) + (v.cupons === 1 ? " venda" : " vendas"), "Ticket médio " + (v.ticket_medio_centavos === null ? "sem venda" : reais(v.ticket_medio_centavos)), "Saldo do dia " + saldo];
+  const partes = [inteiro(v.cupons) + (v.cupons === 1 ? " venda" : " vendas"), "Ticket médio " + (v.ticket_medio_centavos === null ? "sem venda" : reais(v.ticket_medio_centavos))];
   s.append(el("p", "valor", reais(v.faturamento_centavos)), etiqueta(v.comparacao_faturamento.media_7_dias_anteriores, "da média dos 7 dias anteriores"), el("p", "detalhes", partes.join("  ·  ")));
 }
 

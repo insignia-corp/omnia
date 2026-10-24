@@ -38,6 +38,7 @@ Gerados em 2026-10-24 sobre a `develop` em `399ac4a` (limpa), com Node 24, Postg
 
 - Este PR: checkpoint final do ESTADO e leitura dos README de `alertas`, `metricas`, `ingestao` e `comerciante` contra o código.
 - PR 215: resumo do dia e avisos olham ontem, o último dia completo (#211).
+- PRs 216 e 217: revisão das docs de agente, canal e eval (216) e das docs-base (217) contra o código.
 
 ## Pendências
 

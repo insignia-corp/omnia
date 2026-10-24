@@ -8,7 +8,7 @@ Harness de avaliação do agente (`npm run eval`). Issue #68; os casos de verdad
 npm run seed:demo                          # carrega o mercadinho (uma vez)
 npm run eval                               # modo falso: modelo roteirizado, sem rede e sem custo
 npm run eval -- --modelo real              # API da Anthropic; exige ANTHROPIC_API_KEY
-npm run eval -- --caso q01,q33 --prompt v4
+npm run eval -- --caso q01,q33 --prompt v5
 ```
 
 Sem `ANTHROPIC_API_KEY`, `--modelo real` para antes de tocar no banco, com a mensagem do que falta. A CLI sai com 1 se algum caso falhar (serve de portão na CI) e com 2 em erro de uso.
@@ -61,7 +61,7 @@ npm run eval:custo -- --lojistas 100 --agregador-usd-mes 460 --mensagem-usd 0.00
 - Custo indisponível (modelo sem preço em `PRECOS`) nunca vira zero: o total do LLM sai "indisponível".
 - Meta de tempo: pergunta do dono com p95 em até 20 s (especificação, seção 8). A CLI sai com 1 se não for atingida e com 2 em erro de uso.
 - O caso `d01` (categoria `medicao`) mede o relatório diário, que é o gatilho que mais pesa no custo. `list_alert_candidates` é do plano A (#52) e ainda não existe, então `d01` usa dublês de `list_alert_candidates` e `select_alerts` com candidatos do gabarito, **também no modo real** (`dubleNoModoReal`): o modelo é o real, o dado é do gabarito. Quando a #52 entrar, apague `ferramentasFalsas` e `dubleNoModoReal` do caso. O caso não julga a escolha dos alertas (falta o top 3 aceitável no gabarito): passa com mensagem aprovada pelo verificador.
-- O prompt padrão do harness agora é o do agente em produção (`v4`).
+- O prompt padrão do harness agora é o do agente em produção (`v5`).
 
 ## Extração de notas (#71)
 

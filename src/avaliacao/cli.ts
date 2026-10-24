@@ -10,12 +10,12 @@ import { gravarRodada, resumir } from "./relatorio";
 import { ErroAvaliacao, rodarAvaliacao } from "./rodada";
 import type { ModoModelo } from "./tipos";
 
-const USO = `Uso: npm run eval -- [--modelo falso|real] [--caso q01,q33] [--prompt v4] [--data AAAA-MM-DD]
+const USO = `Uso: npm run eval -- [--modelo falso|real] [--caso q01,q33] [--prompt v5] [--data AAAA-MM-DD]
 
   --modelo  falso (padrão): modelo roteirizado, sem rede e sem custo, para a CI
             real: chama a API da Anthropic (exige ANTHROPIC_API_KEY)
   --caso    só estes casos (ids separados por vírgula)
-  --prompt  versão do prompt de sistema (padrão v4, o do agente em produção)
+  --prompt  versão do prompt de sistema (padrão v5, o do agente em produção)
   --data    data de hoje dos casos (padrão: o dia seguinte à data de referência do gabarito)
 
 Antes da primeira rodada: npm run seed:demo`;

@@ -26,7 +26,7 @@ export interface OpcoesAvaliacao {
   modo: ModoModelo;
   /** Só estes ids; sem valor, todos os casos. */
   casos?: string[];
-  /** Versão do prompt de sistema, ex.: "v4"; sem valor, a do agente em produção. */
+  /** Versão do prompt de sistema, ex.: "v5"; sem valor, a do agente em produção. */
   prompt?: string;
   /** Data de hoje para os casos; sem valor, o dia seguinte à data de referência do gabarito. */
   dataReferencia?: string;

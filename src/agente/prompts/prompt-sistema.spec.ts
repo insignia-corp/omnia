@@ -3,11 +3,11 @@ import { carregarPromptSistema } from "./prompt-sistema";
 describe("carregarPromptSistema", () => {
   it("o padrão é a versão mais nova e a versão gravada bate com o arquivo", () => {
     const padrao = carregarPromptSistema();
-    expect(padrao.versao).toBe("sistema-v4");
+    expect(padrao.versao).toBe("sistema-v5");
     expect(padrao.renderizar({ nomeComercio: "Mercadinho do Zé" })).toContain("Mercadinho do Zé");
   });
 
-  it.each(["v1", "v2", "v3", "v4"])("a versão %s carrega e troca o nome do comércio", (v) => {
+  it.each(["v1", "v2", "v3", "v4", "v5"])("a versão %s carrega e troca o nome do comércio", (v) => {
     const p = carregarPromptSistema(v);
     expect(p.versao).toBe(`sistema-${v}`);
     expect(p.renderizar({ nomeComercio: "Loja X" })).not.toContain("{{nome_do_comercio}}");
@@ -19,6 +19,7 @@ describe("carregarPromptSistema", () => {
     expect(texto("v3")).toContain("propose_target_price");
     expect(texto("v2")).not.toContain("propose_target_price");
     expect(texto("v3")).not.toBe(texto("v4"));
+    expect(texto("v4")).not.toBe(texto("v5"));
   });
 
   describe("sistema-v4", () => {
@@ -102,6 +103,43 @@ describe("carregarPromptSistema", () => {
         expect(existentes.has(nome ?? "")).toBe(true);
       }
       expect(v4).not.toMatch(/[—–]/);
+    });
+  });
+
+  describe("sistema-v5", () => {
+    const v3 = carregarPromptSistema("v3").renderizar({ nomeComercio: "L" });
+    const v4 = carregarPromptSistema("v4").renderizar({ nomeComercio: "L" });
+    const v5 = carregarPromptSistema("v5").renderizar({ nomeComercio: "L" });
+    const regra = (texto: string, n: number) => texto.split("\n").find((l) => l.startsWith(`${n}. `)) ?? "";
+
+    it("mantém as regras 1 a 8 da v3 sem mudar uma palavra, e a v4 continua como estava", () => {
+      const regras = (t: string) => t.split("\n").filter((l) => /^[1-8]\. /.test(l));
+      expect(regras(v5)).toEqual(regras(v3));
+      expect(v5.split("\n")[0]).toBe(v3.split("\n")[0]);
+      expect(v5).toContain("Uma mensagem que cite número fora dos resultados das ferramentas é bloqueada");
+      for (const n of [9, 12, 13, 14]) expect(regra(v5, n)).toBe(regra(v4, n));
+    });
+
+    it("a regra 15 manda citar o produto e os números principais, em 2 a 4 linhas", () => {
+      const r = regra(v5, 15);
+      expect(r).toContain("o nome do produto e os números principais que ela devolveu");
+      for (const termo of ["dias sem venda", "percentual", "valor anterior e atual", "mediana ou limite"]) {
+        expect(r).toContain(termo);
+      }
+      expect(r).toContain("quantos são e o nome de cada um");
+      expect(r).toContain("de 2 a 4 linhas");
+    });
+
+    it("o não sei começa com a frase clara e sem outros números, e a recusa é de uma frase só", () => {
+      expect(regra(v5, 10)).toContain('começando com "Não sei" ou "Não tenho esse dado"');
+      expect(regra(v5, 10)).toContain("Não escreva outros números nem resumos de outros assuntos");
+      expect(regra(v5, 11)).toContain("A recusa tem uma frase só, curta");
+      expect(regra(v5, 11)).toContain("nem número de telefone");
+      expect(regra(v5, 11)).toContain("responda a pergunta com a ferramenta e recuse só o resto");
+    });
+
+    it("não usa travessão", () => {
+      expect(v5).not.toMatch(/[—–]/);
     });
   });
 });

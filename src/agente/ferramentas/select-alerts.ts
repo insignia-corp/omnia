@@ -5,7 +5,7 @@ import { alerta } from "../../infra/database/schema";
 import { somarDias } from "../../lib/datas/datas";
 import { definirFerramenta } from "./ferramenta";
 
-/** Teto de alertas por mensagem diária (regra do produto, `docs/alertas-hackathon.md`). */
+/** Teto de alertas por mensagem diária (regra do produto). */
 export const MAX_ALERTAS_POR_DIA = 3;
 
 /**

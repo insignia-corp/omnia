@@ -6,20 +6,17 @@
 | --- | --- | --- |
 | Etapa atual, números vigentes, próxima ação, pendências | [ESTADO.md](ESTADO.md) | Estado |
 | Etapas, modelo de dados, métricas, agente, avaliação, LGPD | [guia-desenvolvimento.md](guia-desenvolvimento.md) | Metodologia |
-| Prazo, escopo cortado, o que a banca avalia no código | [alertas-hackathon.md](alertas-hackathon.md) (prevalece sobre o guia) | Metodologia |
 | Tabelas, colunas, histórico append-only (o guia traz só o resumo das entidades, em § Modelo de dados) | [modelo-de-dados.md](modelo-de-dados.md) | Documentação |
 | Agentes: papéis, ferramentas, prompt, custo estimado (o guia tem a tabela resumida das ferramentas, em § O agente) | [especificacao-agentes.md](especificacao-agentes.md) | Documentação |
 | Fluxo do agente (inputs, lógica, outputs) | [agent-flow.md](agent-flow.md) | Documentação |
 | Módulos, serviços e dados | [arquitetura.md](arquitetura.md) | Documentação |
 | Decisões numeradas e suas fontes | [decisoes/](decisoes/) | Pesquisa |
-| Critérios da banca, persona, viabilidade, riscos | [contexto-hackathon.md](contexto-hackathon.md) | Pesquisa |
 | Front do WhatsApp simulado: contrato de mensagens e regras da Meta conferidas | [../web/whatsapp/README.md](../web/whatsapp/README.md) | Documentação |
 | Dados de teste, gabarito, convenções | [../fixtures/README.md](../fixtures/README.md) | Dados |
 | Saídas brutas de eval, testes e medições | [../evidencias/](../evidencias/) | Evidências |
 | Relatório de cada rodada do `npm run eval` e do `npm run eval:extracao` (como rodar: [../src/avaliacao/README.md](../src/avaliacao/README.md)) | [avaliacoes/](avaliacoes/) | Evidências |
 | Regras invioláveis, roteamento, convenções e fluxo de trabalho de qualquer agente | [../AGENTS.md](../AGENTS.md) | Sempre carregado |
 | Procedimentos de fechar sessão e auditar edição | [protocolos/](protocolos/) | Metodologia |
-| Divisão em 3 planos, issues de cada um, regras de colisão | [protocolos/divisao-planos.md](protocolos/divisao-planos.md) | Metodologia |
 
 ## Fluxo do conhecimento
 

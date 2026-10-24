@@ -54,11 +54,15 @@ const CHAVE_DO_VALOR: Record<UnidadeNumero, string> = {
   dias: "valor_dias",
 };
 
+/** Casos em que a resposta em lista afasta o nome do produto do percentual (q27: um item por produto). */
+const JANELA_ANTES_LONGA: Record<string, number> = { q27: 200 };
+
 function numerosEsperados(p: PerguntaAvaliacao): NumeroEsperado[] {
   const contextos = CONTEXTOS[p.id] ?? {};
+  const janelaAntes = JANELA_ANTES_LONGA[p.id];
   return p.numeros_esperados.map((n) => {
     const contexto = contextos[n.rotulo];
-    return contexto ? { ...n, contexto } : n;
+    return contexto ? { ...n, contexto, ...(janelaAntes ? { janelaAntes } : {}) } : n;
   });
 }
 
@@ -107,12 +111,14 @@ function mensagemDoGabarito(p: PerguntaAvaliacao): string {
 }
 
 /**
- * Ferramenta equivalente aceita no lugar de `list_alert_candidates`, quando a resposta certa veio pela
- * ferramenta de detalhe: q27 (reajuste de fornecedor) por `get_cost_changes` e q29 (posso subir o preço)
- * por `get_product_margin`. Os dois trazem os números que o caso confere (reajuste, margem e meta); o giro
- * que q29 também menciona no gabarito não tem checagem numérica, então a alternativa não o exige.
+ * Ferramenta equivalente aceita no lugar de uma esperada, quando a resposta certa veio por outro caminho:
+ * q05 (últimos 7 dias) por `get_period_summary` no lugar de `get_daily_summary`; q27 (reajuste de
+ * fornecedor) por `get_cost_changes` e q29 (posso subir o preço) por `get_product_margin`, no lugar de
+ * `list_alert_candidates`. Trazem os números que o caso confere (total do período, reajuste, margem e
+ * meta); o giro que q29 menciona no gabarito não tem checagem numérica, então a alternativa não o exige.
  */
 const ALTERNATIVAS: Record<string, Record<string, string[]>> = {
+  q05: { get_daily_summary: ["get_period_summary"] },
   q27: { list_alert_candidates: ["get_cost_changes"] },
   q29: { list_alert_candidates: ["get_product_margin"] },
 };

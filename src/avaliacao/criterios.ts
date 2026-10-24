@@ -127,7 +127,10 @@ function escritoNaMensagem(mensagem: string, esperado: NumeroEsperado, todos: Nu
     if (!esperado.contexto) return true;
     const anterior = separadores.filter((n) => n.posicao < posicao).at(-1);
     const seguinte = separadores.find((n) => n.posicao > posicao);
-    const inicio = Math.max(anterior ? anterior.posicao + anterior.texto.length : 0, posicao - JANELA_ANTES);
+    const inicio = Math.max(
+      anterior ? anterior.posicao + anterior.texto.length : 0,
+      posicao - (esperado.janelaAntes ?? JANELA_ANTES),
+    );
     const fim = Math.min(
       seguinte ? seguinte.posicao : mensagem.length,
       posicao + texto.length + JANELA_DEPOIS,

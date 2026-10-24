@@ -8,6 +8,7 @@ Os modelos abaixo são os da especificação. O padrão em `src/config/env.ts` �
 flowchart TB
   subgraph canais["Canais"]
     web["Chat web<br/>padrão na regional"]
+    wsim["Front do WhatsApp simulado<br/>/whatsapp, issue #182"]
     bast["Tela de bastidores<br/>execução em ordem"]
   end
 
@@ -18,31 +19,35 @@ flowchart TB
     met["metricas<br/>funções puras testadas"]
     ale["alertas<br/>candidatos e prioridade"]
     ava["avaliacao<br/>npm run eval"]
-    wk["Workers BullMQ<br/>extrair-nota e relatorio-diario"]
+    wk["Workers BullMQ<br/>extrair-nota, relatorio-diario e reajuste-pos-nota"]
   end
 
   subgraph dados["Dados"]
     pg[("PostgreSQL 18<br/>pg_trgm, Drizzle")]
-    rd[("Redis 8<br/>filas e idempotência")]
+    rd[("Redis 8<br/>filas e jobs")]
     arq["Arquivos<br/>fotos das notas"]
   end
 
   subgraph externos["Serviços externos"]
     ant["API da Anthropic<br/>visão e tool use, SDK oficial"]
-    wapi["WhatsApp Cloud API<br/>webhook e templates, opcional"]
+    wapi["WhatsApp Cloud API<br/>ainda não integrada, opcional"]
   end
 
   web <--> canal
-  wapi <--> canal
+  wsim <--> canal
+  wapi <-.-> canal
   bast --> pg
   canal --> ing
   canal --> ag
+  canal --> ale
+  canal --> met
   wk --> ing
   wk --> ag
   wk --> rd
   ing --> arq
   ing --> pg
   ing --> ant
+  ing --> ale
   ag --> ale
   ag --> met
   ag --> pg
@@ -56,7 +61,7 @@ flowchart TB
   classDef infra fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A
   class ing,ag llm
   class canal,met,ale,ava,wk cod
-  class web,bast,pg,rd,arq,ant,wapi infra
+  class web,wsim,bast,pg,rd,arq,ant,wapi infra
 ```
 
 Roxo: módulo com modelo de linguagem. Verde: código determinístico. Cinza: canal, infraestrutura e serviços externos.
@@ -65,14 +70,14 @@ Roxo: módulo com modelo de linguagem. Verde: código determinístico. Cinza: ca
 
 | Módulo | Responsabilidade | Issues |
 | --- | --- | --- |
-| `canal` | Interface `MessageChannel`: troca chat web por WhatsApp sem mexer no agente | #66, #106 |
+| `canal` | Interface `MessageChannel`: chat web e o front do WhatsApp simulado hoje; o WhatsApp real (Cloud API) ainda não está implementado e entraria sem mexer no agente | #66, #106 |
 | `ingestao` | Upload e extração de notas (Extrator), validações em código, importação da planilha de vendas | #22 a #28 |
 | `agente` | Analista: loop com ferramentas, prompt versionado, verificador de números e registro de execuções | #53, #55, #57 |
 | `metricas` | Margem, giro, variação de custo, ticket médio e anomalias, em funções puras com teste | #32 a #41 |
 | `alertas` | Motor de regras: candidatos a alerta com prioridade e impacto em reais | #43 a #46 |
 | `avaliacao` | Conjunto de testes do agente em um comando, com relatório salvo | #67 a #74 |
 | `lib` | Componentes isolados e reaproveitáveis: dinheiro em centavos e verificador de números | #8, #56 |
-| `infra` | PostgreSQL (Drizzle) e Redis | #3, #5 |
+| `infra` | PostgreSQL (Drizzle), Redis, armazenamento de arquivos e logs com correlação | #3, #5 |
 
 ## Modelos por papel
 
@@ -80,8 +85,9 @@ Roxo: módulo com modelo de linguagem. Verde: código determinístico. Cinza: ca
 | --- | --- | --- |
 | Extrator | `claude-sonnet-5-5` | Visão, sem ferramentas. Variável `EXTRATOR_MODELO` |
 | Analista | `claude-sonnet-5-5` | `claude-opus-5-5` só se o eval mostrar ganho. `LLM_MODELO` e `LLM_ESFORCO` |
+| Vínculo nota-produto | `claude-haiku-5-5` | Sugestão de vínculo na ingestão. Variável `VINCULO_MODELO` |
 | Orquestrador e verificador | Nenhum | Código |
 
 ## Estado
 
-PostgreSQL guarda dados do lojista, histórico de custo, execuções do agente e confirmações pendentes. Redis e BullMQ guardam filas, jobs e chaves de idempotência (comerciante e data). Nenhum estado fica em memória do processo (regra inviolável 11).
+PostgreSQL guarda dados do lojista, histórico de custo, execuções do agente e confirmações pendentes. Redis e BullMQ guardam filas e jobs (com `jobId` contra duplicata). A idempotência da regra inviolável 9 (alertas e mensagens, no máximo uma proativa por dia) fica em índices únicos do PostgreSQL. Nenhum estado fica em memória do processo (regra inviolável 11).

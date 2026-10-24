@@ -1,6 +1,6 @@
 # 0003 · Arquitetura do agente: híbrido mínimo
 
-Data: 20/10/2026 · Status: proposta · Issues: #53, #55, #57, #105 · Detalhes em [especificação dos agentes](../especificacao-agentes.md)
+Data: 20/10/2026 · Status: proposta (o desenho híbrido já está implementado; aceite pendente do dono) · Issues: #53, #55, #57, #105 · Detalhes em [especificação dos agentes](../especificacao-agentes.md)
 
 ## Contexto
 

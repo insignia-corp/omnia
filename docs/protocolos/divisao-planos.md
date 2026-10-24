@@ -30,13 +30,13 @@ Prazo duro: congelamento sábado 24/10/2026 às 15h30. MVP = menor ciclo ponta a
 - `src/agente/ferramentas/ferramenta.ts`: `Ferramenta`, `ContextoSessao`; `RegistroFerramentas` valida entrada e recusa `comerciante_id`.
 - `src/canal/message-channel.ts`: `MessageChannel` (#106, interface).
 - `src/agente/llm/modelo-linguagem.ts`: `ModeloLinguagem` (permite modelo falso).
-- Schema Drizzle completo e seed (`npm run seed:demo`): nenhum plano deveria precisar de migração nova. Se precisar, faixas: A 0006 a 0008, B 0009 a 0011, C 0012 a 0014.
+- Schema Drizzle completo e seed (`npm run seed:demo`): nenhum plano deveria precisar de migração nova. Se precisar, a próxima migração é a seguinte à última de `drizzle/` (confira com `ls drizzle`) e o número se combina antes, para dois planos não gerarem o mesmo.
 
 ## Fase 0 (uma vez, plano B, cerca de 30 minutos): ponto de encaixe sem conflito
 
 Hoje `AgenteModule` cria `new RegistroFerramentas([])` e `AppModule` é compartilhado. Para ninguém editar o mesmo arquivo, o plano B faz um PR mínimo e o mescla primeiro:
 
-- `src/agente/ferramentas/catalogo.ts`, que junta `ferramentas-plano-a.ts`, `ferramentas-plano-b.ts` e `ferramentas-plano-c.ts` (cada um exporta uma lista, hoje vazia) e passa o resultado ao `RegistroFerramentas`.
+- `src/agente/ferramentas/catalogo.ts`, que junta `ferramentas-plano-a.ts`, `ferramentas-plano-b.ts` e `ferramentas-plano-c.ts` (cada um exporta a lista de ferramentas do plano; a do plano C segue vazia) e passa o resultado ao `RegistroFerramentas`.
 - Módulos vazios `MetricasModule`, `AlertasModule`, `CanalModule`, `AvaliacaoModule` já importados no `AppModule`.
 
 Depois disso, cada plano só edita arquivos seus. Os planos A e C não esperam: desenvolvem e testam na pasta deles e só encaixam no catálogo no passo final de cada issue.

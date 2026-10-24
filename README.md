@@ -6,7 +6,7 @@ O código calcula, o modelo comunica: nenhum número chega ao dono sem vir de um
 
 ## Como funciona
 
-1. O dono envia fotos de notas de compra e a planilha de vendas, e pode conectar a conta PJ (Open Finance, via Pluggy).
+1. O dono envia fotos de notas de compra e a planilha de vendas. O extrato da conta PJ entra pelo seed; Open Finance real está fora do escopo (Pluggy só em sandbox, se sobrar tempo).
 2. Um modelo com visão extrai os itens das notas. O código valida somas, CNPJ e data, e grava tudo com origem e confiança.
 3. Funções em TypeScript calculam margem, giro, variação de custo, ticket médio e anomalias.
 4. O motor de alertas lista candidatos. O agente escolhe até 3 por dia e escreve uma mensagem curta usando só números das ferramentas.
@@ -36,7 +36,7 @@ Prazo: congelamento do código no **sábado 24/10/2026 às 15h30** ([alertas do 
 
 Trilhas paralelas: **Segurança e LGPD**, **Validação e negócio** (entrevistas, custos, concorrentes) e **Pitch e equipe**.
 
-Acompanhe o andamento no [quadro do projeto](https://github.com/orgs/insignia-corp/projects/2) e veja como escolher e abrir issues no [CONTRIBUTING](CONTRIBUTING.md).
+Acompanhe o andamento no [quadro do projeto](https://github.com/orgs/insignia-corp/projects/2) e veja a organização do trabalho, as labels e o fluxo de branches no [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Estrutura do repositório
 
@@ -99,7 +99,7 @@ npm run dev
 - [Fluxo do agente](docs/agent-flow.md): inputs, lógica e outputs do agente
 - [Especificação dos agentes](docs/especificacao-agentes.md): Extrator, Analista, orquestrador, ferramentas, falhas e avaliação
 - [Decisões](docs/decisoes/): ORM, modelo de linguagem, arquitetura do agente
-- [CLAUDE.md](CLAUDE.md): regras invioláveis e convenções do projeto
+- [AGENTS.md](AGENTS.md): regras invioláveis, roteamento e convenções do projeto (o `CLAUDE.md` só o importa)
 
 ## Equipe
 

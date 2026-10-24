@@ -17,4 +17,4 @@ O preço por token fica em `src/agente/llm/modelo-linguagem.ts` e o custo estima
 
 ## Em aberto
 
-Comparar custo e latência com um modelo menor (por exemplo `claude-sonnet-5-5`) usando `npm run eval`, quando a avaliação existir.
+Comparar custo e latência com um modelo menor (por exemplo `claude-haiku-5-5`) usando `npm run eval`, que já existe.

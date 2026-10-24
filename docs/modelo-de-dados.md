@@ -6,7 +6,7 @@ Dono do fato: `src/infra/database/schema.ts` (Drizzle). Migrações em `drizzle/
 
 | Regra | Como o banco garante |
 | --- | --- |
-| Dinheiro em centavos inteiros | Colunas `bigint` com sufixo `_centavos`. Nenhum `numeric` ou `float` para dinheiro |
+| Dinheiro em centavos inteiros | Colunas `bigint` com sufixo `_centavos` (o custo estimado das chamadas ao modelo é `custo_estimado_microdolares`, em micro-dólares). Nenhum `float` para dinheiro; a única `numeric` é `limite_alerta.valor`, que guarda o limite (em centavos quando ele é monetário) |
 | `comerciante_id` em toda tabela com dado do lojista | Coluna `NOT NULL` com índice e chave estrangeira para `comerciante` |
 | Isolamento entre lojistas | Tabela filha aponta para a mãe por chave composta `(id, comerciante_id)`. O banco recusa um item de venda do lojista A ligado à venda do lojista B |
 | Origem e confiança em todo dado extraído ou informado | Colunas `origem` (`foto_nota`, `nfe`, `planilha`, `banco`, `dono`) e `confianca` (0 a 1, com `CHECK`) |
@@ -37,6 +37,8 @@ erDiagram
   venda ||--|{ item_de_venda : "contém"
   produto ||--o{ item_de_venda : "é vendido em"
   comerciante ||--o{ alerta : "recebe"
+  comerciante ||--o{ limite_alerta : "ajusta"
+  comerciante ||--o{ mapeamento_planilha : "confirma"
   comerciante ||--o{ mensagem : "troca"
   comerciante ||--o{ pergunta_dono : "responde"
   item_de_compra ||--o{ pergunta_dono : "gera"
@@ -52,7 +54,7 @@ Toda tabela, exceto `comerciante`, também aponta para `comerciante` (omitido no
 
 | Tabela | Para que serve | Pontos de atenção |
 | --- | --- | --- |
-| `comerciante` | Lojista. Nome, WhatsApp, tipo e `margem_meta_bps` (meta de margem, 2500 = 25%) | A meta é configuração do próprio lojista, a única escrita permitida ao agente, e só após confirmação |
+| `comerciante` | Lojista. Nome, WhatsApp, tipo e `margem_meta_bps` (meta de margem, 2500 = 25%) | A meta é configuração do próprio lojista (escrita permitida ao agente pela regra 7), e só após confirmação |
 | `consentimento` | O que foi autorizado (`banco`, `notas`), quando e em qual versão do termo; `revogado_em` quando revogado | Uma linha por concessão |
 | `conta` | Conta bancária conectada. Guarda só o id da conexão no agregador, nunca credenciais | `saldo_inicial_centavos` e `saldo_inicial_em` permitem calcular o saldo de qualquer dia; `ultima_sincronizacao_em` guarda o último dia com extrato importado por inteiro, a data de corte e não o dia da execução (separa "sem movimento" de "sem importação"); é data de controle da conta, não dado de negócio, então fica fora da origem e da confiança por registro da regra 4 |
 | `transacao` | Entrada ou saída da conta, com `id_externo` único por conta para importar sem duplicar | Valor sempre positivo; o sentido está em `tipo` |
@@ -63,21 +65,21 @@ Toda tabela, exceto `comerciante`, também aponta para `comerciante` (omitido no
 | `item_de_compra` | Linha da nota. `produto_id` é nulo até a descrição ser ligada a um produto | `revisao_pendente` quando a confiança fica abaixo do limite. A resposta do dono tira a pendência e não altera a confiança da linha |
 | `vinculo_descricao_produto` | Descrição impressa na nota para produto, com o método (`codigo_barras`, `similaridade`, `modelo`, `dono`) | **Append-only**. Trocar um vínculo insere linha nova; vale a mais recente da chave. Só `confirmado_pelo_dono` vale como memória: o vínculo por similaridade fica registrado sem confirmação, para auditoria |
 | `historico_custo` | Custo por produto, fornecedor e data, uma linha por leitura do item de compra | **Append-only**. A confirmação do dono insere linha nova (origem `dono`, confiança 1, limitada à do vínculo com o produto) e vale a mais recente do item. Alimenta margem e variação de custo |
-| `historico_preco_meta` | Cada preço-meta que o dono confirmou para um produto, com o valor vigente antes (`anterior_centavos`), origem `dono` e confiança 1 | **Append-only** (migração `0008_historico_preco_meta`). `produto.preco_meta_centavos` guarda só o valor vigente; o anterior nunca é apagado. A única escrita do agente, e só depois do "sim" do dono (regra 7) |
+| `historico_preco_meta` | Cada preço-meta que o dono confirmou para um produto, com o valor vigente antes (`anterior_centavos`), origem `dono` e confiança 1 | **Append-only** (migração `0008_historico_preco_meta`). `produto.preco_meta_centavos` guarda só o valor vigente; o anterior nunca é apagado. A escrita do agente sobre o preço-meta, e só depois do "sim" do dono (regra 7) |
 | `limite_alerta` | Limites de alerta que o dono ajustou, uma linha por limite (`limite` é um campo de `LimitesDeAlerta` ou `janelaSupressaoDias.<tipo>`), com origem `dono` e confiança 1 | **Append-only**: vale a linha mais recente de cada limite; sem linha vale o padrão. `valor` nulo só nas janelas de supressão (sem limite de idade). A escrita pelo agente, quando existir, só depois do "sim" do dono (regra 7) |
 | `mapeamento_planilha` | Mapeamento de colunas de uma planilha de vendas (data, produto, quantidade, preço), identificado pela assinatura dos cabeçalhos e confirmado pelo dono uma vez | Único por `(comerciante, assinatura)` |
 | `venda` e `item_de_venda` | Cupom e seus itens, vindos da planilha ou do PDV | `(comerciante, data, numero_cupom)` único: reimportar não duplica |
 | `alerta` | Candidato a alerta com tipo, prioridade (1 a 3), números de apoio em JSON, status (`candidato`, `enviado`, `descartado` ou `obsoleto`) e justificativa do agente | `(comerciante, tipo, chave, data)` único: o motor é idempotente |
-| `mensagem` | Mensagem enviada ou recebida, categoria do template, custo estimado e canal; tipo e objeto no formato da Cloud API, mensagem citada e status de entrega (#182) | No máximo uma proativa por dia por comerciante; chave de idempotência do job única |
-| `pergunta_dono` | Pergunta do agente ao dono e a resposta, com status | Substitui qualquer estado de conversa em memória. O tipo `confirmar_acao` guarda a escrita à espera do "sim" (ferramenta, entrada, resumo e `expira_em` no `contexto`); só uma fica pendente por comerciante |
+| `mensagem` | Mensagem enviada ou recebida, categoria do template, custo estimado e canal; tipo e objeto no formato da Cloud API, mensagem citada e status de entrega (#182) | No máximo uma proativa por dia por comerciante; chave de idempotência do job única; entrada única por `(comerciante, canal, id_externo)`, para a reentrega do webhook |
+| `pergunta_dono` | Pergunta do agente ao dono e a resposta, com status | Substitui qualquer estado de conversa em memória. O tipo `confirmar_acao` guarda a escrita à espera do "sim" (ferramenta, entrada, resumo e `expira_em` no `contexto`); o agente encerra a pendente anterior antes de criar outra (o banco não impede duas) |
 | `execucao_agente` e `chamada_ferramenta` | Observabilidade: gatilho, tokens, custo, latência, resultado do verificador e cada chamada de ferramenta | Já existiam desde a Etapa 0 |
 
 ## Histórico append-only
 
 `UPDATE` em `historico_custo`, `historico_preco_meta`, `limite_alerta` e `vinculo_descricao_produto` sempre falha. `DELETE` só passa em dois casos:
 
-1. Em cascata, quando o lojista pede a exclusão (LGPD): o gatilho detecta que roda dentro de outro gatilho (`pg_trigger_depth() > 1`).
-2. Quando a transação declara `SET LOCAL omnia.exclusao_autorizada = 'on'`, que a rotina de retenção e o seed usam.
+1. Em cascata, como na exclusão do lojista (LGPD): o gatilho deixa passar o `DELETE` que roda dentro de outro gatilho (`pg_trigger_depth() > 1`).
+2. Quando a transação declara `SET LOCAL omnia.exclusao_autorizada = 'on'`, que hoje só o seed usa; a rotina de retenção (`RETENCAO_MESES` em `src/config/env.ts`) ainda não existe no código.
 
 Isso protege o ativo próprio do projeto (edital, seção 9.4): custo por produto, fornecedor e data, e vínculos confirmados pelo dono.
 

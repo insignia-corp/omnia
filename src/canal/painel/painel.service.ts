@@ -8,6 +8,7 @@ import { DB, type Db } from "../../infra/database/database.module";
 import { comerciante, fornecedor, produto } from "../../infra/database/schema";
 import { somarDias } from "../../lib/datas/datas";
 import { MetricasService } from "../../metricas/metricas.service";
+import { ehDadoAusente } from "../../metricas/resultado-metrica";
 import { dataLocal, RELOGIO, type Relogio } from "../relogio";
 import { fraseDoAviso } from "./frase-do-aviso";
 
@@ -47,16 +48,49 @@ export class PainelService {
     const hoje = dataLocal(this.relogio.agora(), this.env.FUSO_HORARIO);
     const ontem = somarDias(hoje, -1);
     const contexto = { comercianteId, dataReferencia: ontem };
-    const [dia, semana, mes, serieSemana, serieMes, margens, alertas] = await Promise.all([
-      this.metricas.resumoDiario(contexto, ontem),
-      this.metricas.resumoDePeriodo(contexto, "semana", ontem),
-      this.metricas.resumoDePeriodo(contexto, "mes", ontem),
-      this.metricas.serieDeFaturamento(contexto, "semana", ontem),
-      this.metricas.serieDeFaturamento(contexto, "mes", ontem),
-      this.metricas.margensAbaixoDaMeta(contexto),
-      // Os mesmos avisos que o agente vê em list_alert_candidates: os de ontem, o último dia completo.
-      this.motor.executar({ comercianteId, dataReferencia: ontem }),
-    ]);
+    const [diaMetrica, semanaMetrica, mesMetrica, serieSemana, serieMes, margens, alertas] =
+      await Promise.all([
+        this.metricas.resumoDiario(contexto, ontem),
+        this.metricas.resumoDePeriodo(contexto, "semana", ontem),
+        this.metricas.resumoDePeriodo(contexto, "mes", ontem),
+        this.metricas.serieDeFaturamento(contexto, "semana", ontem),
+        this.metricas.serieDeFaturamento(contexto, "mes", ontem),
+        this.metricas.margensAbaixoDaMeta(contexto),
+        // Os mesmos avisos que o agente vê em list_alert_candidates: os de ontem, o último dia completo.
+        this.motor.executar({ comercianteId, dataReferencia: ontem }),
+      ]);
+
+    // O dono vê vendas, ticket e comparações: gastos e saldo ficam fora do JSON do painel, não só da tela.
+    const dia = ehDadoAusente(diaMetrica)
+      ? diaMetrica
+      : {
+          ...diaMetrica,
+          valor: {
+            data: diaMetrica.valor.data,
+            faturamento_centavos: diaMetrica.valor.faturamento_centavos,
+            cupons: diaMetrica.valor.cupons,
+            ticket_medio_centavos: diaMetrica.valor.ticket_medio_centavos,
+            comparacao_faturamento: diaMetrica.valor.comparacao_faturamento,
+          },
+        };
+    const periodo = (r: typeof semanaMetrica) =>
+      ehDadoAusente(r)
+        ? r
+        : {
+            ...r,
+            valor: {
+              tipo: r.valor.tipo,
+              inicio: r.valor.inicio,
+              fim: r.valor.fim,
+              dias: r.valor.dias,
+              faturamento_centavos: r.valor.faturamento_centavos,
+              cupons: r.valor.cupons,
+              ticket_medio_centavos: r.valor.ticket_medio_centavos,
+              comparacao_faturamento: r.valor.comparacao_faturamento,
+            },
+          };
+    const semana = periodo(semanaMetrica);
+    const mes = periodo(mesMetrica);
 
     // Cada margem leva a menor confiança e a origem dos dados (regra 4): custo lido de foto duvidosa
     // aparece marcado na página, não como número definitivo.
@@ -105,23 +139,26 @@ export class PainelService {
       serie_semana: serieSemana.valor,
       serie_mes: serieMes.valor,
       margens_abaixo_da_meta: abaixoDaMeta,
-      avisos: alertas.candidatos.map((c) => {
-        const nome = c.produtoId ? (nomes.get(c.produtoId) ?? null) : null;
-        return {
-          tipo: c.tipo,
-          rotulo: ROTULO_ALERTA[c.tipo] ?? c.tipo,
-          prioridade: c.prioridade,
-          produto_id: c.produtoId,
-          produto: nome,
-          frase: fraseDoAviso({
+      // Só os tipos que o painel sabe nomear: aviso de tipo que saiu do painel (gasto fora do padrão) não aparece.
+      avisos: alertas.candidatos
+        .filter((c) => Object.hasOwn(ROTULO_ALERTA, c.tipo))
+        .map((c) => {
+          const nome = c.produtoId ? (nomes.get(c.produtoId) ?? null) : null;
+          return {
             tipo: c.tipo,
             rotulo: ROTULO_ALERTA[c.tipo] ?? c.tipo,
+            prioridade: c.prioridade,
+            produto_id: c.produtoId,
             produto: nome,
-            fornecedor: c.fornecedorId ? (nomesDeFornecedor.get(c.fornecedorId) ?? null) : null,
-            metricasApoio: c.metricasApoio,
-          }),
-        };
-      }),
+            frase: fraseDoAviso({
+              tipo: c.tipo,
+              rotulo: ROTULO_ALERTA[c.tipo] ?? c.tipo,
+              produto: nome,
+              fornecedor: c.fornecedorId ? (nomesDeFornecedor.get(c.fornecedorId) ?? null) : null,
+              metricasApoio: c.metricasApoio,
+            }),
+          };
+        }),
     };
   }
 }

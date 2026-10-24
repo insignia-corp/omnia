@@ -45,11 +45,11 @@ export const ehAcao = (id: string | null): id is Acao => id !== null && ACOES.ha
  * código antes do modelo (issue #104).
  */
 export const PEDIDO_AO_AGENTE: Partial<Record<Acao, string>> = {
-  resumo_dia: "Resumo de ontem: faturamento, número de vendas e ticket médio.",
+  resumo_dia: "Resumo de ontem: faturamento, número de vendas, ticket médio, gastos e saldo do dia.",
   resumo_semana:
-    "Resumo da semana: os 7 dias até ontem comparados com os 7 dias anteriores (faturamento, vendas e ticket médio).",
+    "Resumo da semana: os 7 dias até ontem comparados com os 7 dias anteriores (faturamento, vendas, ticket médio, gastos e saldo).",
   resumo_mes:
-    "Resumo do mês: do dia 1 deste mês até ontem comparado com os mesmos dias do mês passado (faturamento, vendas e ticket médio).",
+    "Resumo do mês: do dia 1 deste mês até ontem comparado com os mesmos dias do mês passado (faturamento, vendas, ticket médio, gastos e saldo).",
   avisos: "Quais são os avisos de hoje? Use os candidatos a alerta do dia e me diga os mais importantes.",
   margens: "Quais produtos estão com a margem abaixo da minha meta?",
   sugerir_preco:
@@ -120,7 +120,7 @@ export const TEXTO_COMO_NOTA =
 
 /** Abertura do menu quando o agente não conseguiu responder um texto livre com os dados: sem número (regra 8). */
 export const TEXTO_SEM_RESPOSTA =
-  "Não consegui responder isso com os seus dados. Posso ajudar com vendas, ticket médio, margens, reajustes de custo, mais vendidos, estoque parado, avisos do dia e notas de compra. Escolha uma opção ou escreva de outro jeito.";
+  "Não consegui responder isso com os seus dados. Posso ajudar com vendas, gastos, margens, avisos e notas de compra. Escolha uma opção ou escreva de outro jeito.";
 
 export const TEXTO_CANCELAR = "Tudo bem. Quando precisar, é só chamar.";
 
@@ -148,7 +148,7 @@ export function menu(nomeComercio: string, abertura?: string): SaidaWhatsapp {
           {
             title: "Resumos",
             rows: [
-              { id: "resumo_dia", title: "Resumo do dia", description: "Vendas e ticket médio de ontem" },
+              { id: "resumo_dia", title: "Resumo do dia", description: "Vendas, gastos e saldo de ontem" },
               {
                 id: "resumo_semana",
                 title: "Resumo da semana",
@@ -167,7 +167,7 @@ export function menu(nomeComercio: string, abertura?: string): SaidaWhatsapp {
               {
                 id: "avisos",
                 title: "Avisos de hoje",
-                description: "Reajustes, margens e estoque parado",
+                description: "Reajustes, margens e gastos fora do padrão",
               },
               {
                 id: "margens",

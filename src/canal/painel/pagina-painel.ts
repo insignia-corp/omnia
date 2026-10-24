@@ -136,7 +136,7 @@ export const PAGINA_PAINEL = `<!doctype html>
     <section id="avisos" class="cartao"><h2 class="com-espaco">Precisa da sua atenção hoje</h2><div id="lista-avisos"></div></section>
     <section id="produtos" class="cartao"><h2>Produtos abaixo da meta de margem</h2><p class="sub">Preço médio dos últimos 30 dias contra o custo da nota mais recente</p><div id="margens"></div></section>
   </div>
-  <footer>Números calculados pelo Omnia a partir das suas vendas, notas e extrato.</footer>
+  <footer>Números calculados pelo Omnia a partir das suas vendas e notas.</footer>
 </main>
 <script>
 "use strict";

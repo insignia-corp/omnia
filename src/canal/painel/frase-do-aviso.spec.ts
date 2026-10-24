@@ -105,17 +105,6 @@ describe("fraseDoAviso", () => {
     ).toBe("O ticket médio de 23/10 foi R$ 21,00, 14,39% abaixo da média de 28 dias (R$ 24,53).");
   });
 
-  it("gasto fora do padrão não tem frase: cai no rótulo (os gastos saíram do painel)", () => {
-    const f = fraseDoAviso(
-      entrada({
-        tipo: "gasto_fora_do_padrao",
-        rotulo: "gasto_fora_do_padrao",
-        metricasApoio: { data: "2026-10-22", valor_centavos: 123456, mediana_centavos: 30000 },
-      }),
-    );
-    expect(texto(f)).toBe("gasto_fora_do_padrao");
-  });
-
   it("o nome do produto cai no da métrica quando o cadastro não devolve", () => {
     const f = fraseDoAviso(
       entrada({ tipo: "estoque_parado", metricasApoio: { produto_nome: "Vela", dias_sem_venda: 31 } }),
@@ -135,12 +124,8 @@ describe("fraseDoAviso", () => {
     expect(texto(f)).toBe("Margem abaixo da meta: Arroz");
     expect(texto(f)).not.toMatch(/\d/);
     expect(
-      texto(
-        fraseDoAviso(
-          entrada({ tipo: "gasto_fora_do_padrao", rotulo: "Gasto fora do padrão", metricasApoio: {} }),
-        ),
-      ),
-    ).toBe("Gasto fora do padrão");
+      texto(fraseDoAviso(entrada({ tipo: "giro_em_alta", rotulo: "Giro em alta", metricasApoio: {} }))),
+    ).toBe("Giro em alta");
   });
 
   it("todo número da frase está nos campos da métrica (regra 1)", () => {

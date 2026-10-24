@@ -640,6 +640,10 @@ describe("WhatsApp simulado integrado (e2e, issue #182)", () => {
       expect(d.comercio).toBe("E2E WhatsApp painel dados");
       expect(d.ate).toBe("2026-10-19");
       expect(d.dia.valor.faturamento_centavos).toBe(12345);
+      // Gastos e saldo não saem no JSON do painel (decisão do dono: extrato é trabalho futuro).
+      expect(d.dia.valor).not.toHaveProperty("gastos_centavos");
+      expect(d.dia.valor).not.toHaveProperty("saldo_do_dia_centavos");
+      expect(d.dia.valor).not.toHaveProperty("saldo_da_conta");
       expect(d.semana).toMatchObject({ ausente: true, codigo: "periodo_sem_dados" });
       expect(Array.isArray(d.avisos)).toBe(true);
       expect((d as unknown as { limite_confianca: number }).limite_confianca).toBeGreaterThan(0);

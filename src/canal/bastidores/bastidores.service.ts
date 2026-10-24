@@ -1,11 +1,13 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, inArray, asc, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, asc, lt, or, sql } from "drizzle-orm";
 import type { BloqueioVerificador } from "../../agente/execucao/registro-execucoes";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env";
 import { DB, type Db } from "../../infra/database/database.module";
+import { dataLocal } from "../relogio";
 import {
   chamadaFerramenta,
+  comerciante,
   compra,
   documento,
   execucaoAgente,
@@ -14,8 +16,8 @@ import {
   produto,
 } from "../../infra/database/schema";
 import { FONTE_DECISOES_ALERTA, type FonteDecisoesAlerta } from "./fonte-decisoes-alerta";
-import { abaixoDoLimite, agruparChamadas, versaoDoPainel } from "./montar-painel";
-import type { ExecucaoBastidores, NotaBastidores, PainelBastidores } from "./tipos";
+import { abaixoDoLimite, agruparChamadas, resumoDoDiaDe, versaoDoPainel } from "./montar-painel";
+import type { ExecucaoBastidores, NotaBastidores, PainelBastidores, ResumoDoDia } from "./tipos";
 
 /** Só leitura. Toda consulta filtra por `comerciante_id` da sessão (regra inviolável 3). */
 @Injectable()
@@ -28,6 +30,8 @@ export class BastidoresService {
 
   async painel(comercianteId: string, limite: number): Promise<PainelBastidores> {
     const execucoes = await this.execucoesRecentes(comercianteId, limite);
+    const resumoDoDia = await this.resumoDoDia(comercianteId);
+    const nome = await this.nomeDoComerciante(comercianteId);
     const ultimaNota = await this.ultimaNota(comercianteId);
     const desde = execucoes.at(-1)?.criada_em ?? new Date(0);
     const decisoes = await this.fonteAlertas.listar(comercianteId, {
@@ -43,10 +47,49 @@ export class BastidoresService {
         [execucoes[0]?.criada_em, ultimaNota?.processada_em ?? ultimaNota?.criada_em, ultimaNota?.criada_em],
         decisoes,
       ),
+      comerciante: { nome },
+      limite_confianca: this.env.LIMITE_CONFIANCA_ITEM,
+      resumo_do_dia: resumoDoDia,
       execucoes,
       ultima_nota: ultimaNota,
       decisoes_sem_execucao: decisoes.filter((d) => !d.execucao_id || !ids.has(d.execucao_id)),
     };
+  }
+
+  async nomeDoComerciante(comercianteId: string): Promise<string> {
+    const [linha] = await this.db
+      .select({ nome: comerciante.nome })
+      .from(comerciante)
+      .where(eq(comerciante.id, comercianteId))
+      .limit(1);
+    return linha?.nome ?? "";
+  }
+
+  /**
+   * Soma do dia local (FUSO_HORARIO) em uma agregação SQL sobre todas as execuções do comerciante.
+   * Inteiros do começo ao fim: o custo soma microdólares e a latência média é arredondada no banco.
+   */
+  async resumoDoDia(comercianteId: string, agora: Date = new Date()): Promise<ResumoDoDia> {
+    const fuso = this.env.FUSO_HORARIO;
+    const data = dataLocal(agora, fuso);
+    const inicio = sql`(${data}::date)::timestamp at time zone ${fuso}`;
+    const fim = sql`((${data}::date + 1))::timestamp at time zone ${fuso}`;
+    const [linha] = await this.db
+      .select({
+        execucoes: sql<string>`count(*)`,
+        bloqueios: sql<string>`coalesce(sum(${execucaoAgente.bloqueiosVerificador}), 0)`,
+        custo: sql<string>`coalesce(sum(${execucaoAgente.custoEstimadoMicrodolares}), 0)`,
+        latencia: sql<string | null>`round(avg(${execucaoAgente.latenciaMs}))`,
+      })
+      .from(execucaoAgente)
+      .where(
+        and(
+          eq(execucaoAgente.comercianteId, comercianteId),
+          gte(execucaoAgente.criadoEm, inicio),
+          lt(execucaoAgente.criadoEm, fim),
+        ),
+      );
+    return resumoDoDiaDe(data, linha);
   }
 
   /** As execuções mais novas primeiro, cada uma com as chamadas de ferramenta em ordem. */

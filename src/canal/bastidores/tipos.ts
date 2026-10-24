@@ -71,9 +71,25 @@ export interface NotaBastidores {
   itens: ItemBastidores[];
 }
 
+/** Soma do dia local do comerciante, calculada no banco sobre todas as execuções do dia (não só as listadas). */
+export interface ResumoDoDia {
+  /** Data local "AAAA-MM-DD" (FUSO_HORARIO) a que os números se referem. */
+  data: string;
+  execucoes: number;
+  bloqueios_verificador: number;
+  custo_microdolares: number;
+  /** Média em ms, inteira; `null` sem execuções no dia. */
+  latencia_media_ms: number | null;
+}
+
 export interface PainelBastidores {
   /** Muda quando algo novo chega; a página só redesenha quando muda. */
   versao: string;
+  /** Nome do comércio da sessão, para a página mostrar no seletor. */
+  comerciante: { nome: string };
+  /** Limite de confiança de item (LIMITE_CONFIANCA_ITEM): a tela pinta de âmbar o que fica abaixo. */
+  limite_confianca: number;
+  resumo_do_dia: ResumoDoDia;
   execucoes: ExecucaoBastidores[];
   ultima_nota: NotaBastidores | null;
   decisoes_sem_execucao: DecisaoAlerta[];

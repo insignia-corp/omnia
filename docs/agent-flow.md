@@ -8,6 +8,10 @@ Entregável obrigatório do edital (inputs, lógica e outputs). Atualize junto c
 - **Analista** (o loop abaixo): escolhe os alertas, responde perguntas e escreve a mensagem, com o verificador no fim.
 - **Orquestrador**: código (BullMQ e PostgreSQL), não um agente. Decide ordem, limites, idempotência e resolve a confirmação "sim" do dono sem modelo.
 
+Há ainda um terceiro uso de modelo, fora do loop: o sugestor de vínculo entre a descrição da nota e o produto (`src/ingestao/vinculo/sugestor-vinculo.ts`, gatilho registrado `vinculo_produto`, modelo `VINCULO_MODELO`). Como o `extracao_nota` do Extrator, ele fica no registro de execuções fora da tabela de gatilhos do Analista abaixo.
+
+Canal: hoje só o chat web está implementado (`CANAL=web`, o padrão). A WhatsApp Cloud API real ainda não existe (`CANAL=whatsapp` lança erro, #61 e #62), e o front `web/whatsapp` simula a conversa. O que é real e o que é simulado está em `src/canal/README.md`.
+
 ```mermaid
 flowchart TB
   foto["Foto da nota<br/>chat web ou WhatsApp"]
@@ -20,7 +24,7 @@ flowchart TB
   alr["Motor de alertas<br/>candidatos com impacto em reais"]
 
   ana["Analista<br/>claude-sonnet-5-5, padrão proposto<br/>esforço low na conversa, medium no relatório"]
-  fer["Ferramentas, código, até 12<br/>margem, custos, alertas e simulação"]
+  fer["Ferramentas, código, 11 hoje<br/>leitura, alertas, pergunta e preço-meta"]
   ver["Verificador de números, código<br/>bloqueia e manda reescrever"]
   dono["Dono<br/>chat web ou WhatsApp"]
 
@@ -83,7 +87,7 @@ O agente não envia nada: devolve a mensagem já aprovada e o canal a entrega. P
 ### Relatório diário, passo a passo
 
 1. O job (plano C) dispara `relatorio_diario` com a data de referência da execução.
-2. O modelo chama `list_alert_candidates`, que devolve os candidatos já ordenados por prioridade e, dentro dela, por impacto em centavos e depois confiança (conta do código).
+2. O modelo chama `list_alert_candidates`, que devolve os candidatos já ordenados por prioridade e, dentro dela, por impacto em centavos e depois confiança, com tipo e chave no último desempate (conta do código).
 3. Escolhe até 3 e registra a escolha com `select_alerts`, uma justificativa curta por alerta. A ferramenta confere os ids contra os candidatos do comerciante na data e devolve só dados do banco (as métricas de apoio), que passam a ser as fontes dos números. A justificativa é texto do modelo: fica na entrada da chamada, para os bastidores, e não volta na saída. Sem `select_alerts` bem-sucedido (ou sem candidato), o loop não aprova o relatório.
 4. Escreve uma frase por alerta, com o valor e a ação sugerida.
 5. O verificador confere cada número. Aprovada, a mensagem volta ao canal. A decisão (quais alertas e por quê) fica em `chamada_ferramenta`, na ordem, e alimenta a tela de bastidores.
@@ -101,14 +105,14 @@ A única escrita do agente é a configuração do próprio comerciante (preço-m
    - qualquer outra mensagem ("sim, mas com 15,90", uma pergunta nova) não confirma nada e **cancela a proposta pendente**: a proposta só vale para a resposta imediata. Assim um "sim" dito mais tarde, a outra pergunta, nunca aplica uma configuração velha. O mesmo vale quando o sistema envia algo por conta própria (relatório diário ou nota processada).
 4. A escrita depende da ferramenta; o código de confirmação não conhece nenhuma delas:
    - `propose_target_price` grava o valor vigente em `produto` e uma linha nova em `historico_preco_meta` (append-only, com o valor anterior e confiança 1);
-   - `save_owner_answer` grava só uma linha nova em `historico_custo` (origem `dono`, confiança 1), ligada à compra mais recente do produto, sem tocar em `produto` nem em `historico_preco_meta`.
+   - `save_owner_answer` grava só uma linha nova em `historico_custo` (origem `dono`, confiança 1), ligada à linha mais recente de `historico_custo` do mesmo produto e fornecedor (sem ela, a ferramenta falha), sem tocar em `produto` nem em `historico_preco_meta`.
 
    A mudança de estado da proposta e a escrita acontecem na mesma transação: se o processo cair no meio, nada foi gravado e o mesmo "sim" ainda vale. Falha na escrita cancela a proposta e o dono recebe um aviso sem número.
 5. A resolução fica registrada como uma execução (`modelo = codigo`, zero tokens) com a chamada `confirm_pending_action`, para aparecer nos bastidores.
 
 ### Conversa, passo a passo
 
-1. O canal grava a mensagem recebida e carrega o histórico (`carregarHistorico`, últimas `AGENTE_HISTORICO_TURNOS` falas de `mensagem`, sem a atual).
+1. O canal grava a mensagem recebida e carrega o histórico (`carregarHistorico`, últimas `AGENTE_HISTORICO_TURNOS` falas de `mensagem`, sem a atual e sem os avisos montados de nota ou pergunta de nota, que são dado do documento).
 2. `executar` recebe o histórico em `PedidoAgente.historico`. Falas do dono entram entre `<mensagem_do_dono>`, com a marcação higienizada; falas do assistente entram como texto.
 3. O modelo escolhe a ferramenta que responde. Se nenhuma serve, diz que não sabe e que dado faltaria; se falta um dado do dono, pergunta (`ask_owner`).
 4. Números de falas anteriores não autorizam nada: um valor dito antes pode estar velho. Para repetir um número o modelo busca de novo na ferramenta, e só o que a ferramenta devolve nesta execução (mais o que o dono escreveu na mensagem atual) passa no verificador.
@@ -141,7 +145,7 @@ Limites e esforço vêm do ambiente. Os nomes e os valores padrão moram em [`sr
 | --- | --- | --- |
 | `get_daily_summary`, `get_top_products` | nenhum | Pronta (#50, #148; PRs #145 e #169): `get_top_products` aceita os critérios `volume`, `alta` e `receita`, com a janela até ontem (como `get_period_summary` sem `ate`); `get_daily_summary` sem data usa a data de referência |
 | `get_period_summary` | nenhum | Pronta (#182): semana ou mês até a data (sem data, até ontem), contra o período anterior |
-| `get_product_margin`, `get_cost_changes` | nenhum | Pronta (#51; PR #145). `get_product_margin` também acha apelidos confirmados e distingue produtos de mesmo nome (#156; PR #168) |
+| `get_product_margin`, `get_cost_changes` | nenhum | Pronta (#51; PR #145). `get_product_margin` também acha descrições confirmadas pelo dono e distingue produtos de mesmo nome (#156; PR #168) |
 | `list_product_margins` | nenhum | Pronta (melhoria pedida pelo dono): lista as margens dos produtos sem precisar do nome (menor, maior, abaixo da meta) e diz o total que atende ao filtro, para as perguntas de margem sem produto |
 | `list_alert_candidates` | nenhum | Pronta (#52; PR #174): roda o motor de alertas para o comerciante e a data da sessão, sem entrada do modelo |
 | `select_alerts` | nenhum | Pronta (#133): até 3 ids com justificativa, conferidos contra o comerciante e a data |
@@ -158,7 +162,7 @@ Detalhe de cada ferramenta e das prioridades na [especificação dos agentes](es
 | --- | --- | --- |
 | Ferramenta devolve erro ou entrada inválida | Volta ao modelo com `is_error`; o limite de iterações encerra se ele insistir | `aprovada` ou `fallback_erro` |
 | Ferramenta sem dado | Devolve `{ ausente: true, motivo }`; o agente diz que não sabe ou pergunta; número inventado para preencher é bloqueado | `aprovada` |
-| Verificador bloqueia | Pede correção até `AGENTE_MAX_REGERACOES`; depois, mensagem de fallback sem números | `fallback_verificador` |
+| Verificador bloqueia | Pede correção até `AGENTE_MAX_REGERACOES`; depois, mensagem de fallback sem números; no chat, texto livre sem proposta pendente vira o menu de opções (#192) | `fallback_verificador` |
 | Relatório diário sem escolha registrada (nenhum `select_alerts` bem-sucedido e `list_alert_candidates` não informou zero candidatos) | Pede a escolha ao modelo, até `AGENTE_MAX_REGERACOES`; depois, fallback de erro. O relatório sem registro da decisão não é enviado | `fallback_erro` |
 | Timeout, rede, erro da API, resposta sem texto, resposta cortada ou limite de tempo ou de iterações | API repete o que vale repetir; esgotado, mensagem de fallback sem números e o motivo em `erro` | `fallback_erro` |
 | Recusa do modelo | Mensagem de recusa sem números | `recusa_modelo` |
@@ -167,7 +171,7 @@ Detalhe de cada ferramenta e das prioridades na [especificação dos agentes](es
 
 ## Outputs
 
-- Mensagem para o canal: aprovada pelo verificador ou um fallback sem números.
+- Mensagem para o canal: aprovada pelo verificador ou um fallback sem números (no chat, o menu de opções quando o texto livre é barrado e não há proposta pendente).
 - Registro em `execucao_agente`: gatilho, entrada, modelo, versão do prompt, resultado (`aprovada`, `fallback_verificador`, `fallback_erro`, `recusa_modelo`), iterações, bloqueios do verificador com os números barrados, tokens, custo estimado, latência e erro.
 - Registro em `chamada_ferramenta`: cada chamada em ordem, com entrada, saída, erro, menor confiança e latência. Base da tela de bastidores. A resolução de um "sim" entra como chamada `confirm_pending_action`, feita pelo código.
 - Consulta (sempre filtrada pelo comerciante da sessão): `GET /execucoes` (mais recentes), `GET /execucoes/:id` (execução com as chamadas em ordem) e `GET /execucoes/verificador/bloqueios?de=AAAA-MM-DD&ate=AAAA-MM-DD`.

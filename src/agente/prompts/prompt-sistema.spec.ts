@@ -112,25 +112,31 @@ describe("carregarPromptSistema", () => {
     const v5 = carregarPromptSistema("v5").renderizar({ nomeComercio: "L" });
     const regra = (texto: string, n: number) => texto.split("\n").find((l) => l.startsWith(`${n}. `)) ?? "";
 
-    it("mantém as regras 1 a 8 da v3 sem mudar uma palavra, e a v4 continua como estava", () => {
+    it("mantém as regras 1 a 8 da v3 sem mudar uma palavra, e as regras 9, 13 e 14 da v4", () => {
       const regras = (t: string) => t.split("\n").filter((l) => /^[1-8]\. /.test(l));
       expect(regras(v5)).toEqual(regras(v3));
       expect(v5.split("\n")[0]).toBe(v3.split("\n")[0]);
       expect(v5).toContain("Uma mensagem que cite número fora dos resultados das ferramentas é bloqueada");
-      for (const n of [9, 12, 13, 14]) expect(regra(v5, n)).toBe(regra(v4, n));
+      for (const n of [9, 13, 14]) expect(regra(v5, n)).toBe(regra(v4, n));
     });
 
     it("o texto da regra 15 pede o produto e os números principais, em 2 a 4 linhas, com escopo e precedência", () => {
       const r = regra(v5, 15);
       expect(r).toContain("o nome do produto e os números principais que ela devolveu");
-      expect(r).toContain("só se a ferramenta devolver o total");
+      expect(r).toContain("só se a ferramenta devolver o total do assunto");
+      expect(r).toContain("`n_registros` não conta um assunto");
+      expect(r).toContain("que traz produto");
+      expect(r).toContain("Totais do comércio");
+      expect(r).toContain("só desse item");
       expect(r).toContain("siga a regra 10, inclusive a frase inicial");
+      expect(regra(v5, 12)).toContain("não ofereça nada além da linha da regra 10");
       expect(r).toContain("No relatório diário vale a regra 3");
       for (const termo of ["dias sem venda", "percentual", "valor anterior e atual", "mediana ou limite"]) {
         expect(r).toContain(termo);
       }
       expect(r).toContain("quantos são");
-      expect(r).toContain("de 2 a 4 linhas");
+      expect(r).toContain("um nome por linha");
+      expect(r).toContain("tem de 2 a 4 linhas");
     });
 
     it("o não sei começa com a frase clara e sem outros números, e a recusa é de uma frase só", () => {

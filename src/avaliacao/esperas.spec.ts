@@ -5,7 +5,7 @@ import type { CasoAvaliacao } from "./tipos";
 
 /**
  * Esperas do avaliador afrouxadas na rodada real de 13583d2, só onde a resposta do agente estava certa:
- * ferramenta equivalente (q27, q29) e data ou ano da resposta (q33, q39). Cada guarda prova que o
+ * ferramenta equivalente no lugar de list_alert_candidates (q27, q29; a de q05 está em esperas-v4.spec.ts) e data ou ano da resposta (q33, q39). Cada guarda prova que o
  * afrouxamento não vira aprovação de resposta errada.
  */
 
@@ -69,7 +69,7 @@ describe("ferramenta equivalente (q27, q29)", () => {
     expect(faltaFerramenta(motivos, "get_cost_changes")).toBe(true);
   });
 
-  it("a equivalência é só de q27 e q29: q12, q30, q31 e q32 seguem exigindo list_alert_candidates", () => {
+  it("a equivalência com list_alert_candidates é só de q27 e q29: q12, q30, q31 e q32 seguem exigindo list_alert_candidates", () => {
     for (const id of ["q12", "q30", "q31", "q32"]) {
       const c = casoPorId(id);
       const motivos = avaliarCriterios(

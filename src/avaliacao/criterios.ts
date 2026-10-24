@@ -115,7 +115,8 @@ const valeComo = (valor: number, esperado: NumeroEsperado): boolean =>
  * em reais na mensagem. Percentual compara o módulo: o sentido (queda, alta) vem da palavra.
  *
  * Com `contexto`, o número também tem de estar perto das palavras dele: a janela vai do valor esperado
- * anterior da mensagem até o seguinte (no máximo 80 caracteres antes e 40 depois). Só os valores
+ * anterior da mensagem até o seguinte (no máximo 80 caracteres antes e 40 depois, ou desde o início da linha
+ * do número quando o esperado declara `janelaPorLinha`, e sem as palavras de `contextoExcluido` antes). Só os valores
  * esperados do caso separam as janelas; um "28" de "28 dias" não corta nada. Assim
  * "ticket de ontem R$ 27,53, contra R$ 15,66 dos 28 dias" não aceita os valores trocados.
  */
@@ -127,10 +128,11 @@ function escritoNaMensagem(mensagem: string, esperado: NumeroEsperado, todos: Nu
     if (!esperado.contexto) return true;
     const anterior = separadores.filter((n) => n.posicao < posicao).at(-1);
     const seguinte = separadores.find((n) => n.posicao > posicao);
-    const inicio = Math.max(
-      anterior ? anterior.posicao + anterior.texto.length : 0,
-      posicao - (esperado.janelaAntes ?? JANELA_ANTES),
-    );
+    const limiteAntes = esperado.janelaPorLinha
+      ? mensagem.lastIndexOf("\n", posicao - 1) + 1
+      : posicao - JANELA_ANTES;
+    const inicio = Math.max(anterior ? anterior.posicao + anterior.texto.length : 0, limiteAntes);
+    if (esperado.contextoExcluido?.test(mensagem.slice(inicio, posicao))) return false;
     const fim = Math.min(
       seguinte ? seguinte.posicao : mensagem.length,
       posicao + texto.length + JANELA_DEPOIS,

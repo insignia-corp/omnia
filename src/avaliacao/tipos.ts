@@ -21,11 +21,16 @@ export interface NumeroEsperado {
    */
   contexto?: RegExp;
   /**
-   * Quantos caracteres antes do número a janela do `contexto` olha (padrão 80). Só para respostas em lista, em
-   * que o nome do produto abre o item e o percentual vem depois de preços e datas ("Arroz: custo de R$ X (compra
-   * de ...) para R$ Y, alta de 12,05%"). A janela continua parando no número esperado anterior.
+   * A janela do `contexto` começa no início da linha do número (e não 80 caracteres antes). Só para respostas
+   * em lista, em que o nome do produto abre o item e o percentual vem depois de preços e datas ("- Arroz: custo
+   * de R$ X (compra de ...) para R$ Y, alta de 12,05%"). A janela continua parando no número esperado anterior.
    */
-  janelaAntes?: number;
+  janelaPorLinha?: boolean;
+  /**
+   * Palavras que não podem aparecer no trecho antes do número (dentro da janela). Em lista com mais de um
+   * produto, impede que o valor de um produto seja aceito com o nome de outro citado antes dele.
+   */
+  contextoExcluido?: RegExp;
 }
 
 /** Como o caso é julgado, além de chamar as ferramentas esperadas. */

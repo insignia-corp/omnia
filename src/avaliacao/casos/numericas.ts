@@ -54,15 +54,27 @@ const CHAVE_DO_VALOR: Record<UnidadeNumero, string> = {
   dias: "valor_dias",
 };
 
-/** Casos em que a resposta em lista afasta o nome do produto do percentual (q27: um item por produto). */
-const JANELA_ANTES_LONGA: Record<string, number> = { q27: 200 };
+/**
+ * Casos em que a resposta em lista afasta o nome do produto do percentual (q27: um item por produto):
+ * a janela vai desde o início da linha, e o nome do outro produto não pode aparecer antes do número.
+ */
+const LISTA_POR_PRODUTO: Record<string, Record<string, RegExp>> = {
+  q27: {
+    "reajuste de Arroz branco tipo 1 5kg": /[óo]leo/i,
+    "reajuste de Óleo de soja 900ml": /arroz/i,
+  },
+};
 
 function numerosEsperados(p: PerguntaAvaliacao): NumeroEsperado[] {
   const contextos = CONTEXTOS[p.id] ?? {};
-  const janelaAntes = JANELA_ANTES_LONGA[p.id];
+  const lista = LISTA_POR_PRODUTO[p.id] ?? {};
   return p.numeros_esperados.map((n) => {
     const contexto = contextos[n.rotulo];
-    return contexto ? { ...n, contexto, ...(janelaAntes ? { janelaAntes } : {}) } : n;
+    if (!contexto) return n;
+    const excluido = lista[n.rotulo];
+    return excluido
+      ? { ...n, contexto, janelaPorLinha: true, contextoExcluido: excluido }
+      : { ...n, contexto };
   });
 }
 

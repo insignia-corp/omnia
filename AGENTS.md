@@ -4,7 +4,7 @@ Ponto de entrada para qualquer agente de código (Claude Code, Codex, Cursor, Co
 
 Projeto: agente de IA que avisa o dono de mercadinho ou conveniência pelo WhatsApp o que importa no negócio (margem, reajuste de fornecedor, giro, gastos fora do padrão). Hackathon AKCIT Camp.
 
-Stack: TypeScript, NestJS, PostgreSQL (`pg_trgm`), Drizzle, Redis + BullMQ, Docker Compose, Zod, WhatsApp Cloud API, Pluggy (sandbox).
+Stack: TypeScript, NestJS, PostgreSQL (`pg_trgm`), Drizzle, Redis + BullMQ, Docker Compose, Zod, WhatsApp Cloud API.
 
 ## Primeiro passo de toda sessão
 
@@ -31,7 +31,7 @@ PRs em issues `regra-inviolável` precisam de teste que prove a regra.
 
 - Congelamento do código: sábado 24/10/2026 às 15h30, tudo no GitHub.
 - Prioridade: menor ciclo ponta a ponta (nota entra, extração, métricas, alerta, agente escreve, verificador confere, mensagem sai). Issues `prioridade:P0` primeiro.
-- Fora do escopo (label `fora-do-escopo-regional`, não fazer): PDV, NF-e pela SEFAZ, e-mail semanal, Open Finance real.
+- Fora do escopo (label `fora-do-escopo-regional`, não fazer): PDV, NF-e pela SEFAZ, e-mail semanal, extrato bancário, Pluggy e Open Finance (implementação futura).
 - WhatsApp é opcional: o canal fica atrás de `MessageChannel`, com chat web como plano B.
 
 ## Convenções

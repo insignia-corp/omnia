@@ -2,13 +2,13 @@
 
 Motor de regras que gera candidatos a alerta com prioridade. Issues: #43 a #46.
 
-**Dia dos avisos** (#211): quem chama o motor passa ontem, o último dia com vendas e extrato completos, e não a data de hoje, em que ticket, gasto e estoque parado ficariam sem dado. Vale para `list_alert_candidates` e `select_alerts`, o painel, o modelo `resumo_diario` e o job de reajuste depois da nota, para todos lerem as mesmas linhas da tabela `alerta`. O motor em si recebe a data que lhe passam.
+**Dia dos avisos** (#211): quem chama o motor passa ontem, o último dia com vendas completas, e não a data de hoje, em que ticket e estoque parado ficariam sem dado. Vale para `list_alert_candidates` e `select_alerts`, o painel, o modelo `resumo_diario` e o job de reajuste depois da nota, para todos lerem as mesmas linhas da tabela `alerta`. O motor em si recebe a data que lhe passam.
 
 Quem decide o que vai na mensagem do dia é o agente (`select_alerts`, no máximo 3). O motor só lista candidatos: grava e atualiza linhas da tabela `alerta` (`candidato`, e `obsoleto` quando o dado muda), estado derivado das métricas, idempotente e sem confirmação do dono, por isso `list_alert_candidates` tem efeito `nenhum` (exceção à regra 7, descrita em `src/agente/ferramentas/ferramenta.ts`); os números de cada alerta vêm das métricas de [src/metricas](../metricas/README.md); o motor só soma o impacto em reais, com contas inteiras sobre eles.
 
 ## Regras (#43)
 
-Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara com o limite do comerciante; o motor roda as sete em `motor-de-alertas.ts` e é idempotente (`comerciante + tipo + chave + data` é único). Repetir no mesmo dia com os mesmos dados não cria nem altera nada (ver "Candidato obsoleto" para o que muda quando os dados mudam).
+Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara com o limite do comerciante; o motor roda as seis em `motor-de-alertas.ts` (a de gasto fora do padrão, `regraGastoForaDoPadrao`, continua no código e no teste, mas fora de `REGRAS_DE_ALERTA`, porque depende do extrato bancário, implementação futura: #220 e #221) e é idempotente (`comerciante + tipo + chave + data` é único). Repetir no mesmo dia com os mesmos dados não cria nem altera nada (ver "Candidato obsoleto" para o que muda quando os dados mudam).
 
 | Tipo | Vira candidato quando | Chave |
 | --- | --- | --- |
@@ -18,22 +18,22 @@ Uma regra por `tipo_alerta`, em `regras.ts`. Cada uma lê a métrica e compara c
 | `giro_em_alta` | entre os de maior alta do giro, com alta acima de 0 | produto |
 | `estoque_parado` | mais dias sem venda que o limite do estoque parado | produto |
 | `ticket_medio_em_queda` | queda do ticket do dia contra a média anterior chega ao limite do ticket médio | dia |
-| `gasto_fora_do_padrao` | desvio robusto do gasto operacional acima do limite do gasto fora do padrão | dia |
+| `gasto_fora_do_padrao` (**fora do motor**: implementação futura) | desvio robusto do gasto operacional acima do limite do gasto fora do padrão | dia |
 
-Dado ausente nunca é zero: a regra não gera candidato e o motivo volta em `ausentes` no resultado do motor (por exemplo, `historico_insuficiente` na Esquina, que tem 14 dias de dados). Desvio mediano zero no gasto também é dado ausente (`desvio_nulo`): a regra não compara o dia e nenhum candidato do dia vira obsoleto por isso.
+Dado ausente nunca é zero: a regra não gera candidato e o motivo volta em `ausentes` no resultado do motor (por exemplo, `historico_insuficiente` na Esquina, que tem 14 dias de dados). Na regra de gasto (fora do motor), desvio mediano zero também é dado ausente (`desvio_nulo`): a regra não compara o dia e nenhum candidato do dia vira obsoleto por isso.
 
-Os limites que vêm das métricas (reajuste, estoque parado, ticket e gasto) ficam nas constantes `PARAMETROS_*` de [src/metricas](../metricas/README.md) e na seção "Métricas determinísticas" de [docs/guia-desenvolvimento.md](../../docs/guia-desenvolvimento.md); os demais (prioridade, confiança mínima, giro em alta, janela do mesmo movimento de reajuste e janelas de supressão) estão em `LIMITES_PADRAO`, em `limites.ts`, que reaproveita as métricas como valor inicial. Cada comerciante pode sobrepor os seus por uma `FonteDeLimites`; a fonte do módulo (`FonteDeLimitesPostgres`, em `limites-do-comerciante.ts`) lê a tabela `limite_alerta`, onde vale a linha mais recente de cada limite, e `registrarLimite` valida nome e faixa antes de inserir. Janelas e tamanho de ranking continuam os da métrica.
+Os limites que vêm das métricas (reajuste, estoque parado, ticket e, para a regra de gasto que ficou fora do motor, o desvio) ficam nas constantes `PARAMETROS_*` de [src/metricas](../metricas/README.md) e na seção "Métricas determinísticas" de [docs/guia-desenvolvimento.md](../../docs/guia-desenvolvimento.md); os demais (prioridade, confiança mínima, giro em alta, janela do mesmo movimento de reajuste e janelas de supressão) estão em `LIMITES_PADRAO`, em `limites.ts`, que reaproveita as métricas como valor inicial. Cada comerciante pode sobrepor os seus por uma `FonteDeLimites`; a fonte do módulo (`FonteDeLimitesPostgres`, em `limites-do-comerciante.ts`) lê a tabela `limite_alerta`, onde vale a linha mais recente de cada limite, e `registrarLimite` valida nome e faixa antes de inserir. Janelas e tamanho de ranking continuam os da métrica.
 
 ## Prioridade e ordem (#44)
 
 Nível de 1 (mais importante) a 3, por critério em `prioridade.ts`:
 
-1. **Impacto em reais**, calculado em código com inteiros em centavos. Os que dependem de volume medem a **semana** (últimos 7 dias do giro); ticket e gasto medem o **dia** da data de referência, por natureza. Assim o mesmo fato tem a mesma prioridade em regras diferentes:
+1. **Impacto em reais**, calculado em código com inteiros em centavos. Os que dependem de volume medem a **semana** (últimos 7 dias do giro); o ticket mede o **dia** da data de referência, por natureza (o gasto também, mas a regra dele está fora do motor). Assim o mesmo fato tem a mesma prioridade em regras diferentes:
    - reajuste (semana): diferença de custo por unidade vezes as unidades vendidas nos últimos 7 dias;
    - margem abaixo da meta (semana): (preço-alvo menos preço médio) vezes as unidades dos últimos 7 dias, com preço-alvo = custo / (1 menos a meta), arredondado para cima para a meta ficar garantida;
    - espaço para subir preço (semana): o mesmo ganho por unidade vezes as unidades dos últimos 7 dias;
    - ticket médio (dia): (média de 28 dias menos ticket do dia) vezes os cupons do dia; é uma **estimativa aproximada**: subtrai dois valores já arredondados em centavos e multiplica pelos cupons, então o erro chega a meio centavo por cupom (cerca de R$ 2 com 400 cupons), o que pode mudar o nível perto dos limites;
-   - gasto fora do padrão (dia): valor do dia menos a mediana.
+   - gasto fora do padrão (dia): valor do dia menos a mediana (regra fora do motor).
 2. Impacto de R$ 500 ou mais é prioridade 1; de R$ 100 a R$ 499,99, prioridade 2; abaixo disso, 3.
 3. Sem impacto em reais (giro em alta, estoque parado, ou reajuste e margem sem giro) o candidato fica em 3: sem número, sem urgência.
 4. **Confiança** abaixo de 0,8, ou desconhecida, rebaixa um nível (até o 3).
@@ -42,7 +42,7 @@ Dentro do mesmo nível a ordem é: maior impacto, maior confiança, tipo e chave
 
 ## Supressão (#44)
 
-Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** até a data de referência (o próprio dia incluído, para o tratado hoje antes de uma correção do dono) há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. O **reajuste** é a exceção: a chave inclui a compra, então o mesmo reajuste já enviado ou descartado é suprimido sem limite de idade (nunca precisa voltar). Ticket e gasto têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. A supressão só tem efeito depois que o status final (`enviado` ou `descartado`) é gravado no alerta: o motor só cria `candidato`, e quem grava o status é o ciclo do alerta (ver "Status final do alerta"). Como a chave do reajuste inclui o id da compra atual (duas compras do mesmo produto e fornecedor no mesmo dia são alertas distintos), uma nota nova com outro reajuste do mesmo produto é um alerta novo.
+Um candidato não é gravado quando o mesmo alerta (tipo e chave) foi **enviado ou descartado** até a data de referência (o próprio dia incluído, para o tratado hoje antes de uma correção do dono) há menos dias que a janela do tipo: 7 dias para os alertas por produto, então o enviado há 6 dias suprime e o enviado há 7 já não. O **reajuste** é a exceção: a chave inclui a compra, então o mesmo reajuste já enviado ou descartado é suprimido sem limite de idade (nunca precisa voltar). Ticket e gasto (esta fora do motor) têm chave por dia e não repetem. Alerta que ficou só `candidato` não suprime. A supressão só tem efeito depois que o status final (`enviado` ou `descartado`) é gravado no alerta: o motor só cria `candidato`, e quem grava o status é o ciclo do alerta (ver "Status final do alerta"). Como a chave do reajuste inclui o id da compra atual (duas compras do mesmo produto e fornecedor no mesmo dia são alertas distintos), uma nota nova com outro reajuste do mesmo produto é um alerta novo.
 
 ## Candidato obsoleto (#157)
 
@@ -81,4 +81,4 @@ Ao final da extração de uma nota (`extraido` ou `revisao`), a fila `extrair-no
 ## Limites conhecidos
 
 - No estoque parado, o limite do comerciante só vale a partir de 30 dias (o validador recusa valores abaixo disso), porque a métrica só marca parado acima desse corte e completa a lista com os mais próximos. Linha de `limite_alerta` fora da faixa, gravada sem passar por `registrarLimite`, é ignorada na leitura e, se for a mais recente, o limite volta ao padrão. O validador confere cada limite sozinho, não a relação entre eles (por exemplo, `prioridade2MinCentavos` acima de `prioridade1MinCentavos` deixa o nível 2 sem efeito). Nenhum chamador grava limites ainda: a escrita pelo agente (com confirmação do dono, regra 7) fica para uma issue própria.
-- O motor diário (as sete regras) é chamado pela ferramenta `list_alert_candidates` do agente (#52), que o roda para o comerciante e a data da sessão. O job de reajuste (#45) só avalia o reajuste após cada nota; o motor diário também roda sem o agente, sem escolher alertas nem marcar `enviado`: no relatório diário fora da janela de 24 h, só para contar os avisos do modelo `resumo_diario` (`RelatorioDiarioService.enviarModelo`), e no painel do dono (`PainelService`).
+- O motor diário (as seis regras) é chamado pela ferramenta `list_alert_candidates` do agente (#52), que o roda para o comerciante e a data da sessão. O job de reajuste (#45) só avalia o reajuste após cada nota; o motor diário também roda sem o agente, sem escolher alertas nem marcar `enviado`: no relatório diário fora da janela de 24 h, só para contar os avisos do modelo `resumo_diario` (`RelatorioDiarioService.enviarModelo`), e no painel do dono (`PainelService`).

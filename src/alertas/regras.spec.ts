@@ -7,6 +7,7 @@ import { LIMITES_PADRAO, mesclarLimites, type SobreposicaoDeLimites } from "./li
 import { prioridadeDe } from "./prioridade";
 import { MetricasDaExecucao, type ContextoDasRegras, type RegraDeAlerta } from "./regra";
 import {
+  REGRAS_DE_ALERTA,
   regraEspacoParaSubirPreco,
   regraEstoqueParado,
   regraGastoForaDoPadrao,
@@ -620,5 +621,19 @@ describe("limites padrão", () => {
     expect(limites.janelaSupressaoDias.estoque_parado).toBe(14);
     expect(limites.janelaSupressaoDias.reajuste_de_custo).toBeNull();
     expect(limites.janelaSupressaoDias.giro_em_alta).toBe(7);
+  });
+});
+
+describe("regras do motor (#220)", () => {
+  it("o motor roda seis regras e a de gasto fora do padrão, que continua no código, fica fora", () => {
+    expect(REGRAS_DE_ALERTA.map((r) => r.tipo)).toEqual([
+      "reajuste_de_custo",
+      "margem_abaixo_da_meta",
+      "espaco_para_subir_preco",
+      "giro_em_alta",
+      "estoque_parado",
+      "ticket_medio_em_queda",
+    ]);
+    expect(regraGastoForaDoPadrao.tipo).toBe("gasto_fora_do_padrao");
   });
 });

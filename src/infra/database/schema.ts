@@ -218,7 +218,7 @@ export const conta = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     comercianteId: comercianteId(),
     instituicao: text("instituicao").notNull(),
-    /** Identificador da conexão no agregador (Pluggy). Nunca credenciais bancárias. */
+    /** Identificador da conexão no agregador de extrato (implementação futura). Nunca credenciais bancárias. */
     conexaoId: text("conexao_id"),
     tipo: text("tipo").notNull().default("corrente"),
     status: statusConta("status").notNull().default("ativo"),
